@@ -13,7 +13,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 
-const FUNCTIONS_BASE = '/.netlify/functions';
+const FUNCTIONS_BASE = '/api';
 
 // ---------------------------------------------------------------------------
 // Utility condivise

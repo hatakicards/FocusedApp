@@ -16,7 +16,6 @@ import FocusTime from '@/pages/FocusTime';
 import Focusy from '@/pages/Focusy';
 import Profilo from '@/pages/Profilo';
 import GymTracker from '@/pages/GymTracker';
-import Statistiche from '@/pages/Statistiche';
 import RemoveAdsSuccess from '@/pages/RemoveAdsSuccess';
 import BodyFuel from '@/pages/BodyFuel';
 import Lezioni from '@/pages/Lezioni';
@@ -81,7 +80,7 @@ const AuthenticatedApp = () => {
         <Route path="/focus" element={<FocusTime />} />
         <Route path="/focusy" element={<Focusy />} />
         <Route path="/gym" element={<GymTracker />} />
-        <Route path="/statistiche" element={<Statistiche />} />
+        <Route path="/statistiche" element={<Navigate to="/obiettivi?tab=lifestats" replace />} />
         <Route path="/profilo" element={<Profilo />} />
         <Route path="/remove-ads-success" element={<RemoveAdsSuccess />} />
         <Route path="/body-fuel" element={<BodyFuel />} />

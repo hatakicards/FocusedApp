@@ -17,6 +17,8 @@ import ProfileSelector from '@/components/ProfileSelector';
 import PremiumModal from '@/components/PremiumModal';
 import TutorialDialog from '@/components/TutorialDialog';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
+import FocusTimeCard from '@/components/profile/FocusTimeCard';
+import MotivationSection from '@/components/MotivationSection';
 import { useSubscription } from '@/lib/useAppData';
 import { redeemFreeCode } from '@/lib/promoCodes';
 import {
@@ -245,6 +247,12 @@ export default function Profilo() {
         </div>
       </div>
 
+      {/* Focus Time */}
+      <FocusTimeCard />
+
+      {/* Motivazione */}
+      <MotivationSection profileType={settings?.profile_type || 'base'} />
+
       {/* Last goal */}
       {lastGoal && (
         <div className="rounded-2xl border border-border bg-card p-4 mb-6">
@@ -347,7 +355,7 @@ export default function Profilo() {
       </div>
 
       {/* Statistiche di vita */}
-      <Link to="/statistiche" className="block rounded-2xl border border-border bg-card p-4 mb-6">
+      <Link to="/obiettivi?tab=lifestats" className="block rounded-2xl border border-border bg-card p-4 mb-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold flex items-center gap-2">

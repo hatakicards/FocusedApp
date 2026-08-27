@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, Focus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useDayEntries, useInvalidateAll, useOptimisticDayEntry, useUserSettings } from '@/lib/useAppData';
@@ -12,10 +11,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import DynamicFeedback from '@/components/profile/DynamicFeedback';
 import CharacterVideo from '@/components/CharacterVideo';
 import TutorialDialog from '@/components/TutorialDialog';
-import MotivationSection from '@/components/MotivationSection';
-import FocusyAssistant from '@/components/FocusyAssistant';
 export default function Oggi() {
-  const navigate = useNavigate();
   const { data: entries } = useDayEntries();
   const { data: settings } = useUserSettings();
   const invalidate = useInvalidateAll();
@@ -74,7 +70,7 @@ export default function Oggi() {
             {/* Full-width decorative image (no hitboxes) */}
             <div className="relative w-full aspect-[3/4] pointer-events-none select-none overflow-hidden">
               <img
-                src="/images/focusedstatue.png"
+                src="/images/nuovastatua.png"
                 alt=""
                 draggable={false}
                 className="w-full h-full object-cover object-center"
@@ -172,19 +168,6 @@ export default function Oggi() {
       {showFeedback && rating > 0 && (
         <DynamicFeedback rating={rating} profileType={profileType} />
       )}
-
-      <FocusyAssistant />
-
-      <div className="mt-4">
-        <button
-          onClick={() => navigate('/focus')}
-          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold text-foreground flex items-center justify-center gap-2"
-        >
-          <Focus size={18} /> {t('oggi_focus')}
-        </button>
-      </div>
-
-      <MotivationSection profileType={profileType} />
 
       {todayEntry && !showFeedback && (
         <p className="text-center text-xs text-muted-foreground mt-4">

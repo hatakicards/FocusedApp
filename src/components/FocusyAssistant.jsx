@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, Bot, User, Loader2, Lock, CheckCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -284,10 +285,12 @@ const RESPONSE_SCHEMA = {
   required: ['reply'],
 };
 
-export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null }) {
+export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false }) {
   const t = useT();
   const qc = useQueryClient();
-  const [open, setOpen] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp !== undefined ? openProp : openState;
+  const setOpen = onOpenChange || setOpenState;
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -498,6 +501,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   return (
     <>
+      {!hideTrigger && (
       <button
         onClick={() => setOpen(true)}
         className="w-full mt-4 rounded-2xl border border-border bg-gradient-to-br from-foreground/[0.06] to-foreground/[0.02] p-4 flex items-center gap-3 hover:from-foreground/[0.1] hover:to-foreground/[0.04] transition-colors"
@@ -511,8 +515,10 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
         </div>
         <span className="text-xs font-semibold text-muted-foreground">{t('focusy_open')}</span>
       </button>
+      )}
 
-      <AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
         {open && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -643,7 +649,9 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

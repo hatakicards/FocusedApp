@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, Clock, Users as UsersIcon, Trash2, Pencil, Wallet, Target, TrendingUp, Plus } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useWorkDayLogs, useUserSettings, useInvalidateAll, useOptimisticWorkDayLog, useOptimisticEntityDelete, useOptimisticSettingsUpdate } from '@/lib/useAppData';
+import { useWorkDayLogs, useUserSettings, useInvalidateAll, useOptimisticWorkDayLog, useOptimisticEntityDelete, useOptimisticSettingsUpdate, useSubscription } from '@/lib/useAppData';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import RatingPicker from '@/components/RatingPicker';
@@ -12,6 +12,7 @@ import WorkspaceUpcoming from '@/components/WorkspaceUpcoming';
 import WorkspaceAddItem from '@/components/WorkspaceAddItem';
 import ProjectsList from '@/components/workspace/ProjectsList';
 import ProjectPlanner from '@/components/workspace/ProjectPlanner';
+import SubscriptionGate from '@/components/SubscriptionGate';
 
 const CURRENCY = '€';
 
@@ -33,6 +34,7 @@ export default function Workspace() {
   const optimisticSettingsUpdate = useOptimisticSettingsUpdate();
   const t = useT();
   const { locale } = useI18n();
+  const sub = useSubscription();
   const today = todayISO();
   const currentMonth = monthKey(today);
   const prevMonthDate = new Date();
@@ -52,8 +54,6 @@ export default function Workspace() {
   const [tab, setTab] = useState('giornata');
   const [plannerOpen, setPlannerOpen] = useState(false);
 
-  const monthlyGoal = settings?.monthly_earnings_goal || 0;
-
   useEffect(() => {
     if (todayLog) {
       setHours(todayLog.work_hours?.toString() || '');
@@ -62,6 +62,12 @@ export default function Workspace() {
       setRating(todayLog.work_rating || 0);
     }
   }, [todayLog]);
+
+  if (!sub.canUseProfiles) {
+    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Briefcase} />;
+  }
+
+  const monthlyGoal = settings?.monthly_earnings_goal || 0;
 
   const sorted = [...(logs || [])].sort((a, b) => b.date.localeCompare(a.date));
 

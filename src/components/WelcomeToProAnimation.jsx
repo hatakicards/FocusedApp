@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Crown } from 'lucide-react';
@@ -21,7 +22,7 @@ export default function WelcomeToProAnimation({ tier, onClose }) {
     };
   }, [tier, onClose]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {tier && (
         <motion.div
@@ -57,6 +58,7 @@ export default function WelcomeToProAnimation({ tier, onClose }) {
           </motion.p>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

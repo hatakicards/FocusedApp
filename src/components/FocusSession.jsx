@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Focus, X, Check, ChevronLeft } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 
@@ -143,7 +144,7 @@ export default function FocusSession() {
   }
 
   if (stage === 'pick') {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-[70] bg-background flex flex-col">
         <header className="flex items-center justify-between px-5 safe-top pb-2">
           <button onClick={handleClose} className="rounded-lg p-2 -ml-2 text-muted-foreground hover:text-foreground">
@@ -179,7 +180,8 @@ export default function FocusSession() {
             <p className="text-xs text-muted-foreground/70 text-center mt-8 max-w-xs">{t('fs_notif_off')}</p>
           )}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
@@ -188,7 +190,7 @@ export default function FocusSession() {
     const C = 2 * Math.PI * R;
     const pct = totalMs > 0 ? remaining / totalMs : 0;
     const offset = C * (1 - pct);
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-[70] bg-background flex flex-col">
         <header className="flex items-center justify-end px-5 safe-top pb-2">
           <button onClick={handleClose} className="rounded-lg p-2 -mr-2 text-muted-foreground hover:text-foreground">
@@ -221,12 +223,13 @@ export default function FocusSession() {
             {t('ftimer_termina')}
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
   // done
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[70] bg-background flex flex-col items-center justify-center px-6">
       <div className="w-20 h-20 rounded-full bg-foreground/10 flex items-center justify-center mb-6">
         <Check size={40} className="text-foreground" strokeWidth={2.5} />
@@ -238,6 +241,7 @@ export default function FocusSession() {
       <button onClick={handleClose} className="w-full max-w-xs rounded-2xl bg-foreground py-3.5 text-sm font-semibold text-background">
         {t('chiudi')}
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

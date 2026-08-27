@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles } from 'lucide-react';
 import {
@@ -236,7 +237,7 @@ export default function FocusTime() {
         </div>
       </PullToRefresh>
 
-      {quickPick && (
+      {quickPick && createPortal(
         <div
           className="fixed inset-0 z-[65] bg-background/80 backdrop-blur-sm flex items-center justify-center px-6"
           onClick={() => { setQuickPick(false); setPrefillHomework(null); }}
@@ -262,7 +263,8 @@ export default function FocusTime() {
               ))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {timer && (

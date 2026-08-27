@@ -2,7 +2,9 @@ import { useRef, useState, useEffect } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { differenceInCalendarDays } from 'date-fns';
+import { Sparkles } from 'lucide-react';
 import BottomNav from './BottomNav';
+import FocusyAssistant from './FocusyAssistant';
 import Sidebar from './Sidebar';
 import OnboardingReminder from './OnboardingReminder';
 import PromotionModal from './PromotionModal';
@@ -24,6 +26,7 @@ export default function AppLayout() {
   const { data: lifeStats, isLoading: statsLoading } = useLifeStats();
   const [statsFlow, setStatsFlow] = useState(null);
   const [promoExpired, setPromoExpired] = useState(false);
+  const [focusyOpen, setFocusyOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const outlet = useOutlet();
@@ -124,11 +127,7 @@ export default function AppLayout() {
         className="fixed inset-0 pointer-events-none z-0"
         style={{ background: PROFILE_GRADIENTS[settings?.profile_type || 'base'] }}
       />
-      {/* z-50: deve superare BottomNav/Sidebar (z-40) — altrimenti il loro
-          stacking context intrappola i modal a tutto schermo montati dentro
-          le pagine (FocusyAssistant, PremiumModal, ecc.) sotto la nav fissa,
-          indipendentemente dal loro z-index interno anche piu' alto. */}
-      <main className="relative z-50 mx-auto max-w-lg md:max-w-4xl min-h-screen overflow-x-hidden pb-36 md:pb-10 md:px-8">
+      <main className="relative z-10 mx-auto max-w-lg md:max-w-4xl min-h-screen overflow-x-hidden pb-36 md:pb-10 md:px-8">
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 6 }}
@@ -139,6 +138,14 @@ export default function AppLayout() {
         </motion.div>
       </main>
       <BottomNav />
+      <button
+        onClick={() => setFocusyOpen(true)}
+        aria-label="Focusy"
+        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg active:scale-95 transition-transform md:hidden"
+      >
+        <Sparkles size={18} />
+      </button>
+      <FocusyAssistant hideTrigger open={focusyOpen} onOpenChange={setFocusyOpen} />
       <PromotionModal promotion={promotion} onDismiss={dismissPromotion} />
       {statsFlow === 'baseline' && (
         <StatsSetupModal onClose={() => { statsDismissed.current = true; setStatsFlow(null); }} />

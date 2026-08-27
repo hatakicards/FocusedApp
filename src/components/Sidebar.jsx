@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, BarChart3, Target, User, ListTodo, Flame, GraduationCap, Briefcase, Lock, Megaphone, Lightbulb, Gift, Activity, Sparkles, Timer, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, BarChart3, Target, User, ListTodo, Flame, GraduationCap, Briefcase, Lock, Megaphone, Lightbulb, Gift, Sparkles, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { useUserSettings, useSubscription } from '@/lib/useAppData';
@@ -25,22 +25,21 @@ export default function Sidebar() {
   const { user } = useAuth();
   const profileType = settings?.profile_type || 'base';
   const profileTab = PROFILE_TABS[profileType];
+  const personalTab = profileTab || { to: '/body-fuel', icon: Flame };
 
   const tabs = [
     { to: '/home', key: 'oggi', icon: CheckCircle2, end: true },
     { to: '/abitudini', key: 'abitudini', icon: BarChart3, end: false },
     { to: '/agenda', key: 'agenda', icon: ListTodo, end: false },
-    { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false },
+    { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false, locked: !sub.canUseRankings },
     { to: '/focusy', key: 'focusy', icon: Sparkles, end: false },
-    { to: '/focus', key: 'focus_time', icon: Timer, end: false },
-    ...(profileTab ? [{ ...profileTab, end: false }] : []),
+    { to: personalTab.to, key: 'personal', icon: personalTab.icon, end: false, locked: !sub.canUseProfiles },
   ];
 
   const extraTabs = [
     { to: '/work-with-us', key: 'work_with_us', icon: Megaphone, end: false },
     { to: '/dream', key: 'dream', icon: Lightbulb, end: false },
     { to: '/invita', key: 'credits', icon: Gift, end: false },
-    { to: '/statistiche', key: 'lifestats', icon: Activity, end: false },
   ];
 
   const adminTabs = user?.role === 'admin' ? [
@@ -48,10 +47,10 @@ export default function Sidebar() {
     { to: '/admin/promo-report', key: 'admin_promo', icon: Gift, end: false, label: 'Promo Report' },
   ] : [];
 
-  const renderTab = ({ to, key, icon: Icon, end, label }) => {
+  const renderTab = ({ to, key, icon: Icon, end, label, locked }) => {
     const tab = { to, end };
     const isActive = isTabActive(pathname, tab);
-    const isLocked = to === '/obiettivi' && !sub.canUseRankings;
+    const isLocked = !!locked;
     return (
       <button
         key={to}

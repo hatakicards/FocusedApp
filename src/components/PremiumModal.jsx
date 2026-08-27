@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Crown, Star, Ban } from 'lucide-react';
 import { useT } from '@/lib/i18n';
@@ -119,7 +120,7 @@ export default function PremiumModal({ open, onClose }) {
     );
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -259,6 +260,7 @@ export default function PremiumModal({ open, onClose }) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

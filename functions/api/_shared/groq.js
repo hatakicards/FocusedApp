@@ -1,7 +1,6 @@
 // Client per Groq (piano gratuito, nessuna carta richiesta) — API compatibile
 // OpenAI. Usato sia da invoke-llm.js (Focusy, inferenza stile di vita,
 // project planner) sia da routine-optimizer.js.
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // I modelli gpt-oss su Groq occasionalmente falliscono la tool_call forzata
@@ -23,8 +22,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function callGroqOnce({ apiKey, messages, responseJsonSchema, maxOutputTokens, reasoningEffort }) {
-  const payload = { model: GROQ_MODEL, max_tokens: maxOutputTokens, reasoning_effort: reasoningEffort, messages };
+async function callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOutputTokens, reasoningEffort }) {
+  const payload = { model, max_tokens: maxOutputTokens, reasoning_effort: reasoningEffort, messages };
 
   if (responseJsonSchema) {
     payload.tools = [
@@ -106,9 +105,10 @@ async function callGroqOnce({ apiKey, messages, responseJsonSchema, maxOutputTok
 // quindi un default piu' basso di 2048 lascia lo stesso margine ma libera
 // molto piu' budget per messaggio (visto in produzione: richieste da ~3900
 // token su un tetto di 8000/minuto, sufficienti per solo 2 messaggi).
-export async function callGroq({ prompt, systemPrompt, responseJsonSchema, maxOutputTokens = 900 }) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return { ok: false, status: 500, errText: 'GROQ_API_KEY non configurata su Netlify' };
+export async function callGroq({ env, prompt, systemPrompt, responseJsonSchema, maxOutputTokens = 900 }) {
+  const apiKey = env.GROQ_API_KEY;
+  if (!apiKey) return { ok: false, status: 500, errText: 'GROQ_API_KEY non configurata su Cloudflare Pages' };
+  const model = env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
   const messages = [];
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -118,12 +118,12 @@ export async function callGroq({ prompt, systemPrompt, responseJsonSchema, maxOu
 
   let result;
   for (const reasoningEffort of attempts) {
-    result = await callGroqOnce({ apiKey, messages, responseJsonSchema, maxOutputTokens, reasoningEffort });
+    result = await callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOutputTokens, reasoningEffort });
     if (result.ok) return result;
 
     if (result.status === 429) {
       await sleep(RATE_LIMIT_RETRY_WAIT_MS);
-      const retryResult = await callGroqOnce({ apiKey, messages, responseJsonSchema, maxOutputTokens, reasoningEffort });
+      const retryResult = await callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOutputTokens, reasoningEffort });
       return retryResult.ok
         ? retryResult
         : { ok: false, status: 429, errText: 'Troppe richieste in questo momento, riprova tra qualche secondo.' };

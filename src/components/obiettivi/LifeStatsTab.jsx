@@ -1,29 +1,19 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3 } from 'lucide-react';
-import { useLifeStats, useUserSettings, useSubscription, useOptimisticLifeStatSave } from '@/lib/useAppData';
-import SubscriptionGate from '@/components/SubscriptionGate';
+import { useLifeStats, useUserSettings, useOptimisticLifeStatSave } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { getLifeStatsForProfile, defaultScores } from '@/lib/statsConfig';
 import StatSliders from '@/components/stats/StatSliders';
 import StatRadarChart from '@/components/stats/StatRadarChart';
-import TutorialDialog from '@/components/TutorialDialog';
 
-export default function Statistiche() {
+export default function LifeStatsTab() {
   const { data: lifeStats, isLoading } = useLifeStats();
   const { data: settings } = useUserSettings();
-  const navigate = useNavigate();
   const t = useT();
-  const sub = useSubscription();
   const optimisticLifeStatSave = useOptimisticLifeStatSave();
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState(defaultScores());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  if (!sub.canUseLifeStats) {
-    return <SubscriptionGate title={t('stat_titolo')} description={t('gate_stats_desc')} icon={BarChart3} />;
-  }
 
   const profileType = settings?.profile_type || 'base';
   const stats = getLifeStatsForProfile(profileType);
@@ -62,28 +52,16 @@ export default function Statistiche() {
     }
   };
 
-  // No life stats at all → show baseline setup directly
   if (!hasAnyStats && !editing) {
     return (
-      <div className="px-5 safe-top pb-4">
-        <header className="mb-4 flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="rounded-lg p-2 -ml-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft size={22} />
-          </button>
-          <h1 className="text-2xl font-bold tracking-tight">{t('stat_titolo')}</h1>
-        </header>
-        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <h2 className="text-sm font-semibold mb-1">{t('ss_titolo')}</h2>
-          <p className="text-xs text-muted-foreground mb-4">{t('ss_desc')}</p>
-          <StatSliders values={values} onChange={setValues} profileType={profileType} />
-        </div>
+      <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+        <h2 className="text-sm font-semibold mb-1">{t('ss_titolo')}</h2>
+        <p className="text-xs text-muted-foreground mb-4">{t('ss_desc')}</p>
+        <StatSliders values={values} onChange={setValues} profileType={profileType} />
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full rounded-xl bg-foreground py-3.5 text-sm font-semibold text-background disabled:opacity-40"
+          className="w-full mt-4 rounded-xl bg-foreground py-3.5 text-sm font-semibold text-background disabled:opacity-40"
         >
           {saving ? t('salvataggio') : t('ss_inizia')}
         </button>
@@ -93,35 +71,14 @@ export default function Statistiche() {
 
   if (isLoading && !hasAnyStats) {
     return (
-      <div className="px-5 safe-top pb-4">
-        <header className="mb-4 flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="rounded-lg p-2 -ml-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft size={22} />
-          </button>
-          <h1 className="text-2xl font-bold tracking-tight">{t('stat_titolo')}</h1>
-        </header>
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-2 border-muted border-t-foreground rounded-full animate-spin" />
-        </div>
+      <div className="flex items-center justify-center py-16">
+        <div className="w-8 h-8 border-2 border-muted border-t-foreground rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="px-5 safe-top pb-4">
-      <header className="mb-6 flex items-center gap-2">
-        <button
-          onClick={() => navigate(-1)}
-          className="rounded-lg p-2 -ml-2 text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft size={22} />
-        </button>
-        <h1 className="text-2xl font-bold tracking-tight">{t('stat_titolo')}</h1>
-      </header>
-
+    <div>
       {!editing && (
         <>
           <div className="rounded-2xl border border-border bg-card p-4 mb-6">
@@ -206,7 +163,6 @@ export default function Statistiche() {
           </div>
         </div>
       )}
-      <TutorialDialog pageId="statistiche" />
     </div>
   );
 }

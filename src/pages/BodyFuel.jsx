@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Flame, Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete } from '@/lib/useAppData';
+import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete, useSubscription } from '@/lib/useAppData';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -11,6 +11,7 @@ import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
 import TutorialDialog from '@/components/TutorialDialog';
+import SubscriptionGate from '@/components/SubscriptionGate';
 
 function calculateSleepDuration(bedtime, wakeTime) {
   if (!bedtime || !wakeTime) return { hours: 0, minutes: 0 };
@@ -36,6 +37,7 @@ export default function BodyFuel() {
   const optimisticDeleteEntry = useOptimisticEntityDelete('BodyFuelEntry', 'bodyFuelEntries');
   const t = useT();
   const { locale } = useI18n();
+  const sub = useSubscription();
   const today = todayISO();
 
   const todayEntry = (entries || []).find((e) => e.date === today);
@@ -63,6 +65,10 @@ export default function BodyFuel() {
       setHeight(todayEntry.height?.toString() || '');
     }
   }, [todayEntry]);
+
+  if (!sub.canUseProfiles) {
+    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Flame} />;
+  }
 
   const totals = computeFoodLogTotals(foodLog, customFoods);
   const sleepRating = computeSleepRating(sleepHours, sleepMinutes);

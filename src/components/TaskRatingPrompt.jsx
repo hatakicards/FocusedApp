@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import RatingPicker from '@/components/RatingPicker';
 import { useT } from '@/lib/i18n';
@@ -9,7 +10,7 @@ export default function TaskRatingPrompt({ task, onClose, onRate }) {
   const [earnings, setEarnings] = useState('');
   if (!task) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[80] bg-background/80 backdrop-blur-sm flex items-end sm:items-center justify-center">
       <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-card border border-border p-6">
         <div className="flex items-center justify-between mb-4">
@@ -51,6 +52,7 @@ export default function TaskRatingPrompt({ task, onClose, onRate }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

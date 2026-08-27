@@ -1,0 +1,6 @@
+# React Router gestisce le rotte lato client: qualunque percorso non
+# corrisponda a un file reale (o a una function in /api/*) deve servire
+# index.html, altrimenti ricaricando la pagina su es. /profilo si ottiene
+# un 404 invece dell'app. Le richieste a file statici e alle Pages
+# Functions hanno sempre priorita' su questo redirect.
+/*  /index.html  200

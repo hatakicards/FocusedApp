@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Pencil, Calendar, Monitor, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Pencil, Calendar, Monitor, BookOpen, GraduationCap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useLessonGrades, useVerifiche, useInvalidateAll, useUserSettings, useTasks, useSubjects, useOptimisticLessonGradeSave, useOptimisticLessonGradeDelete, useOptimisticVerificaSave, useOptimisticVerificaUpdate, useOptimisticVerificaDelete } from '@/lib/useAppData';
+import { useLessonGrades, useVerifiche, useInvalidateAll, useUserSettings, useTasks, useSubjects, useOptimisticLessonGradeSave, useOptimisticLessonGradeDelete, useOptimisticVerificaSave, useOptimisticVerificaUpdate, useOptimisticVerificaDelete, useSubscription } from '@/lib/useAppData';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import { GRADE_SYSTEMS, formatGrade, normalizeGrade } from '@/lib/grades';
@@ -19,6 +19,7 @@ import GradeGoals from '@/components/lezioni/GradeGoals';
 import StudyOrganizer from '@/components/lezioni/StudyOrganizer';
 import { GradeInput, resolveGrade } from '@/components/lezioni/GradeInput';
 import FocusyAssistant from '@/components/FocusyAssistant';
+import SubscriptionGate from '@/components/SubscriptionGate';
 
 export default function Lezioni() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export default function Lezioni() {
   const optimisticVerificaDelete = useOptimisticVerificaDelete();
   const t = useT();
   const { locale } = useI18n();
+  const sub = useSubscription();
   const today = todayISO();
 
   const [tab, setTab] = useState('voti');
@@ -52,6 +54,10 @@ export default function Lezioni() {
   const [vSystem, setVSystem] = useState('scale10');
   const [materieOpen, setMaterieOpen] = useState(false);
   const [askFocusy, setAskFocusy] = useState(false);
+
+  if (!sub.canUseProfiles) {
+    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={GraduationCap} />;
+  }
 
   const allGrades = grades || [];
   const allVerifiche = verifiche || [];

@@ -25,13 +25,14 @@ export default function BottomNav() {
   const profileType = settings?.profile_type || 'base';
 
   const profileTab = PROFILE_TABS[profileType];
+  const personalTab = profileTab || { to: '/body-fuel', icon: Flame };
 
   const tabs = [
     { to: '/home', key: 'oggi', icon: CheckCircle2, end: true },
     { to: '/abitudini', key: 'abitudini', icon: BarChart3, end: false },
     { to: '/agenda', key: 'agenda', icon: ListTodo, end: false },
-    { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false },
-    ...(profileTab ? [{ ...profileTab, end: false }] : []),
+    { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false, locked: !sub.canUseRankings },
+    { to: personalTab.to, key: 'personal', icon: personalTab.icon, end: false, locked: !sub.canUseProfiles },
     { to: '/profilo', key: 'profilo', icon: User, end: false },
   ];
 
@@ -60,10 +61,10 @@ export default function BottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
       {!sub.adsRemoved && <AdBanner />}
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))]">
-        {tabs.map(({ to, key, icon: Icon, end }) => {
+        {tabs.map(({ to, key, icon: Icon, end, locked }) => {
           const tab = { to, end };
           const isActive = isTabActive(pathname, tab);
-          const isLocked = to === '/obiettivi' && !sub.canUseRankings;
+          const isLocked = !!locked;
           return (
             <button
               key={to}

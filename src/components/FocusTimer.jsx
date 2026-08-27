@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Play, Check } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 
@@ -95,7 +96,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, onComplet
   const openSpotify = () => { if (spotifyUrl) window.open(spotifyUrl, '_blank'); };
 
   if (done) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-[70] bg-background flex flex-col items-center justify-center px-6">
         <div className="w-20 h-20 rounded-full bg-foreground/10 flex items-center justify-center mb-6">
           <Check size={40} strokeWidth={2.5} />
@@ -110,11 +111,12 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, onComplet
         >
           {t('chiudi')}
         </button>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[70] bg-background flex flex-col">
       <header className="flex items-center justify-between px-5 safe-top pb-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('oggi_focus')}</span>
@@ -149,6 +151,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, onComplet
           {t('ftimer_termina')}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
