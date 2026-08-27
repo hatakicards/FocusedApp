@@ -3,7 +3,7 @@ workflows:
     name: Android - Debug APK (test su telefono, nessuna firma richiesta)
     max_build_duration: 30
     environment:
-      node: 20
+      node: 22
     scripts:
       - name: Installa dipendenze npm
         script: npm ci
@@ -33,7 +33,7 @@ workflows:
     name: iOS - Build per Simulatore (nessuna firma, solo verifica build)
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
     scripts:
