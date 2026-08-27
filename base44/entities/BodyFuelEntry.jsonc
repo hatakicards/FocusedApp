@@ -1,0 +1,147 @@
+{
+  "name": "BodyFuelEntry",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data"
+    },
+    "calories_consumed": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Calorie consumate"
+    },
+    "calories_goal": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Obiettivo calorie"
+    },
+    "protein_consumed": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Proteine consumate (g)"
+    },
+    "carbs_consumed": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Carboidrati consumati (g)"
+    },
+    "lipids_consumed": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Lipidi consumati (g)"
+    },
+    "food_log": {
+      "type": "array",
+      "title": "Alimenti consumati",
+      "items": {
+        "type": "object",
+        "properties": {
+          "food_id": {
+            "type": "string",
+            "title": "ID alimento"
+          },
+          "grams": {
+            "type": "number",
+            "title": "Grammi"
+          }
+        }
+      },
+      "default": []
+    },
+    "weight": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Peso (kg)"
+    },
+    "height": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Altezza (cm)"
+    },
+    "sleep_bedtime": {
+      "type": "string",
+      "title": "Orario addormentamento"
+    },
+    "sleep_wake_time": {
+      "type": "string",
+      "title": "Orario sveglia"
+    },
+    "sleep_hours": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 24,
+      "title": "Ore di sonno"
+    },
+    "sleep_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 59,
+      "title": "Minuti di sonno"
+    },
+    "sleep_quality": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "title": "Voto sonno (1-5)"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Note"
+    }
+  },
+  "required": [
+    "date"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

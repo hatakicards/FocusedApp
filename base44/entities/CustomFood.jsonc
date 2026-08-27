@@ -1,0 +1,92 @@
+{
+  "name": "CustomFood",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome"
+    },
+    "kcal": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Calorie per 100g"
+    },
+    "protein": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Proteine per 100g"
+    },
+    "carbs": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Carboidrati per 100g"
+    },
+    "lipids": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Lipidi per 100g"
+    }
+  },
+  "required": [
+    "name",
+    "kcal",
+    "protein",
+    "carbs",
+    "lipids"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

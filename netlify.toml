@@ -1,0 +1,20 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  node_bundler = "esbuild"
+
+# React Router gestisce le rotte lato client: qualunque percorso non
+# corrisponda a un file reale (o a una function) deve servire index.html,
+# altrimenti ricaricando la pagina su es. /profilo si ottiene un 404 da
+# Netlify invece che l'app. Le richieste a /.netlify/functions/* e ai file
+# statici hanno sempre priorita' su questo redirect: non serve escluderle.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

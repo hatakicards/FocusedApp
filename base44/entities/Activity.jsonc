@@ -1,0 +1,127 @@
+{
+  "name": "Activity",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome",
+      "description": "Nome dell'attivita"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "fitness",
+        "mente",
+        "apprendimento",
+        "sport",
+        "work",
+        "studies",
+        "lifestyle",
+        "custom"
+      ],
+      "title": "Categoria",
+      "default": "fitness"
+    },
+    "custom_category_name": {
+      "type": "string",
+      "title": "Nome categoria personalizzata"
+    },
+    "emoji": {
+      "type": "string",
+      "title": "Emoji",
+      "description": "Emoji associata all'attivita"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false,
+      "title": "Archiviata"
+    },
+    "is_gym": {
+      "type": "boolean",
+      "default": false,
+      "title": "Attivita Gym"
+    },
+    "preset_type": {
+      "type": "string",
+      "enum": [
+        "gym",
+        "phone_time",
+        "reading",
+        "quit_smoking"
+      ],
+      "title": "Tipo attivita pre-impostata"
+    },
+    "source": {
+      "type": "string",
+      "title": "Origine",
+      "default": "manual"
+    },
+    "google_event_id": {
+      "type": "string",
+      "title": "ID evento Google Calendar"
+    },
+    "google_recurring_event_id": {
+      "type": "string",
+      "title": "ID evento ricorrente Google Calendar"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

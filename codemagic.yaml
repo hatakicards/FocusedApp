@@ -1,0 +1,64 @@
+workflows:
+  android-debug:
+    name: Android - Debug APK (test su telefono, nessuna firma richiesta)
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      node: 20
+    scripts:
+      - name: Installa dipendenze npm
+        script: npm ci
+      - name: Build del sito (dist/)
+        script: npm run build
+      - name: Sincronizza Capacitor -> Android
+        script: npx cap sync android
+      - name: Build APK debug
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - danimandurinz2010@gmail.com
+
+  # iOS: una build reale su dispositivo fisico richiede un account Apple
+  # Developer Program ($99/anno) e certificati/provisioning profile — non
+  # ancora configurati. Per ora questa workflow builda solo per il
+  # Simulatore iOS (nessuna firma necessaria), utile per verificare che il
+  # progetto compili correttamente. Va aggiornata con la firma automatica di
+  # Codemagic (App Store Connect API key) appena sono disponibili le
+  # credenziali Apple.
+  ios-simulator:
+    name: iOS - Build per Simulatore (nessuna firma, solo verifica build)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Installa dipendenze npm
+        script: npm ci
+      - name: Build del sito (dist/)
+        script: npm run build
+      - name: Sincronizza Capacitor -> iOS
+        script: npx cap sync ios
+      - name: Installa dipendenze CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Build per Simulatore iOS
+        script: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build
+    artifacts:
+      - build/Build/Products/**/*.app
+    publishing:
+      email:
+        recipients:
+          - danimandurinz2010@gmail.com

@@ -1,0 +1,158 @@
+{
+  "name": "TaskItem",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Titolo"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "project",
+        "weekly",
+        "one_time",
+        "meeting",
+        "deadline"
+      ],
+      "title": "Tipo",
+      "default": "todo"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Note"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Scadenza"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Scadenza progetto"
+    },
+    "recurrence_per_week": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 7,
+      "title": "Volte a settimana"
+    },
+    "weekdays": {
+      "type": "array",
+      "title": "Giorni",
+      "items": {
+        "type": "string",
+        "enum": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "linked_activity_id": {
+      "type": "string",
+      "title": "Attivita collegata"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "done",
+        "archived"
+      ],
+      "default": "active",
+      "title": "Stato"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data completamento"
+    },
+    "archived_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data archiviazione"
+    },
+    "rating": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "title": "Voto completamento"
+    },
+    "earnings": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Guadagno effettivo"
+    },
+    "expected_earnings": {
+      "type": "number",
+      "minimum": 0,
+      "title": "Guadagno previsto"
+    },
+    "repeatable": {
+      "type": "boolean",
+      "default": false,
+      "title": "Ripetibile in futuro"
+    }
+  },
+  "required": [
+    "title",
+    "type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

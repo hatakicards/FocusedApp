@@ -1,0 +1,246 @@
+{
+  "name": "UserSettings",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "reminder_time": {
+      "type": "string",
+      "title": "Orario promemoria",
+      "default": "21:00"
+    },
+    "reminder_enabled": {
+      "type": "boolean",
+      "default": true,
+      "title": "Promemoria attivo"
+    },
+    "onboarded": {
+      "type": "boolean",
+      "default": false,
+      "title": "Onboarding completato"
+    },
+    "ads_removed": {
+      "type": "boolean",
+      "default": false,
+      "title": "Annunci rimossi"
+    },
+    "gym_enabled": {
+      "type": "boolean",
+      "default": false,
+      "title": "Gym attivo"
+    },
+    "profile_type": {
+      "type": "string",
+      "enum": [
+        "base",
+        "atleta",
+        "studente",
+        "professionista"
+      ],
+      "title": "Profilo utente",
+      "default": "base"
+    },
+    "daily_calories_goal": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo calorico giornaliero"
+    },
+    "protein_goal": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo proteine giornaliere (g)"
+    },
+    "carbs_goal": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo carboidrati giornalieri (g)"
+    },
+    "lipids_goal": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo lipidi giornalieri (g)"
+    },
+    "biological_sex": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female"
+      ],
+      "title": "Sesso biologico"
+    },
+    "lifestyle_level": {
+      "type": "string",
+      "enum": [
+        "sedentary",
+        "light",
+        "moderate",
+        "active",
+        "athlete"
+      ],
+      "title": "Livello di attivit\u00e0"
+    },
+    "fitness_goal": {
+      "type": "string",
+      "enum": [
+        "lose",
+        "gain",
+        "maintain",
+        "personalized"
+      ],
+      "title": "Obiettivo fitness"
+    },
+    "goal_intensity": {
+      "type": "string",
+      "enum": [
+        "light",
+        "intense",
+        "drastic"
+      ],
+      "title": "Intensit\u00e0 obiettivo"
+    },
+    "monthly_earnings_goal": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo guadagno mensile"
+    },
+    "last_ranks": {
+      "type": "object",
+      "title": "Ultimi rank per categoria",
+      "properties": {},
+      "additionalProperties": true
+    },
+    "subscription_tier": {
+      "type": "string",
+      "enum": [
+        "free",
+        "pro",
+        "premium"
+      ],
+      "title": "Abbonamento",
+      "default": "free"
+    },
+    "stripe_subscription_id": {
+      "type": "string",
+      "title": "ID abbonamento Stripe"
+    },
+    "trial_start": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Inizio prova"
+    },
+    "promo_until": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Promo attivo fino al"
+    },
+    "grade_thresholds": {
+      "type": "object",
+      "title": "Soglie voti per materia",
+      "properties": {},
+      "additionalProperties": true,
+      "default": {}
+    },
+    "referral_code": {
+      "type": "string",
+      "title": "Codice referral"
+    },
+    "credits": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "title": "Crediti referral"
+    },
+    "referral_premium_months": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "title": "Mesi premium da referral"
+    },
+    "phone_average_daily": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Media giornaliera telefono (ore)"
+    },
+    "phone_reduction_goal": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo riduzione telefono (ore)"
+    },
+    "reading_daily_goal": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "title": "Obiettivo pagine al giorno"
+    },
+    "birth_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data di nascita"
+    },
+    "dream": {
+      "type": "string",
+      "title": "Sogno dell'utente"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

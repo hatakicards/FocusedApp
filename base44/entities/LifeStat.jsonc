@@ -1,0 +1,115 @@
+{
+  "name": "LifeStat",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data"
+    },
+    "forza": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Forza"
+    },
+    "intelligenza": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Intelligenza"
+    },
+    "disciplina": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Disciplina"
+    },
+    "relazioni": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Relazioni"
+    },
+    "autostima": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Autostima"
+    },
+    "prestazione_atletica": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "title": "Prestazione atletica"
+    },
+    "is_baseline": {
+      "type": "boolean",
+      "default": false,
+      "title": "Baseline"
+    }
+  },
+  "required": [
+    "date",
+    "forza",
+    "intelligenza",
+    "disciplina",
+    "relazioni",
+    "autostima"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "PromoCodeUsage",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "code": {
+      "type": "string",
+      "title": "Codice promozionale"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Email utente"
+    },
+    "user_name": {
+      "type": "string",
+      "title": "Nome utente"
+    },
+    "reward_type": {
+      "type": "string",
+      "enum": [
+        "promo_month",
+        "lifetime_premium"
+      ],
+      "title": "Tipo ricompensa"
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

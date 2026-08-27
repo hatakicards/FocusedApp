@@ -1,0 +1,116 @@
+{
+  "name": "Goal",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "activity_id": {
+      "type": "string",
+      "title": "ID Attivit\u00e0"
+    },
+    "title": {
+      "type": "string",
+      "title": "Titolo"
+    },
+    "timeframe": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "annual",
+        "lifetime"
+      ],
+      "title": "Frequenza",
+      "default": "daily"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "title": "Difficolt\u00e0",
+      "default": "easy"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "title": "Completato"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data completamento"
+    },
+    "completed_periods": {
+      "type": "array",
+      "title": "Periodi completati",
+      "description": "Chiavi dei periodi completati (giorno / luned\u00ec / mese / anno) per obiettivi ricorrenti",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "activity_id",
+    "title",
+    "timeframe",
+    "difficulty"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

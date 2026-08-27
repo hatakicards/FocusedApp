@@ -1,0 +1,75 @@
+{
+  "name": "DreamFunctionality",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Titolo"
+    },
+    "description": {
+      "type": "string",
+      "title": "Descrizione"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "implemented",
+        "rejected"
+      ],
+      "default": "pending",
+      "title": "Stato"
+    },
+    "credits_awarded": {
+      "type": "boolean",
+      "default": false,
+      "title": "Crediti assegnati"
+    },
+    "liked_by": {
+      "type": "array",
+      "title": "Voti positivi (ID utenti)",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "disliked_by": {
+      "type": "array",
+      "title": "Voti negativi (ID utenti)",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "title",
+    "description"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

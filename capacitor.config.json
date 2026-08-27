@@ -1,0 +1,22 @@
+{
+  "appId": "org.focusedapp.app",
+  "appName": "Focused",
+  "webDir": "dist",
+  "server": {
+    "url": "https://focusedapp.org",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#000000"
+  },
+  "ios": {
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#000000"
+    }
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "name": "Book",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "title": "Descrizione",
+      "maxLength": 1000
+    },
+    "title": {
+      "type": "string",
+      "title": "Titolo"
+    },
+    "cover_url": {
+      "type": "string",
+      "title": "Copertina"
+    },
+    "total_pages": {
+      "type": "integer",
+      "minimum": 1,
+      "title": "Pagine totali"
+    },
+    "target_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data fine"
+    },
+    "current_page": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "title": "Pagina attuale"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "reading",
+        "completed",
+        "paused"
+      ],
+      "default": "reading",
+      "title": "Stato"
+    }
+  },
+  "required": [
+    "title",
+    "total_pages"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "name": "ForumPost",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Titolo"
+    },
+    "content": {
+      "type": "string",
+      "title": "Contenuto"
+    },
+    "post_type": {
+      "type": "string",
+      "enum": [
+        "notes",
+        "explanation",
+        "question"
+      ],
+      "default": "notes",
+      "title": "Tipo post"
+    },
+    "images": {
+      "type": "array",
+      "title": "Immagini",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "anonymous": {
+      "type": "boolean",
+      "default": false,
+      "title": "Anonimo"
+    },
+    "school_system": {
+      "type": "string",
+      "title": "Sistema scolastico"
+    },
+    "school_year": {
+      "type": "string",
+      "title": "Anno scolastico"
+    },
+    "author_name": {
+      "type": "string",
+      "title": "Nome autore"
+    }
+  },
+  "required": [
+    "content",
+    "post_type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
