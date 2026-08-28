@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, ExternalLink, Trash2, Plus } from 'lucide-react';
+import { Briefcase, ExternalLink, Trash2, Plus, Sparkles } from 'lucide-react';
 import { useProjects, useGoals, useOptimisticProjectUpdate, useOptimisticProjectDelete } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import BottomSelect from '@/components/BottomSelect';
+import ProjectWorkChat from './ProjectWorkChat';
 
 const STATUS_STYLES = {
   planning: 'bg-muted text-muted-foreground',
@@ -18,6 +20,7 @@ export default function ProjectsList({ onNewProject }) {
   const { data: goals } = useGoals();
   const optimisticUpdate = useOptimisticProjectUpdate();
   const optimisticDelete = useOptimisticProjectDelete();
+  const [workProject, setWorkProject] = useState(null);
 
   const all = [...(projects || [])].sort((a, b) => (b.created_date || '').localeCompare(a.created_date || ''));
 
@@ -95,9 +98,17 @@ export default function ProjectsList({ onNewProject }) {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setWorkProject(p)}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 px-3 py-2.5 text-xs font-semibold mt-2 transition-colors"
+            >
+              <Sparkles size={13} /> {t('ws_project_work_on_it')}
+            </button>
           </div>
         );
       })}
+
+      <ProjectWorkChat project={workProject} open={!!workProject} onClose={() => setWorkProject(null)} />
 
       <button
         onClick={onNewProject}
