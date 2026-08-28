@@ -13,6 +13,8 @@ import WeeklyReviewModal from './stats/WeeklyReviewModal';
 import MilestoneChecker from './MilestoneChecker';
 import FullScreenAd from './FullScreenAd';
 import PromoExpiredModal from './PromoExpiredModal';
+import TrialWelcomeModal from './TrialWelcomeModal';
+import TrialExpiredModal from './TrialExpiredModal';
 import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate } from '@/lib/useAppData';
 import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
@@ -26,6 +28,8 @@ export default function AppLayout() {
   const { data: lifeStats, isLoading: statsLoading } = useLifeStats();
   const [statsFlow, setStatsFlow] = useState(null);
   const [promoExpired, setPromoExpired] = useState(false);
+  const [trialWelcome, setTrialWelcome] = useState(false);
+  const [trialExpiredModal, setTrialExpiredModal] = useState(false);
   const [focusyOpen, setFocusyOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -53,6 +57,35 @@ export default function AppLayout() {
     localStorage.setItem(ackKey, '1');
     setPromoExpired(true);
   }, [settings?.promo_until]);
+
+  // Messaggio "PROVA PREMIUM GRATUITA" mostrato una sola volta, prima di
+  // qualunque tutorial di pagina (vedi TutorialDialog.jsx, che aspetta il
+  // flag 'trial_welcome_seen' prima di aprirsi).
+  useEffect(() => {
+    if (!settings?.trial_start) return;
+    if (localStorage.getItem('trial_welcome_seen')) return;
+    setTrialWelcome(true);
+  }, [settings?.trial_start]);
+
+  const closeTrialWelcome = () => {
+    try {
+      localStorage.setItem('trial_welcome_seen', '1');
+      window.dispatchEvent(new Event('trial-welcome-dismissed'));
+    } catch (e) { /* ignore */ }
+    setTrialWelcome(false);
+  };
+  // Nota: TutorialDialog.jsx interroga direttamente settings?.trial_start +
+  // il flag 'trial_welcome_seen' per decidere se aspettare — nessun altro
+  // stato da coordinare qui oltre a questi due.
+
+  // Prompt one-time a fine prova gratuita di 7 giorni, con sconto 40%.
+  useEffect(() => {
+    if (!sub.trialExpired || sub.isPremium) return;
+    const ackKey = 'trial_expired_ack_' + settings?.trial_start;
+    if (localStorage.getItem(ackKey)) return;
+    localStorage.setItem(ackKey, '1');
+    setTrialExpiredModal(true);
+  }, [sub.trialExpired, sub.isPremium, settings?.trial_start]);
 
   // Process referral code from localStorage after auth
   useEffect(() => {
@@ -157,6 +190,8 @@ export default function AppLayout() {
       <MorningCheckIn />
       <FullScreenAd enabled={!sub.adsRemoved} onCTA={() => navigate('/work-with-us')} />
       <PromoExpiredModal open={promoExpired} onClose={() => setPromoExpired(false)} />
+      <TrialWelcomeModal open={trialWelcome} onClose={closeTrialWelcome} />
+      <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />
     </div>
   );
 }

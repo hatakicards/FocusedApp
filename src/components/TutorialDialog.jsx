@@ -6,11 +6,13 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { TUTORIALS } from '@/lib/tutorials';
 import { cn } from '@/lib/utils';
+import { useUserSettings } from '@/lib/useAppData';
 
 const STORAGE_PREFIX = 'tutorial_seen_';
 
 export default function TutorialDialog({ pageId }) {
   const t = useT();
+  const { data: settings } = useUserSettings();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -18,11 +20,20 @@ export default function TutorialDialog({ pageId }) {
 
   useEffect(() => {
     if (!tutorial) return;
-    try {
-      const seen = localStorage.getItem(STORAGE_PREFIX + pageId);
-      if (!seen) setOpen(true);
-    } catch (e) { /* ignore */ }
-  }, [pageId, tutorial]);
+    const check = () => {
+      try {
+        const seen = localStorage.getItem(STORAGE_PREFIX + pageId);
+        // Il messaggio "PROVA PREMIUM GRATUITA" (AppLayout.jsx) deve sempre
+        // apparire prima del primo tutorial — se l'utente ha una prova
+        // gratuita in corso e non l'ha ancora chiuso, aspettiamo.
+        const waitingForTrialWelcome = settings?.trial_start && !localStorage.getItem('trial_welcome_seen');
+        if (!seen && !waitingForTrialWelcome) setOpen(true);
+      } catch (e) { /* ignore */ }
+    };
+    check();
+    window.addEventListener('trial-welcome-dismissed', check);
+    return () => window.removeEventListener('trial-welcome-dismissed', check);
+  }, [pageId, tutorial, settings?.trial_start]);
 
   if (!tutorial) return null;
 

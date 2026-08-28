@@ -67,7 +67,9 @@ export default function Welcome() {
         if (existing.length > 0) {
           await getDB().UserSettings.update(existing[0].id, settingsData);
         } else {
-          await getDB().UserSettings.create(settingsData);
+          // trial_start solo alla primissima creazione del profilo — attiva
+          // la prova gratuita di 7 giorni una volta sola per utente.
+          await getDB().UserSettings.create({ ...settingsData, trial_start: new Date().toISOString() });
         }
       } catch (e) {
         console.error('Error saving welcome data:', e);

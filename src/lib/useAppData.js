@@ -58,7 +58,8 @@ export function useSubscription() {
   const trialStart = settings?.trial_start;
   const promoUntil = settings?.promo_until;
   const now = new Date();
-  const trialActive = trialStart && (now.getTime() - new Date(trialStart).getTime()) < 3 * 24 * 60 * 60 * 1000;
+  const trialActive = trialStart && (now.getTime() - new Date(trialStart).getTime()) < 7 * 24 * 60 * 60 * 1000;
+  const trialExpired = trialStart && !trialActive;
   const promoActive = promoUntil && now.getTime() < new Date(promoUntil).getTime();
   const isPremium = tier === 'premium' || (tier === 'free' && trialActive) || promoActive;
   const isPro = tier === 'pro' || isPremium;
@@ -71,6 +72,8 @@ export function useSubscription() {
     canUseLifeStats: isPro,
     canUseRankings: isPro,
     trialActive,
+    trialExpired: !!trialExpired,
+    trialStart,
     promoActive: !!promoActive,
     promoUntil,
   };
