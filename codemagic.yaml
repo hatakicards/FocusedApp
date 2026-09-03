@@ -88,6 +88,7 @@ workflows:
       # la stessa integrazione App Store Connect di "integrations" sopra —
       # non serve piu' scaricare l'IPA e caricarlo a mano con Transporter.
       app_store_connect:
+        auth: integration
         submit_to_testflight: true
 
   android-debug:
