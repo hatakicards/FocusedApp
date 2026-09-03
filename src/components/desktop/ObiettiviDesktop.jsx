@@ -22,14 +22,6 @@ export default function ObiettiviDesktop() {
   const { data: bodyFuelEntries } = useBodyFuelEntries();
   const { data: workDayLogs } = useWorkDayLogs();
   const t = useT();
-  const profileType = settings?.profile_type || 'base';
-  const PROFILE_CATEGORIES = {
-    base: ['fitness', 'mente', 'apprendimento'],
-    atleta: ['fitness', 'mente', 'apprendimento', 'sport'],
-    studente: ['fitness', 'mente', 'apprendimento', 'studies'],
-    professionista: ['fitness', 'mente', 'apprendimento', 'work'],
-  };
-  const visibleCategories = CATEGORIES.filter((c) => PROFILE_CATEGORIES[profileType]?.includes(c.id));
   const [selectedCat, setSelectedCat] = useState(null);
   const [calendarGoalId, setCalendarGoalId] = useState(null);
 
@@ -56,7 +48,7 @@ export default function ObiettiviDesktop() {
 
         {/* Category squares - 2 rows of 3 */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {visibleCategories.map((cat) => {
+          {CATEGORIES.map((cat) => {
             const rankInfo = computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || []);
             return (
               <button

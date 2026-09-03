@@ -27,13 +27,14 @@ import ResetPassword from '@/pages/ResetPassword';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import WorkWithUs from '@/pages/WorkWithUs';
 import InviteFriends from '@/pages/InviteFriends';
-import AdminPromoReport from '@/pages/AdminPromoReport';
-import AdminAnalytics from '@/pages/AdminAnalytics';
+import Admin from '@/pages/Admin';
 import DreamFunctionality from '@/pages/DreamFunctionality';
 import Landing from '@/pages/Landing';
 import Welcome from '@/pages/Welcome';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
+import Privacy from '@/pages/Privacy';
+import Terms from '@/pages/Terms';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { initCapacitor } from '@/lib/capacitorInit';
@@ -63,6 +64,8 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Landing />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -88,8 +91,7 @@ const AuthenticatedApp = () => {
         <Route path="/workspace" element={<Workspace />} />
         <Route path="/work-with-us" element={<WorkWithUs />} />
         <Route path="/invita" element={<InviteFriends />} />
-        <Route path="/admin/promo-report" element={<AdminPromoReport />} />
-        <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/dream" element={<DreamFunctionality />} />
       </Route>
       </Route>

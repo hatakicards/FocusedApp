@@ -32,6 +32,27 @@ export async function getUserFromRequest(request, supabaseAdmin) {
   return data.user;
 }
 
+// Aggiorna (o crea, se manca) la riga user_settings piu' recente di un
+// utente. Condivisa da tutti i webhook di pagamento (Stripe, RevenueCat)
+// cosi' la logica "trova la riga giusta e aggiornala" vive in un solo posto.
+export async function updateUserSettings(supabaseAdmin, userId, patch) {
+  const { data: settings, error: selectError } = await supabaseAdmin
+    .from('user_settings')
+    .select('id')
+    .eq('created_by_id', userId)
+    .order('created_date', { ascending: false })
+    .limit(10);
+  if (selectError) throw selectError;
+
+  if (settings?.length) {
+    const { error } = await supabaseAdmin.from('user_settings').update(patch).eq('id', settings[0].id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabaseAdmin.from('user_settings').insert({ created_by_id: userId, ...patch });
+    if (error) throw error;
+  }
+}
+
 export function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,

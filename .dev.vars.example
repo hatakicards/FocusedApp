@@ -1,0 +1,27 @@
+# ============================================================================
+# Copia questo file in ".dev.vars" (nella root del progetto) per far girare le
+# Cloudflare Pages Functions (cartella functions/api) in locale, incluso Focusy.
+# ".dev.vars" NON viene mai committato/deployato: letto solo da
+# "wrangler pages dev" sul tuo computer.
+#
+# Con solo "npm run dev" (Vite puro) queste funzioni non esistono affatto:
+# ogni chiamata a /api/* (Focusy, Stripe, ecc.) fallisce con un 404 — usa
+# invece "npm run dev:functions" per avere sia il frontend con hot-reload sia
+# le funzioni server-side attive.
+# ============================================================================
+
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key-here
+
+STRIPE_SECRET_KEY=your-stripe-secret-key-here
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxx
+
+# console.groq.com/keys -> Create API Key (piano gratuito, nessuna carta richiesta)
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GROQ_MODEL=
+
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxx
+CONTACT_EMAIL_TO=
+CONTACT_EMAIL_FROM=
+
+REVENUECAT_WEBHOOK_SECRET=

@@ -42,9 +42,8 @@ export default function Sidebar() {
     { to: '/invita', key: 'credits', icon: Gift, end: false },
   ];
 
-  const adminTabs = user?.role === 'admin' ? [
-    { to: '/admin/analytics', key: 'admin_analytics', icon: ShieldCheck, end: false, label: 'Analytics' },
-    { to: '/admin/promo-report', key: 'admin_promo', icon: Gift, end: false, label: 'Promo Report' },
+  const adminTabs = user?.email === 'danimandurinz2010@gmail.com' ? [
+    { to: '/admin', key: 'admin', icon: ShieldCheck, end: false, label: 'Admin' },
   ] : [];
 
   const renderTab = ({ to, key, icon: Icon, end, label, locked }) => {

@@ -5,7 +5,7 @@ import { FOOD_CATEGORIES, getFoodsByCategory, getFoodById, computeFoodMacros } f
 import BottomSelect from '@/components/BottomSelect';
 import CustomFoodDialog from './CustomFoodDialog';
 
-export default function FoodTracker({ foodLog, onAdd, onRemove, onEdit, customFoods = [], onAddCustomFood }) {
+export default function FoodTracker({ foodLog, onAdd, onRemove, onEdit, customFoods = [], onAddCustomFood, saving = false }) {
   const t = useT();
   const [category, setCategory] = useState('');
   const [foodId, setFoodId] = useState('');
@@ -90,7 +90,7 @@ export default function FoodTracker({ foodLog, onAdd, onRemove, onEdit, customFo
         />
         <button
           onClick={handleAdd}
-          disabled={!foodId || !grams}
+          disabled={!foodId || !grams || saving}
           className="rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-40 flex items-center gap-1 shrink-0"
         >
           <Plus size={16} /> <span className="hidden sm:inline">{t('bf_add_food')}</span>
@@ -105,7 +105,7 @@ export default function FoodTracker({ foodLog, onAdd, onRemove, onEdit, customFo
             const macros = computeFoodMacros(item.food_id, item.grams, customFoods);
             const isEditing = editingIndex === i;
             return (
-              <div key={i} className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
+              <div key={item._id ?? i} className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{food.name}</p>
                   {isEditing ? (
@@ -125,15 +125,15 @@ export default function FoodTracker({ foodLog, onAdd, onRemove, onEdit, customFo
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 ml-2">
                   {isEditing ? (
-                    <button onClick={confirmEdit} className="text-emerald-500 hover:text-emerald-400">
+                    <button onClick={confirmEdit} disabled={saving} className="text-emerald-500 hover:text-emerald-400 disabled:opacity-40">
                       <Check size={16} />
                     </button>
                   ) : (
-                    <button onClick={() => startEdit(i, item.grams)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={() => startEdit(i, item.grams)} disabled={saving} className="text-muted-foreground hover:text-foreground disabled:opacity-40">
                       <Pencil size={14} />
                     </button>
                   )}
-                  <button onClick={() => onRemove(i)} className="text-muted-foreground hover:text-destructive">
+                  <button onClick={() => onRemove(i)} disabled={saving} className="text-muted-foreground hover:text-destructive disabled:opacity-40">
                     <X size={16} />
                   </button>
                 </div>

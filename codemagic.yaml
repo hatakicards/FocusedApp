@@ -1,4 +1,93 @@
 workflows:
+  android-release:
+    name: Android - AAB firmato per Play Store
+    max_build_duration: 30
+    environment:
+      node: 22
+      java: 21
+      # Team settings -> Code signing identities -> Android keystores ->
+      # crea un keystore (Codemagic lo genera e lo custodisce lui): il nome
+      # dato li' va messo qui sotto. NON perdere/rigenerare questo keystore
+      # dopo la prima release: Play Store richiede la stessa firma per ogni
+      # aggiornamento futuro dell'app, per sempre.
+      android_signing:
+        - focused_release_keystore
+      groups:
+        - google_play
+    scripts:
+      - name: Installa dipendenze npm
+        script: npm ci
+      - name: Build del sito (dist/)
+        script: npm run build
+      - name: Sincronizza Capacitor -> Android
+        script: npx cap sync android
+      - name: Build AAB firmato
+        script: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - danimandurinz2010@gmail.com
+      # Facoltativo: pubblica direttamente su una traccia di test di Play
+      # Console invece di scaricare l'AAB a mano. Richiede una service
+      # account key JSON caricata come variabile d'ambiente cifrata
+      # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS nel gruppo "google_play".
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
+
+  ios-release:
+    name: iOS - IPA firmato per App Store / TestFlight
+    max_build_duration: 60
+    environment:
+      node: 22
+      xcode: latest
+      # Team settings -> Integrations -> App Store Connect -> aggiungi la
+      # API key (.p8 + Issuer ID + Key ID, la stessa generata per
+      # collegare RevenueCat) con un nome, e mettilo qui sotto insieme al
+      # bundle ID gia' registrato (org.focusedapp.app).
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: org.focusedapp.app
+      groups:
+        - app_store_connect
+    scripts:
+      - name: Installa dipendenze npm
+        script: npm ci
+      - name: Build del sito (dist/)
+        script: npm run build
+      - name: Sincronizza Capacitor -> iOS
+        script: npx cap sync ios
+      - name: Firma automatica (certificati + provisioning profile)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "org.focusedapp.app" \
+            --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: Build IPA firmato
+        script: |
+          xcode-project build-ipa \
+            --project ios/App/App.xcodeproj \
+            --scheme App
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - danimandurinz2010@gmail.com
+      # Facoltativo: carica direttamente su TestFlight invece di scaricare
+      # l'IPA a mano — usa la stessa integrazione App Store Connect di sopra.
+      # app_store_connect:
+      #   auth: integration
+      #   submit_to_testflight: true
+
   android-debug:
     name: Android - Debug APK (test su telefono, nessuna firma richiesta)
     max_build_duration: 30
@@ -37,7 +126,6 @@ workflows:
     environment:
       node: 22
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Installa dipendenze npm
         script: npm ci
@@ -45,13 +133,9 @@ workflows:
         script: npm run build
       - name: Sincronizza Capacitor -> iOS
         script: npx cap sync ios
-      - name: Installa dipendenze CocoaPods
-        script: |
-          cd ios/App
-          pod install
       - name: Build per Simulatore iOS
         script: |
-          xcodebuild -workspace ios/App/App.xcworkspace \
+          xcodebuild -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Debug \
             -sdk iphonesimulator \

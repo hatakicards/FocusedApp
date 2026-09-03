@@ -3,33 +3,28 @@ import { getStripe } from './_shared/stripeClient.js';
 
 const PRICE_IDS = {
   pro: {
-    monthly: 'price_1U0KlgI0KLr8kXE6pr0ITKIu',
-    quarterly: 'price_1U0KlgI0KLr8kXE6yVYiPyIl',
-    annual: 'price_1U0KlgI0KLr8kXE6aTXNReX8',
+    monthly: 'price_1U9hdpI0KLr8kXE6CKXK9r2K',
+    quarterly: 'price_1U9hdpI0KLr8kXE6BxGjWMkd',
+    annual: 'price_1U9hdqI0KLr8kXE6kmd9jSjh',
   },
   premium: {
-    monthly: 'price_1U0KlgI0KLr8kXE6XwE7mAX3',
-    quarterly: 'price_1U0KlgI0KLr8kXE65uObC4tj',
-    annual: 'price_1U0KlgI0KLr8kXE6LkSh268l',
+    monthly: 'price_1U9hdqI0KLr8kXE6sGahmUXr',
+    quarterly: 'price_1U9hdrI0KLr8kXE6TRIyBWHc',
+    annual: 'price_1U9hdrI0KLr8kXE6RLBWaIhX',
   },
 };
 
-const INTRO_DISCOUNTS = {
-  pro_monthly: 150,
-  premium_monthly: 200,
-  pro_quarterly: 300,
-  premium_quarterly: 400,
-};
+const BMINDSET_COUPON_ID = 'bmindset_30off';
 
-async function ensureCoupon(stripe, couponId, amountOffCents) {
+async function ensureBmindsetCoupon(stripe) {
   try {
-    return await stripe.coupons.retrieve(couponId);
+    return await stripe.coupons.retrieve(BMINDSET_COUPON_ID);
   } catch {
     return await stripe.coupons.create({
-      id: couponId,
-      amount_off: amountOffCents,
-      currency: 'eur',
+      id: BMINDSET_COUPON_ID,
+      percent_off: 30,
       duration: 'once',
+      name: 'BMindset Promo 30%',
     });
   }
 }
@@ -38,7 +33,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const stripe = getStripe(env);
     const body = await request.json().catch(() => ({}));
-    const { tier, period, user_id, origin } = body;
+    const { tier, period, user_id, origin, promoCode } = body;
 
     if (tier !== 'pro' && tier !== 'premium') {
       return jsonResponse({ error: 'invalid tier' }, 400);
@@ -64,15 +59,13 @@ export async function onRequestPost({ request, env }) {
       subscription_data: {
         metadata: { user_id, tier },
       },
+      allow_promotion_codes: true,
     };
 
-    if (billingPeriod === 'monthly' || billingPeriod === 'quarterly') {
-      const couponKey = `${tier}_${billingPeriod}`;
-      const discountAmount = INTRO_DISCOUNTS[couponKey];
-      if (discountAmount) {
-        const coupon = await ensureCoupon(stripe, `intro_${couponKey}`, discountAmount);
-        sessionParams.discounts = [{ coupon: coupon.id }];
-      }
+    if ((promoCode || '').trim().toUpperCase() === 'BMINDSETPROMO') {
+      const coupon = await ensureBmindsetCoupon(stripe);
+      sessionParams.discounts = [{ coupon: coupon.id }];
+      delete sessionParams.allow_promotion_codes;
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);

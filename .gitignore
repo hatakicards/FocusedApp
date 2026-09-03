@@ -1,6 +1,7 @@
 #env
 .env
 .env.*
+!.env.example
 
 # Logs
 /logs
@@ -28,6 +29,7 @@ dist-ssr
 *.sw?
 
 .env
+.dev.vars
 .vite
 .netlify
 base44/.app.jsonc

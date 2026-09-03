@@ -1,7 +1,10 @@
 import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabaseClient';
 import { clearQueue } from '@/lib/syncQueue';
 import { setGuestMode, isGuestFlagSet, getGuestUser, clearGuestData } from '@/lib/guestDB';
+import { syncWidgetSession, clearWidgetSession } from '@/lib/nativeWidgetSync';
+import { configureRevenueCat, logOutRevenueCat } from '@/lib/revenueCat';
 
 const AuthContext = createContext();
 
@@ -73,6 +76,22 @@ export const AuthProvider = ({ children }) => {
   const checkAppState = useCallback(async () => {
     await checkUserAuth();
   }, [checkUserAuth]);
+
+  // Tiene lo storage condiviso letto dai widget nativi (Fase 2/3) allineato
+  // alla sessione Supabase — SIGNED_IN/TOKEN_REFRESHED coprono sia il login
+  // sia il refresh automatico periodico del token.
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        clearWidgetSession();
+        logOutRevenueCat();
+      } else if (session) {
+        syncWidgetSession(session);
+        configureRevenueCat(session.user.id);
+      }
+    });
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
 
   const guestLogin = useCallback(() => {
     setGuestMode(true);

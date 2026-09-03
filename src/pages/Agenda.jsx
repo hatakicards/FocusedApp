@@ -7,6 +7,7 @@ import {
   useBooks,
 } from '@/lib/useAppData';
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
+import FocusTimeCard from '@/components/profile/FocusTimeCard';
 import TutorialDialog from '@/components/TutorialDialog';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
 import { todayISO } from '@/lib/productivity';
@@ -166,6 +167,8 @@ export default function Agenda() {
             <Plus size={16} /> {t('nuovo')}
           </button>
         </header>
+
+        <FocusTimeCard />
 
         <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border">
           <button onClick={() => setViewMode('all')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'all' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_all')}</button>

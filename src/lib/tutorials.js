@@ -1,16 +1,16 @@
 import {
-  Star, PenLine, Save, Plus, ChevronRight, Calendar, BarChart3, Target,
+  Plus, ChevronRight, Calendar, BarChart3, Target,
   TrendingUp, Trophy, CheckCircle, Dumbbell, Timer, Play, Activity, Settings,
-  Flame, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator,
+  Flame, Sparkles, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator,
 } from 'lucide-react';
 
 export const TUTORIALS = {
   oggi: {
     titleKey: 'tut_oggi_title',
     steps: [
-      { icon: Star, titleKey: 'tut_oggi_s1_t', textKey: 'tut_oggi_s1_d' },
-      { icon: PenLine, titleKey: 'tut_oggi_s2_t', textKey: 'tut_oggi_s2_d' },
-      { icon: Save, titleKey: 'tut_oggi_s3_t', textKey: 'tut_oggi_s3_d' },
+      { icon: Flame, titleKey: 'tut_oggi_s1_t', textKey: 'tut_oggi_s1_d' },
+      { icon: Sparkles, titleKey: 'tut_oggi_s2_t', textKey: 'tut_oggi_s2_d' },
+      { icon: CheckCircle, titleKey: 'tut_oggi_s3_t', textKey: 'tut_oggi_s3_d' },
     ],
   },
   abitudini: {

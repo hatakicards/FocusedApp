@@ -3,7 +3,7 @@
   "appName": "Focused",
   "webDir": "dist",
   "server": {
-    "url": "https://focusedapp.org",
+    "url": "https://focused-app.pages.dev",
     "cleartext": false,
     "androidScheme": "https"
   },

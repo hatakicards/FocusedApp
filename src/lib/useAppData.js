@@ -7,6 +7,7 @@ import { todayISO, computeCategoryRank, isGoalCompletedNow, currentPeriodKey } f
 import { CATEGORIES, RANKS } from './constants';
 import { useOptimisticSave, useOptimisticRemove, useOptimisticUpdate, useOptimisticSettingsPatch } from './optimisticHelpers';
 import { mergePending, processQueue, addToQueue, clearQueue } from './syncQueue';
+import { refreshWidgets } from './nativeWidgetSync';
 
 // ---------------------------------------------------------------------------
 // Query hooks
@@ -360,6 +361,7 @@ export function useOptimisticRating() {
         const filtered = cur.filter((r) => r.id !== result.id && r.id !== tempId);
         return [...filtered, result];
       });
+      refreshWidgets();
     } catch (e) {
       if (existing && !isTemp) {
         addToQueue({ type: 'update', entity: 'DailyRating', serverId: existing.id, payload: { rating } });
@@ -412,6 +414,7 @@ export function useOptimisticGoalToggle() {
 
     try {
       await getDB().Goal.update(goal.id, payload);
+      refreshWidgets();
     } catch (e) {
       addToQueue({ type: 'update', entity: 'Goal', serverId: goal.id, payload });
       console.error('Sync queued:', e);
@@ -432,6 +435,7 @@ export function useOptimisticGymSessionSave() {
 
     try {
       await getDB().GymSession.update(session.id, payload);
+      refreshWidgets();
     } catch (e) {
       addToQueue({ type: 'update', entity: 'GymSession', serverId: session.id, payload });
       console.error('Sync queued:', e);
@@ -511,6 +515,7 @@ export function useOptimisticDayEntry() {
         const filtered = cur.filter((e) => e.id !== result.id && e.id !== tempId);
         return [...filtered, result];
       });
+      refreshWidgets();
     } catch (e) {
       if (existingEntry && !isTemp) {
         addToQueue({ type: 'update', entity: 'DayEntry', serverId: existingEntry.id, payload: { day_rating: dayRating, thoughts } });
@@ -567,6 +572,7 @@ export function useOptimisticTaskToggle() {
       await getDB().TaskItem.update(task.id, done
         ? { status: 'active', completed_date: null, rating: null }
         : { status: 'done', completed_date: today });
+      refreshWidgets();
     } catch (e) {
       addToQueue({ type: 'update', entity: 'TaskItem', serverId: task.id, payload: done
         ? { status: 'active', completed_date: null, rating: null }

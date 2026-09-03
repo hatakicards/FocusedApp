@@ -3,6 +3,7 @@ import { ArrowLeft, Mail, Lock, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { setGuestMode } from '@/lib/guestDB';
 import GoogleIcon from '@/components/GoogleIcon';
+import AppleIcon from '@/components/AppleIcon';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 export default function Step4Auth({ data, onAuthRedirect, onBack }) {
@@ -19,6 +20,12 @@ export default function Step4Auth({ data, onAuthRedirect, onBack }) {
     onAuthRedirect();
     setGuestMode(false);
     base44.auth.loginWithProvider('google', '/welcome');
+  };
+
+  const handleApple = () => {
+    onAuthRedirect();
+    setGuestMode(false);
+    base44.auth.loginWithProvider('apple', '/welcome');
   };
 
   const handleSubmit = async (e) => {
@@ -106,6 +113,14 @@ export default function Step4Auth({ data, onAuthRedirect, onBack }) {
         <p className="text-muted-foreground text-sm mb-8">
           {mode === 'register' ? 'Sign up to start your journey' : 'Log in to continue'}
         </p>
+
+        <button
+          onClick={handleApple}
+          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mb-3 hover:bg-muted transition-colors"
+        >
+          <AppleIcon className="w-5 h-5" />
+          Continue with Apple
+        </button>
 
         <button
           onClick={handleGoogle}

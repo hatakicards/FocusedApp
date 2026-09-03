@@ -1,5 +1,4 @@
 import { RANKS, RANK_REQUIREMENTS } from './constants';
-import { normalizeGrade } from './grades';
 
 export function formatDateISO(date) {
   const d = new Date(date);
@@ -301,34 +300,13 @@ export function checkRankRequirement(reqId, metrics) {
       return metrics.fiveDays >= 20;
     case 'all_five_5':
       return metrics.allFiveStreak >= 5;
-    case 'grade_above_90':
-      return metrics.gradesAbove90 > 0;
-    case 'avg_above_80':
-      return metrics.avgNormalized >= 80;
-    case 'grade_above_85_3':
-      return metrics.gradesAbove85 >= 3;
-    case 'grade_above_85_5':
-      return metrics.gradesAbove85 >= 5;
-    case 'grade_above_85_10':
-      return metrics.gradesAbove85 >= 10;
     default:
       return false;
   }
 }
 
-export function computeStudiesMetrics(allGrades) {
-  const grades = allGrades || [];
-  const normalized = grades.map((g) => normalizeGrade(g.grade, g.grade_system));
-  const gradesAbove90 = normalized.filter((n) => n >= 90).length;
-  const gradesAbove85 = normalized.filter((n) => n >= 85).length;
-  const avgNormalized = grades.length ? normalized.reduce((s, n) => s + n, 0) / grades.length : 0;
-  return { gradesAbove90, gradesAbove85, avgNormalized };
-}
-
-export function computeCategoryRank(categoryId, activities, allRatings, goals, allGrades) {
-  const metrics = categoryId === 'studies'
-    ? computeStudiesMetrics(allGrades)
-    : computeCategoryMetrics(categoryId, activities, allRatings, goals);
+export function computeCategoryRank(categoryId, activities, allRatings, goals) {
+  const metrics = computeCategoryMetrics(categoryId, activities, allRatings, goals);
   const reqDefs = RANK_REQUIREMENTS[categoryId] || [];
   const requirements = reqDefs.map((r) => ({
     ...r,

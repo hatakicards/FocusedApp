@@ -152,7 +152,7 @@ export default function ProjectPlanner({ open, onClose }) {
         setCreateStep('activity');
         activity = await base44.entities.Activity.create({
           name: pendingPlan.activity.name,
-          category: 'work',
+          category: 'apprendimento',
           emoji: pendingPlan.activity.emoji || '💼',
         });
         createdActivityRef.current = activity;

@@ -1,30 +1,13 @@
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { base44 } from '@/api/base44Client';
-import { useAuth } from '@/lib/AuthContext';
 
 export default function TrialExpiredModal({ open, onClose }) {
   const t = useT();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
 
-  const handleUpgrade = async () => {
-    if (window.self !== window.top) return;
-    setLoading(true);
-    try {
-      const res = await base44.functions.invoke('create-trial-discount-checkout', {
-        origin: window.location.origin,
-        user_id: user?.id,
-      });
-      const checkoutUrl = res?.data?.url || res?.url;
-      if (checkoutUrl) window.location.href = checkoutUrl;
-    } catch (e) {
-      console.error('trial discount checkout error', e);
-    } finally {
-      setLoading(false);
-    }
+  const handleUpgrade = () => {
+    onClose();
+    window.location.href = '/profilo?openPremium=1';
   };
 
   return (
@@ -51,10 +34,9 @@ export default function TrialExpiredModal({ open, onClose }) {
             <p className="text-sm text-muted-foreground mb-6">{t('trial_expired_desc')}</p>
             <button
               onClick={handleUpgrade}
-              disabled={loading}
-              className="w-full rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background mb-2 disabled:opacity-50"
+              className="w-full rounded-xl bg-foreground px-4 py-3 text-sm font-semibold text-background mb-2"
             >
-              {loading ? '...' : t('trial_expired_cta')}
+              {t('trial_expired_cta')}
             </button>
             <button onClick={onClose} className="text-xs text-muted-foreground font-medium">
               {t('trial_expired_later')}

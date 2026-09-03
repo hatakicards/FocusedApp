@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
+import { isRevenueCatAvailable, purchaseSubscription, restorePurchases } from '@/lib/revenueCat';
 
 const FEATURES = [
   { key: 'pm_no_ads', label: 'NO Ads', tier: 'pro' },
@@ -25,14 +26,14 @@ const PERIODS = [
 
 const PRICING = {
   premium: {
-    monthly: { intro: '2,99', regular: '4,99' },
-    quarterly: { intro: '8,99', regular: '12,99' },
-    annual: { price: '44,99', monthlyEquiv: '3,75', save: '15' },
+    monthly: { regular: '6,99' },
+    quarterly: { regular: '19,99' },
+    annual: { price: '59,99', monthlyEquiv: '5,00', save: '24' },
   },
   pro: {
-    monthly: { intro: '1,99', regular: '3,49' },
-    quarterly: { intro: '6,99', regular: '9,99' },
-    annual: { price: '29,99', monthlyEquiv: '2,50', save: '12' },
+    monthly: { regular: '4,99' },
+    quarterly: { regular: '12,99' },
+    annual: { price: '39,99', monthlyEquiv: '3,33', save: '20' },
   },
 };
 
@@ -46,6 +47,8 @@ export default function PremiumModal({ open, onClose }) {
   const [period, setPeriod] = useState('monthly');
   const [cancelling, setCancelling] = useState(false);
   const [cancelResult, setCancelResult] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState(null);
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -63,6 +66,26 @@ export default function PremiumModal({ open, onClose }) {
   };
 
   const handleCheckout = async (tier) => {
+    // Nell'app nativa l'acquisto passa da RevenueCat (IAP Apple/Google),
+    // obbligatorio per Apple quando si vende un abbonamento dentro l'app —
+    // su web resta lo Stripe Checkout di sempre.
+    if (isRevenueCatAvailable()) {
+      setBuying(tier);
+      try {
+        await purchaseSubscription(tier, period);
+        invalidate();
+        onClose();
+      } catch (e) {
+        console.error('RevenueCat purchase error', e);
+        if (!e.userCancelled) {
+          alert(e.message || 'Errore durante l\'acquisto');
+        }
+      } finally {
+        setBuying(null);
+      }
+      return;
+    }
+
     if (window.self !== window.top) {
       alert(t('pm_iframe_error'));
       return;
@@ -87,6 +110,22 @@ export default function PremiumModal({ open, onClose }) {
     }
   };
 
+  const handleRestore = async () => {
+    setRestoring(true);
+    setRestoreMessage(null);
+    try {
+      const customerInfo = await restorePurchases();
+      const active = Object.keys(customerInfo?.entitlements?.active || {});
+      invalidate();
+      setRestoreMessage(active.length ? t('pm_restore_success') : t('pm_restore_none'));
+    } catch (e) {
+      console.error('RevenueCat restore error', e);
+      setRestoreMessage(e.message || t('pm_restore_error'));
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   const renderPrice = (tier) => {
     const p = PRICING[tier][period];
     if (period === 'annual') {
@@ -106,15 +145,11 @@ export default function PremiumModal({ open, onClose }) {
       );
     }
     const periodUnit = period === 'monthly' ? t('pm_month') : t('pm_per_quarter');
-    const introLabel = period === 'monthly' ? t('pm_first_month') : t('pm_first_period');
     return (
       <div className="flex flex-col items-center gap-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-black">{p.intro}</span>
+          <span className="text-3xl font-black">{p.regular}</span>
           <span className="text-sm text-muted-foreground">€/{periodUnit}</span>
-        </div>
-        <div className="text-xs text-muted-foreground text-center">
-          {introLabel}, {t('pm_then')} {p.regular} €/{periodUnit}
         </div>
       </div>
     );
@@ -229,6 +264,21 @@ export default function PremiumModal({ open, onClose }) {
 
             <p className="text-center text-[11px] text-muted-foreground">{t('pm_trial')}</p>
             <p className="text-center text-[11px] text-muted-foreground mt-2">{t('pm_pro_note')}</p>
+
+            {isRevenueCatAvailable() && (
+              <div className="mt-4">
+                <button
+                  onClick={handleRestore}
+                  disabled={restoring}
+                  className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {restoring ? '...' : t('pm_restore')}
+                </button>
+                {restoreMessage && (
+                  <p className="mt-1.5 text-center text-[11px] text-muted-foreground">{restoreMessage}</p>
+                )}
+              </div>
+            )}
 
             {sub.isPro && settings?.stripe_subscription_id && !cancelResult?.success && (
               <div className="mt-4 border-t border-border pt-4">

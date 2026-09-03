@@ -11,6 +11,7 @@ import GoalHistoryModal from '@/components/GoalHistoryModal';
 import TutorialDialog from '@/components/TutorialDialog';
 import MilestoneGrid from '@/components/MilestoneGrid';
 import LifeStatsTab from '@/components/obiettivi/LifeStatsTab';
+import GoalsListTab from '@/components/obiettivi/GoalsListTab';
 
 export default function ObiettiviRanking() {
   const { data: activities } = useActivities();
@@ -24,18 +25,13 @@ export default function ObiettiviRanking() {
   const { data: bodyFuelEntries } = useBodyFuelEntries();
   const { data: workDayLogs } = useWorkDayLogs();
   const t = useT();
-  const profileType = settings?.profile_type || 'base';
-  const PROFILE_CATEGORIES = {
-    base: ['fitness', 'mente', 'apprendimento'],
-    atleta: ['fitness', 'mente', 'apprendimento', 'sport'],
-    studente: ['fitness', 'mente', 'apprendimento', 'studies'],
-    professionista: ['fitness', 'mente', 'apprendimento', 'work'],
-  };
-  const visibleCategories = CATEGORIES.filter((c) => PROFILE_CATEGORIES[profileType]?.includes(c.id));
   const [expanded, setExpanded] = useState(null);
   const [calendarGoalId, setCalendarGoalId] = useState(null);
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get('tab') === 'lifestats' ? 'lifestats' : 'ranking');
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState(
+    initialTab === 'lifestats' ? 'lifestats' : initialTab === 'goals' ? 'goals' : 'ranking'
+  );
 
   if (!sub.canUseRankings) {
     return <SubscriptionGate title="LifeGame" description={t('gate_goals_desc')} icon={Target} />;
@@ -50,10 +46,18 @@ export default function ObiettiviRanking() {
         <h1 className="text-2xl font-bold tracking-tight">LifeGame</h1>
       </header>
 
-      <div className="flex gap-1 p-1 rounded-xl bg-muted mb-6 w-fit">
+      <div className="flex gap-1 p-1 rounded-xl bg-muted mb-6 w-fit overflow-x-auto scrollbar-hide">
+        <button
+          onClick={() => setTab('goals')}
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+            tab === 'goals' ? 'bg-foreground text-background' : 'text-muted-foreground'
+          }`}
+        >
+          {t('ob_obiettivi')}
+        </button>
         <button
           onClick={() => setTab('ranking')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
             tab === 'ranking' ? 'bg-foreground text-background' : 'text-muted-foreground'
           }`}
         >
@@ -61,7 +65,7 @@ export default function ObiettiviRanking() {
         </button>
         <button
           onClick={() => setTab('lifestats')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
             tab === 'lifestats' ? 'bg-foreground text-background' : 'text-muted-foreground'
           }`}
         >
@@ -69,12 +73,14 @@ export default function ObiettiviRanking() {
         </button>
       </div>
 
+      {tab === 'goals' && <GoalsListTab onOpenHistory={setCalendarGoalId} />}
+
       {tab === 'lifestats' && <LifeStatsTab />}
 
       {tab === 'ranking' && (
       <>
       <div className="space-y-4">
-        {visibleCategories.map((cat) => {
+        {CATEGORIES.map((cat) => {
           const rankInfo = computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || []);
           const isOpen = expanded === cat.id;
           const catActivities = (activities || []).filter((a) => a.category === cat.id);

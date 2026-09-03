@@ -4,7 +4,6 @@ import { LogOut, Clock, Flame, Trophy, Target, Trash2, ChevronRight, Check, Glob
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useActivities, useRatings, useGoals, useUserSettings, useTasks, useInvalidateAll, useLessonGrades } from '@/lib/useAppData';
-import { useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { getDB } from '@/lib/guestDB';
 import { LOGO_URL, CATEGORIES, RANKS } from '@/lib/constants';
@@ -13,14 +12,13 @@ import { useI18n, useT, LANGUAGES } from '@/lib/i18n';
 import RankBadge from '@/components/RankBadge';
 import TimeCapsule from '@/components/TimeCapsule';
 import Archive from '@/components/Archive';
-import ProfileSelector from '@/components/ProfileSelector';
 import PremiumModal from '@/components/PremiumModal';
 import TutorialDialog from '@/components/TutorialDialog';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
-import FocusTimeCard from '@/components/profile/FocusTimeCard';
 import MotivationSection from '@/components/MotivationSection';
 import { useSubscription } from '@/lib/useAppData';
 import { redeemFreeCode } from '@/lib/promoCodes';
+import { isRevenueCatAvailable } from '@/lib/revenueCat';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -43,7 +41,6 @@ export default function Profilo() {
   const { data: tasks } = useTasks();
   const { data: lessonGrades } = useLessonGrades();
   const invalidate = useInvalidateAll();
-  const qc = useQueryClient();
   const { lang, setLang } = useI18n();
   const t = useT();
   const [reminderTime, setReminderTime] = useState(settings?.reminder_time || '21:00');
@@ -68,12 +65,41 @@ export default function Profilo() {
     const code = promoCode.trim();
     if (!code) return;
     setPromoStatus('checking');
+    // Questi due sconti li applica Stripe al checkout — non hanno un
+    // equivalente negli acquisti in-app nativi, quindi nell'app vanno
+    // riscattati da web, mai avviando un checkout Stripe dentro l'app.
+    if ((code === '3MONTHS1EUR0' || code.toUpperCase() === 'BMINDSETPROMO') && isRevenueCatAvailable()) {
+      setPromoStatus('web_only');
+      return;
+    }
     if (code === '3MONTHS1EUR0') {
       try {
         setPromoStatus('redirecting');
         const res = await base44.functions.invoke('create-promo-checkout', {
           user_id: user?.id,
           origin: window.location.origin,
+        });
+        const promoUrl = res?.data?.url || res?.url;
+        if (promoUrl) {
+          window.location.href = promoUrl;
+          return;
+        }
+        setPromoStatus('error');
+      } catch (e) {
+        console.error('Promo error:', e);
+        setPromoStatus('error');
+      }
+      return;
+    }
+    if (code.toUpperCase() === 'BMINDSETPROMO') {
+      try {
+        setPromoStatus('redirecting');
+        const res = await base44.functions.invoke('create-remove-ads-checkout', {
+          user_id: user?.id,
+          origin: window.location.origin,
+          tier: 'premium',
+          period: 'monthly',
+          promoCode: 'BMINDSETPROMO',
         });
         const promoUrl = res?.data?.url || res?.url;
         if (promoUrl) {
@@ -133,20 +159,6 @@ export default function Profilo() {
       reminder_time: reminderTime,
       reminder_enabled: reminderEnabled,
     });
-    invalidate();
-  };
-
-  const handleProfileChange = async (profileType) => {
-    if (!settings) return;
-    const key = ['userSettings', user?.id];
-    const prev = qc.getQueryData(key);
-    qc.setQueryData(key, { ...settings, profile_type: profileType });
-    try {
-      await getDB().UserSettings.update(settings.id, { profile_type: profileType });
-    } catch (e) {
-      qc.setQueryData(key, prev);
-      console.error(e);
-    }
     invalidate();
   };
 
@@ -247,9 +259,6 @@ export default function Profilo() {
         </div>
       </div>
 
-      {/* Focus Time */}
-      <FocusTimeCard />
-
       {/* Motivazione */}
       <MotivationSection profileType={settings?.profile_type || 'base'} />
 
@@ -287,20 +296,6 @@ export default function Profilo() {
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Profile switcher */}
-      <div className="rounded-2xl border border-border bg-card p-4 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm font-semibold">{t('profilo_profilo')}</span>
-        </div>
-        <ProfileSelector
-          value={settings?.profile_type || 'base'}
-          onChange={handleProfileChange}
-          compact
-          lockedProfiles={sub.canUseProfiles ? [] : ['atleta', 'studente', 'professionista']}
-          onLockedClick={() => setShowPremium(true)}
-        />
       </div>
 
       {/* Reminder */}
@@ -413,6 +408,9 @@ export default function Profilo() {
           )}
           {promoStatus === 'error' && (
             <p className="mt-2 text-xs text-destructive">{t('profilo_codice_error')}</p>
+          )}
+          {promoStatus === 'web_only' && (
+            <p className="mt-2 text-xs text-muted-foreground">{t('profilo_codice_web_only')}</p>
           )}
           {promoStatus === 'redirecting' && (
             <p className="mt-2 flex items-center gap-1.5 text-xs text-blue-400">

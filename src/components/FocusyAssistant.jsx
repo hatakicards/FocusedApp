@@ -245,7 +245,7 @@ Compiti totali pendenti: ${pendingHomework.length} (impegnativi:${difficultyCoun
 
 === AZIONI DISPONIBILI ===
 Se l'utente chiede di creare qualcosa, compila "actions" con UN oggetto:
-1. create_activity: { "type":"create_activity", "name":"...", "category":"fitness|mente|apprendimento|sport|work|studies|lifestyle|custom", "emoji":"..." }
+1. create_activity: { "type":"create_activity", "name":"...", "category":"fitness|mente|apprendimento|custom", "emoji":"..." }
 2. create_goal: { "type":"create_goal", "title":"...", "timeframe":"daily|weekly|monthly|annual|lifetime", "difficulty":"easy|medium|hard", "activity_name":"<nome esatto da ATTIVITÀ ESISTENTI>" }
 3. create_task: { "type":"create_task", "title":"...", "task_type":"todo", "due_date":"YYYY-MM-DD (opzionale)", "notes":"(opzionale)" }
 4. create_event: { "type":"create_event", "title":"...", "task_type":"meeting|deadline", "due_date":"YYYY-MM-DD", "notes":"(opzionale)" }
@@ -285,7 +285,7 @@ const RESPONSE_SCHEMA = {
   required: ['reply'],
 };
 
-export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false }) {
+export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false, inline = false }) {
   const t = useT();
   const qc = useQueryClient();
   const [openState, setOpenState] = useState(defaultOpen);
@@ -499,6 +499,119 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const allSuggestions = [...SUGGESTIONS, ...ACTION_SUGGESTIONS];
 
+  const messagesBody = (
+    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
+      {messages.length === 0 && (
+        <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background">
+            <Sparkles size={28} />
+          </div>
+          <div>
+            <p className="text-sm font-bold mb-1">{t('focusy_welcome_title')}</p>
+            <p className="text-xs text-muted-foreground max-w-[260px]">{t('focusy_welcome_desc')}</p>
+          </div>
+          <div className="grid grid-cols-1 gap-2 w-full mt-2">
+            {allSuggestions.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => s.isRoutine ? runRoutineOptimization() : sendMessage(s.text)}
+                disabled={!canSend}
+                className="text-left rounded-xl border border-border bg-background p-3 text-xs text-foreground hover:bg-accent/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t(s.key)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {messages.map((m, i) => (
+        <div key={i} className={`flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${m.role === 'user' ? 'bg-muted' : 'bg-foreground text-background'}`}>
+            {m.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+          </div>
+          <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${m.role === 'user' ? 'bg-foreground text-background' : 'bg-muted text-foreground'}`}>
+            <p className="whitespace-pre-wrap">{m.content}</p>
+          </div>
+        </div>
+      ))}
+      {actionResults.length > 0 && (
+        <div className="flex gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+            <CheckCircle size={14} />
+          </div>
+          <div className="rounded-2xl bg-muted px-3.5 py-2.5 space-y-1">
+            {actionResults.map((r, i) => (
+              <p key={i} className={`text-xs flex items-center gap-1.5 ${r.ok ? 'text-foreground' : 'text-destructive'}`}>
+                {r.ok ? <CheckCircle size={12} /> : <X size={12} />}
+                {r.label}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+      {loading && (
+        <div className="flex gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+            <Bot size={14} />
+          </div>
+          <div className="rounded-2xl bg-muted px-3.5 py-2.5">
+            <Loader2 size={14} className="animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      )}
+      {!canSend && !loading && (
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
+          <Lock size={24} className="text-muted-foreground" />
+          <p className="text-xs text-muted-foreground max-w-[240px]">{t('focusy_limit_reached')}</p>
+          <a href="/profilo" className="text-xs font-semibold text-foreground underline">{t('focusy_unlock_more')}</a>
+        </div>
+      )}
+    </div>
+  );
+
+  const inputBar = (
+    <div className="p-3 border-t border-border">
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-background pr-2 pl-4">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+          placeholder={canSend ? t('focusy_input_ph') : t('focusy_limit_reached')}
+          disabled={loading || !canSend}
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+        />
+        <button
+          onClick={() => sendMessage(input)}
+          disabled={loading || !input.trim() || !canSend}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 shrink-0"
+        >
+          <Send size={16} />
+        </button>
+      </div>
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-foreground text-background">
+              <Sparkles size={16} />
+            </div>
+            <p className="text-sm font-bold">Focusy</p>
+          </div>
+          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${canSend ? 'bg-muted text-muted-foreground' : 'bg-destructive/15 text-destructive'}`}>
+            {limitLabel}
+          </span>
+        </div>
+        {messagesBody}
+        {inputBar}
+      </div>
+    );
+  }
+
   return (
     <>
       {!hideTrigger && (
@@ -557,95 +670,10 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
               </div>
 
               {/* Messages */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
-                {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background">
-                      <Sparkles size={28} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold mb-1">{t('focusy_welcome_title')}</p>
-                      <p className="text-xs text-muted-foreground max-w-[260px]">{t('focusy_welcome_desc')}</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 w-full mt-2">
-                      {allSuggestions.map((s) => (
-                        <button
-                          key={s.key}
-                          onClick={() => s.isRoutine ? runRoutineOptimization() : sendMessage(s.text)}
-                          disabled={!canSend}
-                          className="text-left rounded-xl border border-border bg-background p-3 text-xs text-foreground hover:bg-accent/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {t(s.key)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {messages.map((m, i) => (
-                  <div key={i} className={`flex gap-2.5 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${m.role === 'user' ? 'bg-muted' : 'bg-foreground text-background'}`}>
-                      {m.role === 'user' ? <User size={14} /> : <Bot size={14} />}
-                    </div>
-                    <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${m.role === 'user' ? 'bg-foreground text-background' : 'bg-muted text-foreground'}`}>
-                      <p className="whitespace-pre-wrap">{m.content}</p>
-                    </div>
-                  </div>
-                ))}
-                {actionResults.length > 0 && (
-                  <div className="flex gap-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                      <CheckCircle size={14} />
-                    </div>
-                    <div className="rounded-2xl bg-muted px-3.5 py-2.5 space-y-1">
-                      {actionResults.map((r, i) => (
-                        <p key={i} className={`text-xs flex items-center gap-1.5 ${r.ok ? 'text-foreground' : 'text-destructive'}`}>
-                          {r.ok ? <CheckCircle size={12} /> : <X size={12} />}
-                          {r.label}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {loading && (
-                  <div className="flex gap-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                      <Bot size={14} />
-                    </div>
-                    <div className="rounded-2xl bg-muted px-3.5 py-2.5">
-                      <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                    </div>
-                  </div>
-                )}
-                {!canSend && !loading && (
-                  <div className="flex flex-col items-center gap-2 py-4 text-center">
-                    <Lock size={24} className="text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground max-w-[240px]">{t('focusy_limit_reached')}</p>
-                    <a href="/profilo" className="text-xs font-semibold text-foreground underline">{t('focusy_unlock_more')}</a>
-                  </div>
-                )}
-              </div>
+              {messagesBody}
 
               {/* Input */}
-              <div className="p-3 border-t border-border">
-                <div className="flex items-center gap-2 rounded-2xl border border-border bg-background pr-2 pl-4">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                    placeholder={canSend ? t('focusy_input_ph') : t('focusy_limit_reached')}
-                    disabled={loading || !canSend}
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
-                  />
-                  <button
-                    onClick={() => sendMessage(input)}
-                    disabled={loading || !input.trim() || !canSend}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background disabled:opacity-30 shrink-0"
-                  >
-                    <Send size={16} />
-                  </button>
-                </div>
-              </div>
+              {inputBar}
             </motion.div>
           </motion.div>
         )}

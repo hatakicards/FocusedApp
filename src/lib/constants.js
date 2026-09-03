@@ -2,20 +2,12 @@ export const CATEGORIES = [
   { id: 'fitness', name: 'Fitness e Benessere', short: 'Fitness' },
   { id: 'mente', name: 'Mentalità e Stile di Vita', short: 'Mente' },
   { id: 'apprendimento', name: 'Apprendimento e Cultura', short: 'Cultura' },
-  { id: 'sport', name: 'Sport', short: 'Sport' },
-  { id: 'work', name: 'Lavoro', short: 'Work' },
-  { id: 'studies', name: 'Studi', short: 'Studi' },
-  { id: 'lifestyle', name: 'Lifestyle', short: 'Lifestyle' },
 ];
 
 export const CATEGORY_NAMES = {
   fitness: 'Fitness e Benessere',
   mente: 'Mentalità e Stile di Vita',
   apprendimento: 'Apprendimento e Cultura',
-  sport: 'Sport',
-  work: 'Lavoro',
-  studies: 'Studi',
-  lifestyle: 'Lifestyle',
 };
 
 export const RANKS = [
@@ -80,34 +72,6 @@ export const RANK_REQUIREMENTS = {
     { id: 'streak_2weeks', label: 'Raggiungi una streak di due settimane' },
     { id: 'all_five_5', label: 'Raggiungi 5 giorni di fila con tutti 5' },
   ],
-  sport: [
-    { id: 'streak_week', label: 'Ottieni una streak di una settimana' },
-    { id: 'goal_medium', label: 'Raggiungi un obiettivo di difficoltà media o superiore' },
-    { id: 'streak_month', label: 'Ottieni una streak di un mese' },
-    { id: 'goal_hard', label: 'Raggiungi un obiettivo di difficoltà difficile' },
-    { id: 'five_days_20', label: 'Raggiungi 20 giornate con voto 5' },
-  ],
-  work: [
-    { id: 'goal_easy', label: 'Raggiungi un obiettivo di difficoltà facile' },
-    { id: 'goal_medium', label: 'Raggiungi un obiettivo di difficoltà media' },
-    { id: 'goal_hard', label: 'Raggiungi un obiettivo di difficoltà difficile' },
-    { id: 'streak_2weeks', label: 'Raggiungi una streak di due settimane' },
-    { id: 'all_five_5', label: 'Raggiungi 5 giorni di fila con tutti 5' },
-  ],
-  studies: [
-    { id: 'grade_above_90', label: 'Ottieni un voto superiore al 90%' },
-    { id: 'avg_above_80', label: 'Ottieni una media generale di 80' },
-    { id: 'grade_above_85_3', label: 'Ottieni un voto superiore a 85% in 3 test' },
-    { id: 'grade_above_85_5', label: 'Ottieni un voto superiore a 85% in 5 test' },
-    { id: 'grade_above_85_10', label: 'Ottieni un voto superiore a 85% in 10 test' },
-  ],
-  lifestyle: [
-    { id: 'goal_easy', label: 'Raggiungi un obiettivo di difficoltà facile' },
-    { id: 'goal_medium', label: 'Raggiungi un obiettivo di difficoltà media' },
-    { id: 'goal_hard', label: 'Raggiungi un obiettivo di difficoltà difficile' },
-    { id: 'streak_2weeks', label: 'Raggiungi una streak di due settimane' },
-    { id: 'all_five_5', label: 'Raggiungi 5 giorni di fila con tutti 5' },
-  ],
 };
 
 export const PROFILE_TYPES = [
@@ -139,9 +103,9 @@ export const QUIT_SMOKING_IMAGE_URL = 'https://media.base44.com/images/public/6a
 
 export const PRESET_ACTIVITIES = [
   { presetType: 'gym', name: 'Gym', category: 'fitness', imageUrl: GYM_IMAGE_URL, emoji: 'dumbbell' },
-  { presetType: 'phone_time', name: 'Reducing Phone Time', category: 'lifestyle', imageUrl: PHONE_IMAGE_URL, emoji: 'smartphone' },
+  { presetType: 'phone_time', name: 'Reducing Phone Time', category: 'custom', imageUrl: PHONE_IMAGE_URL, emoji: 'smartphone' },
   { presetType: 'reading', name: 'Reading', category: 'apprendimento', imageUrl: STUDY_IMAGE_URL, emoji: 'bookopen' },
-  { presetType: 'quit_smoking', name: 'Quit Smoking', category: 'lifestyle', imageUrl: QUIT_SMOKING_IMAGE_URL, emoji: 'flame' },
+  { presetType: 'quit_smoking', name: 'Quit Smoking', category: 'custom', imageUrl: QUIT_SMOKING_IMAGE_URL, emoji: 'flame' },
 ];
 
 export const PROFILE_VIDEOS = {

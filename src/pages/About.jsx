@@ -27,8 +27,8 @@ export default function About() {
             matter to you and see your progress over time.
           </p>
           <p>
-            The app lets you create custom activities across categories like fitness, mind,
-            learning, sport, work, and lifestyle. Each completed activity earns a rating
+            The app lets you create custom activities across categories like fitness,
+            mindset, and learning &amp; culture. Each completed activity earns a rating
             from one to five, feeding into detailed statistics, streaks, and a ranking system
             that turns self-improvement into a measurable journey. Beyond habits, Focused
             includes a Body Fuel nutrition tracker, a Gym Tracker with scheduling, a Focus

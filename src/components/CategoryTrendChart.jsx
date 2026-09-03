@@ -10,9 +10,6 @@ const CAT_COLORS = {
   fitness: '#EF4444',
   mente: '#3B82F6',
   apprendimento: '#22C55E',
-  sport: '#F59E0B',
-  work: '#A855F7',
-  studies: '#06B6D4',
 };
 
 function mondayOf(date) {

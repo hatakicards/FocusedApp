@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Flame, Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete, useSubscription } from '@/lib/useAppData';
+import { useAuth } from '@/lib/AuthContext';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +29,8 @@ function calculateSleepDuration(bedtime, wakeTime) {
 }
 
 export default function BodyFuel() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
   const { data: entries } = useBodyFuelEntries();
   const { data: settings } = useUserSettings();
   const { data: customFoods } = useCustomFoods();
@@ -52,10 +56,39 @@ export default function BodyFuel() {
   const [chartDialog, setChartDialog] = useState(null);
   const [editEntry, setEditEntry] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [savingFood, setSavingFood] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  // Le aggiunte/rimozioni/modifiche cibo sono asincrone; senza questa coda,
+  // due tap ravvicinati potevano generare due salvataggi in parallelo e
+  // quello piu' lento a rispondere sovrascriveva l'altro nella cache
+  // (il "glitch": l'alimento appena aggiunto spariva e le barre tornavano
+  // indietro). Mettendoli in coda, ogni salvataggio parte solo dopo che il
+  // precedente e' davvero tornato dal server.
+  const saveChainRef = useRef(Promise.resolve());
+  // Il caricamento dal server deve avvenire una volta sola per data. Se
+  // questo effect si ri-attivasse a ogni cambio di `todayEntry" (come
+  // faceva prima), ogni volta che un NOSTRO salvataggio tornava dal
+  // server avrebbe ri-sincronizzato lo stato locale con quello che il
+  // server aveva IN QUEL momento — che durante una raffica di aggiunte
+  // ravvicinate e' spesso gia' superato da un salvataggio successivo
+  // ancora in corso, cancellando l'ultima modifica dall'interfaccia.
+  const loadedDateRef = useRef(null);
+  // Fonte di verita' sincrona per il food log, aggiornata SOLO da noi (mai
+  // da React). Serve perche' l'updater funzionale di setFoodLog non viene
+  // sempre eseguito in modo sincrono: se un secondo tap arriva prima che il
+  // primo abbia fatto il suo render, React salta il calcolo "eager" e la
+  // callback dell'updater gira solo piu' tardi, durante il render vero e
+  // proprio. Lo stato React finale resta corretto, ma se leggessimo il
+  // nuovo array da li' per salvarlo sul server, in quel secondo tap
+  // avremmo ancora `undefined` -> il salvataggio manderebbe food_log
+  // mancante e cancellerebbe quanto appena aggiunto dal primo tap.
+  const foodLogRef = useRef([]);
 
   useEffect(() => {
+    if (!entries || loadedDateRef.current === today) return;
+    loadedDateRef.current = today;
     if (todayEntry) {
+      foodLogRef.current = todayEntry.food_log || [];
       setFoodLog(todayEntry.food_log || []);
       setSleepHours(todayEntry.sleep_hours || 0);
       setSleepMinutes(todayEntry.sleep_minutes || 0);
@@ -64,7 +97,7 @@ export default function BodyFuel() {
       setWeight(todayEntry.weight?.toString() || '');
       setHeight(todayEntry.height?.toString() || '');
     }
-  }, [todayEntry]);
+  }, [entries, today, todayEntry]);
 
   if (!sub.canUseProfiles) {
     return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Flame} />;
@@ -77,48 +110,60 @@ export default function BodyFuel() {
 
   const sorted = [...(entries || [])].sort((a, b) => b.date.localeCompare(a.date));
 
-  const saveEntry = async (partialPayload) => {
+  const saveEntry = (partialPayload) => {
     const payload = { date: today, ...partialPayload };
-    await optimisticSave(todayEntry, payload);
+    // Rilegge la entry di oggi dalla cache al momento in cui il salvataggio
+    // *parte davvero* (non quando e' stato richiesto): con la coda, un
+    // secondo salvataggio in fila puo' partire dopo che il primo ha gia'
+    // creato la entry di oggi. Se qui si usasse ancora il "todayEntry"
+    // catturato al click, risulterebbe ancora inesistente e il secondo
+    // salvataggio ne creerebbe una seconda invece di aggiornare la prima.
+    const run = () => {
+      const current = qc.getQueryData(['bodyFuelEntries', user?.id]) || [];
+      const existing = current.find((e) => e.date === today);
+      return optimisticSave(existing, payload);
+    };
+    const next = saveChainRef.current.then(run, run);
+    saveChainRef.current = next.catch(() => {});
+    return next;
+  };
+
+  const saveFoodLog = async (newFoodLog) => {
+    const newTotals = computeFoodLogTotals(newFoodLog, customFoods);
+    setSavingFood(true);
+    try {
+      await saveEntry({
+        food_log: newFoodLog,
+        calories_consumed: newTotals.kcal,
+        protein_consumed: newTotals.protein,
+        carbs_consumed: newTotals.carbs,
+        lipids_consumed: newTotals.lipids,
+      });
+    } finally {
+      setSavingFood(false);
+    }
   };
 
   const handleAddFood = async (foodId, grams) => {
-    const newFoodLog = [...foodLog, { food_id: foodId, grams }];
+    const newItem = { food_id: foodId, grams, _id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+    const newFoodLog = [...foodLogRef.current, newItem];
+    foodLogRef.current = newFoodLog;
     setFoodLog(newFoodLog);
-    const newTotals = computeFoodLogTotals(newFoodLog, customFoods);
-    await saveEntry({
-      food_log: newFoodLog,
-      calories_consumed: newTotals.kcal,
-      protein_consumed: newTotals.protein,
-      carbs_consumed: newTotals.carbs,
-      lipids_consumed: newTotals.lipids,
-    });
+    await saveFoodLog(newFoodLog);
   };
 
   const handleRemoveFood = async (index) => {
-    const newFoodLog = foodLog.filter((_, i) => i !== index);
+    const newFoodLog = foodLogRef.current.filter((_, i) => i !== index);
+    foodLogRef.current = newFoodLog;
     setFoodLog(newFoodLog);
-    const newTotals = computeFoodLogTotals(newFoodLog, customFoods);
-    await saveEntry({
-      food_log: newFoodLog,
-      calories_consumed: newTotals.kcal,
-      protein_consumed: newTotals.protein,
-      carbs_consumed: newTotals.carbs,
-      lipids_consumed: newTotals.lipids,
-    });
+    await saveFoodLog(newFoodLog);
   };
 
   const handleEditFood = async (index, newGrams) => {
-    const newFoodLog = foodLog.map((item, i) => (i === index ? { ...item, grams: newGrams } : item));
+    const newFoodLog = foodLogRef.current.map((item, i) => (i === index ? { ...item, grams: newGrams } : item));
+    foodLogRef.current = newFoodLog;
     setFoodLog(newFoodLog);
-    const newTotals = computeFoodLogTotals(newFoodLog, customFoods);
-    await saveEntry({
-      food_log: newFoodLog,
-      calories_consumed: newTotals.kcal,
-      protein_consumed: newTotals.protein,
-      carbs_consumed: newTotals.carbs,
-      lipids_consumed: newTotals.lipids,
-    });
+    await saveFoodLog(newFoodLog);
   };
 
   const handleSleepChange = async (bedtime, wakeTime) => {
@@ -262,7 +307,7 @@ export default function BodyFuel() {
       </button>
 
       {/* Food tracker */}
-      <FoodTracker foodLog={foodLog} onAdd={handleAddFood} onRemove={handleRemoveFood} onEdit={handleEditFood} customFoods={customFoods || []} onAddCustomFood={handleAddCustomFood} />
+      <FoodTracker foodLog={foodLog} onAdd={handleAddFood} onRemove={handleRemoveFood} onEdit={handleEditFood} customFoods={customFoods || []} onAddCustomFood={handleAddCustomFood} saving={savingFood} />
 
       {/* 4 macro boxes */}
       <div className="grid grid-cols-2 gap-3 mb-4">

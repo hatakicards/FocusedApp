@@ -12,6 +12,12 @@
       "runtimeExecutable": "C:\\Users\\hp\\OneDrive\\Desktop\\Landing Focused\\.claude\\run-preview.cmd",
       "runtimeArgs": [],
       "port": 4173
+    },
+    {
+      "name": "dev-functions",
+      "runtimeExecutable": "C:\\Users\\hp\\OneDrive\\Desktop\\Landing Focused\\.claude\\run-dev-functions.cmd",
+      "runtimeArgs": [],
+      "port": 8788
     }
   ]
 }

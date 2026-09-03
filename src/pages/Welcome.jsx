@@ -12,6 +12,7 @@ import Step2Dream from '@/components/welcome/Step2Dream';
 import Step3Reminder from '@/components/welcome/Step3Reminder';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
+import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
 
 const STORAGE_KEY = 'welcome_data';
 
@@ -109,7 +110,21 @@ export default function Welcome() {
       return;
     }
 
-    // Premium or Pro → Stripe checkout
+    // Premium o Pro: nell'app nativa passa da RevenueCat (IAP Apple/Google),
+    // mai da Stripe — su web resta lo Stripe Checkout di sempre.
+    if (isRevenueCatAvailable()) {
+      try {
+        await purchaseSubscription(choice, 'monthly');
+      } catch (e) {
+        console.error('RevenueCat purchase error', e);
+        if (!e.userCancelled) {
+          alert(e.message || 'Non è stato possibile completare l\'acquisto. Riprova dal tuo profilo.');
+        }
+      }
+      navigate('/home', { replace: true });
+      return;
+    }
+
     if (window.self !== window.top) {
       alert('Checkout works only from a published app.');
       navigate('/home', { replace: true });

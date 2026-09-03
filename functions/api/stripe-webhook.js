@@ -1,23 +1,5 @@
-import { getSupabaseAdmin, jsonResponse } from './_shared/supabaseAdmin.js';
+import { getSupabaseAdmin, updateUserSettings as updateSettings, jsonResponse } from './_shared/supabaseAdmin.js';
 import { getStripe } from './_shared/stripeClient.js';
-
-async function updateSettings(supabaseAdmin, userId, patch) {
-  const { data: settings, error: selectError } = await supabaseAdmin
-    .from('user_settings')
-    .select('id')
-    .eq('created_by_id', userId)
-    .order('created_date', { ascending: false })
-    .limit(10);
-  if (selectError) throw selectError;
-
-  if (settings?.length) {
-    const { error } = await supabaseAdmin.from('user_settings').update(patch).eq('id', settings[0].id);
-    if (error) throw error;
-  } else {
-    const { error } = await supabaseAdmin.from('user_settings').insert({ created_by_id: userId, ...patch });
-    if (error) throw error;
-  }
-}
 
 // Converte crediti accumulati in mesi premium (50 crediti = 1 mese),
 // esattamente come nella logica originale.
