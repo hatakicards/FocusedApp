@@ -84,11 +84,11 @@ workflows:
       email:
         recipients:
           - danimandurinz2010@gmail.com
-      # Facoltativo: carica direttamente su TestFlight invece di scaricare
-      # l'IPA a mano — usa la stessa integrazione App Store Connect di sopra.
-      # app_store_connect:
-      #   auth: integration
-      #   submit_to_testflight: true
+      # Carica l'IPA direttamente su TestFlight a ogni build riuscita, usando
+      # la stessa integrazione App Store Connect di "integrations" sopra —
+      # non serve piu' scaricare l'IPA e caricarlo a mano con Transporter.
+      app_store_connect:
+        submit_to_testflight: true
 
   android-debug:
     name: Android - Debug APK (test su telefono, nessuna firma richiesta)
