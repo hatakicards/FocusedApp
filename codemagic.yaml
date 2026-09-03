@@ -44,18 +44,20 @@ workflows:
   ios-release:
     name: iOS - IPA firmato per App Store / TestFlight
     max_build_duration: 60
+    # Team settings -> Integrations -> App Store Connect -> il nome dato li'
+    # alla connessione con la API key (.p8 + Issuer ID + Key ID) va qui:
+    # e' questo che da' agli script sotto le credenziali per creare
+    # certificati/profili in automatico. Senza questo blocco, "ios_signing"
+    # da solo NON basta e la build fallisce prima ancora di arrivare agli
+    # script, con "No matching profiles found".
+    integrations:
+      app_store_connect: Codemagic
     environment:
       node: 22
       xcode: latest
-      # Team settings -> Integrations -> App Store Connect -> aggiungi la
-      # API key (.p8 + Issuer ID + Key ID, la stessa generata per
-      # collegare RevenueCat) con un nome, e mettilo qui sotto insieme al
-      # bundle ID gia' registrato (org.focusedapp.app).
       ios_signing:
         distribution_type: app_store
         bundle_identifier: org.focusedapp.app
-      groups:
-        - app_store_connect
     scripts:
       - name: Installa dipendenze npm
         script: npm ci
