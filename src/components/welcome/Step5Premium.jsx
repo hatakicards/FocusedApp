@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Crown, Star, Loader2, Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -149,6 +150,15 @@ export default function Step5Premium({ onFinish }) {
       >
         No thanks, keep it free!
       </button>
+
+      <div className="flex items-center justify-center gap-3 mt-1">
+        <Link to="/terms" className="text-[11px] text-muted-foreground underline">
+          Terms of Use
+        </Link>
+        <Link to="/privacy" className="text-[11px] text-muted-foreground underline">
+          Privacy Policy
+        </Link>
+      </div>
     </div>
   );
 }

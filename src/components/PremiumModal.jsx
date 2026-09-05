@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Crown, Star, Ban } from 'lucide-react';
 import { useT } from '@/lib/i18n';
@@ -264,6 +265,14 @@ export default function PremiumModal({ open, onClose }) {
 
             <p className="text-center text-[11px] text-muted-foreground">{t('pm_trial')}</p>
             <p className="text-center text-[11px] text-muted-foreground mt-2">{t('pm_pro_note')}</p>
+            <div className="flex items-center justify-center gap-3 mt-3">
+              <Link to="/terms" onClick={onClose} className="text-[11px] text-muted-foreground underline">
+                {t('pm_terms')}
+              </Link>
+              <Link to="/privacy" onClick={onClose} className="text-[11px] text-muted-foreground underline">
+                {t('pm_privacy')}
+              </Link>
+            </div>
 
             {isRevenueCatAvailable() && (
               <div className="mt-4">
