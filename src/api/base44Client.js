@@ -17,15 +17,17 @@ import { supabase } from '@/lib/supabaseClient';
 
 const FUNCTIONS_BASE = '/api';
 
-// Scheme registrato in ios/App/App/Info.plist (CFBundleURLTypes) e
-// android/app/src/main/AndroidManifest.xml (intent-filter). Google e Apple
-// non permettono l'OAuth dentro una webview embedded come quella
-// dell'app nativa: il flusso si apre per forza in un browser di sistema, e
-// se il redirect finale punta all'URL del sito (com'era prima), l'utente
-// resta "intrappolato" li' invece di tornare nell'app. Con questo scheme
-// personalizzato il sistema operativo intercetta il redirect e lo consegna
-// di nuovo all'app tramite l'evento "appUrlOpen" (vedi AuthContext.jsx).
-const NATIVE_OAUTH_REDIRECT = 'focusedapp://auth-callback';
+// Google e Apple non permettono l'OAuth dentro una webview embedded come
+// quella dell'app nativa: il flusso si apre per forza in un browser di
+// sistema. Il redirect finale punta a una pagina HTTPS ponte (vedi
+// public/native-auth-callback.html) invece che direttamente allo scheme
+// personalizzato "focusedapp://" (registrato in Info.plist/AndroidManifest,
+// intercettato da appUrlOpen in AuthContext.jsx): Sign in with Apple usa
+// response_mode=form_post, e un redirect diretto a uno scheme personalizzato
+// dopo una risposta POST fa si' che Safari/SFSafariViewController tenti di
+// scaricare la risposta come file invece di aprire l'app. La pagina ponte
+// fa quel redirect via JavaScript (contesto GET), evitando il problema.
+const NATIVE_OAUTH_REDIRECT = `${window.location.origin}/native-auth-callback.html`;
 
 // ---------------------------------------------------------------------------
 // Utility condivise

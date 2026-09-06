@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="robots" content="noindex" />
+<title>Focused</title>
+</head>
+<body>
+<script>
+  // Ponte HTTPS per il login nativo (Google/Apple): Supabase reindirizza qui
+  // dopo l'OAuth, e questa pagina passa il testimone all'app tramite lo
+  // scheme personalizzato "focusedapp://" (intercettato da appUrlOpen in
+  // AuthContext.jsx). Serve perche' Sign in with Apple usa
+  // response_mode=form_post: un redirect diretto verso uno scheme
+  // personalizzato dopo una risposta POST fa si' che Safari/
+  // SFSafariViewController interpreti la risposta come un file da scaricare
+  // invece di aprire l'app. Facendo il redirect finale qui via JavaScript
+  // (quindi in un contesto di navigazione GET) il problema non si presenta.
+  var target = 'focusedapp://auth-callback' + window.location.search;
+  document.getElementById('fallback-link').href = target;
+  window.location.replace(target);
+</script>
+<p>Accesso in corso, un attimo...</p>
+<p><a id="fallback-link" href="focusedapp://auth-callback">Tocca qui se l'app non si apre automaticamente.</a></p>
+</body>
+</html>
