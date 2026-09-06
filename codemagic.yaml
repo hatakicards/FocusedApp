@@ -58,6 +58,10 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: org.focusedapp.app
+      vars:
+        # ID numerico dell'app su App Store Connect (da:
+        # appstoreconnect.apple.com/.../apps/<questo numero>/testflight/...)
+        APP_STORE_APP_ID: "6807147341"
     scripts:
       - name: Installa dipendenze npm
         script: npm ci
@@ -67,8 +71,12 @@ workflows:
         script: npx cap sync ios
       - name: Aggiorna build number (Apple rifiuta un build number gia' usato)
         script: |
+          set -e
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-build-number "$APP_STORE_APP_ID")
+          NEW_BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          echo "Build number: $NEW_BUILD_NUMBER (precedente: $LATEST_BUILD_NUMBER)"
           cd ios/App
-          sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $CM_BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
+          sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $NEW_BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
       - name: Firma automatica (certificati + provisioning profile)
         script: |
           keychain initialize
