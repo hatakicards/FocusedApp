@@ -65,6 +65,10 @@ workflows:
         script: npm run build
       - name: Sincronizza Capacitor -> iOS
         script: npx cap sync ios
+      - name: Aggiorna build number (Apple rifiuta un build number gia' usato)
+        script: |
+          cd ios/App
+          sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $CM_BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
       - name: Firma automatica (certificati + provisioning profile)
         script: |
           keychain initialize
