@@ -11,9 +11,21 @@
 // Tutta la UI, tutte le pagine, tutti i componenti restano invariati.
 // ============================================================================
 
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabaseClient';
 
 const FUNCTIONS_BASE = '/api';
+
+// Scheme registrato in ios/App/App/Info.plist (CFBundleURLTypes) e
+// android/app/src/main/AndroidManifest.xml (intent-filter). Google e Apple
+// non permettono l'OAuth dentro una webview embedded come quella
+// dell'app nativa: il flusso si apre per forza in un browser di sistema, e
+// se il redirect finale punta all'URL del sito (com'era prima), l'utente
+// resta "intrappolato" li' invece di tornare nell'app. Con questo scheme
+// personalizzato il sistema operativo intercetta il redirect e lo consegna
+// di nuovo all'app tramite l'evento "appUrlOpen" (vedi AuthContext.jsx).
+const NATIVE_OAUTH_REDIRECT = 'focusedapp://auth-callback';
 
 // ---------------------------------------------------------------------------
 // Utility condivise
@@ -317,7 +329,22 @@ async function loginViaEmailPassword(email, password) {
   if (error) throw shimError(error, 'Invalid email or password');
 }
 
-function loginWithProvider(provider, returnTo) {
+async function loginWithProvider(provider, returnTo) {
+  if (Capacitor.isNativePlatform()) {
+    // Apre l'OAuth in un browser di sistema (obbligatorio per Google/Apple)
+    // ma senza lasciare subito la pagina: recuperiamo prima l'URL con
+    // skipBrowserRedirect, poi lo apriamo noi con Browser.open cosi' possiamo
+    // richiudere quella scheda quando arriva il redirect verso il nostro
+    // scheme personalizzato (intercettato in AuthContext.jsx).
+    if (returnTo) sessionStorage.setItem('oauth_return_to', returnTo);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: NATIVE_OAUTH_REDIRECT, skipBrowserRedirect: true },
+    });
+    if (error) throw shimError(error, 'Login failed');
+    if (data?.url) await Browser.open({ url: data.url });
+    return;
+  }
   const redirectTo = new URL(returnTo || '/home', window.location.origin).toString();
   // Fire-and-forget: la pagina sta per navigare via verso il provider OAuth.
   supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });

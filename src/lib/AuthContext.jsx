@@ -1,4 +1,7 @@
 import { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabaseClient';
 import { clearQueue } from '@/lib/syncQueue';
@@ -76,6 +79,33 @@ export const AuthProvider = ({ children }) => {
   const checkAppState = useCallback(async () => {
     await checkUserAuth();
   }, [checkUserAuth]);
+
+  // Intercetta il ritorno dal login Google/Apple nell'app nativa: Google e
+  // Apple non permettono l'OAuth dentro la webview embedded, quindi il
+  // flusso passa per forza da un browser di sistema (aperto da
+  // loginWithProvider in base44Client.js) che a fine login reindirizza allo
+  // scheme "focusedapp://auth-callback" invece che all'URL del sito — senza
+  // questo, l'utente restava "intrappolato" nel browser esterno.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      if (!url?.startsWith('focusedapp://auth-callback')) return;
+      try {
+        const code = new URL(url).searchParams.get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
+      } catch (e) {
+        console.error('OAuth callback error', e);
+      } finally {
+        await Browser.close().catch(() => {});
+        const returnTo = sessionStorage.getItem('oauth_return_to') || '/home';
+        sessionStorage.removeItem('oauth_return_to');
+        window.location.href = returnTo;
+      }
+    });
+    return () => { listener.then((l) => l.remove()); };
+  }, []);
 
   // Tiene lo storage condiviso letto dai widget nativi (Fase 2/3) allineato
   // alla sessione Supabase — SIGNED_IN/TOKEN_REFRESHED coprono sia il login
