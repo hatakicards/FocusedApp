@@ -90,30 +90,42 @@ export const AuthProvider = ({ children }) => {
     if (!Capacitor.isNativePlatform()) return;
     let lastHandledUrl = null;
     const listener = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
-      if (!url?.startsWith('focusedapp://auth-callback')) return;
+      // TEMPORANEO: diagnosi del fallimento silenzioso del login nativo
+      // (torna a Welcome/Login senza nessun errore visibile). Alert ad ogni
+      // passaggio chiave per vedere esattamente dove si interrompe, invece
+      // di indovinare alla cieca. Rimuovere tutti gli alert una volta
+      // identificata la causa reale.
+      alert('appUrlOpen ricevuto: ' + url);
+      if (!url?.startsWith('focusedapp://auth-callback')) {
+        alert('URL ignorato: non inizia per focusedapp://auth-callback');
+        return;
+      }
       // L'app resta in foreground per tutto l'OAuth (il browser di sistema si
       // apre come overlay, non come app separata): in certi casi iOS consegna
       // lo stesso appUrlOpen due volte, e un codice OAuth e' utilizzabile una
       // sola volta — la seconda exchangeCodeForSession fallirebbe e rischia di
       // vincere la corsa sul redirect finale. Ignoriamo un secondo evento
       // identico al precedente.
-      if (url === lastHandledUrl) return;
+      if (url === lastHandledUrl) {
+        alert('URL duplicato ignorato');
+        return;
+      }
       lastHandledUrl = url;
       try {
         const code = new URL(url).searchParams.get('code');
+        alert(code ? 'Code trovato, scambio in corso...' : 'Nessun code nella URL');
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
+          alert('Scambio riuscito! Sessione creata.');
         }
       } catch (e) {
         console.error('OAuth callback error', e);
-        // TEMPORANEO: diagnosi del fallimento silenzioso del login nativo
-        // segnalato dall'utente (torna a Welcome/Login senza errore visibile).
-        // Rimuovere una volta identificata la causa reale.
         alert('Errore login: ' + (e?.message || e));
       } finally {
         await Browser.close().catch(() => {});
         const returnTo = sessionStorage.getItem('oauth_return_to') || '/home';
         sessionStorage.removeItem('oauth_return_to');
+        alert('Redirect verso: ' + returnTo);
         window.location.href = returnTo;
       }
     });
