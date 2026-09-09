@@ -27,7 +27,7 @@ const FUNCTIONS_BASE = '/api';
 // dopo una risposta POST fa si' che Safari/SFSafariViewController tenti di
 // scaricare la risposta come file invece di aprire l'app. La pagina ponte
 // fa quel redirect via JavaScript (contesto GET), evitando il problema.
-const NATIVE_OAUTH_REDIRECT = `${window.location.origin}/native-auth-callback.html`;
+const NATIVE_OAUTH_REDIRECT = `${window.location.origin}/native-auth-callback`;
 
 // ---------------------------------------------------------------------------
 // Utility condivise
