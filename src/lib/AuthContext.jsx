@@ -88,8 +88,17 @@ export const AuthProvider = ({ children }) => {
   // questo, l'utente restava "intrappolato" nel browser esterno.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    let lastHandledUrl = null;
     const listener = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
       if (!url?.startsWith('focusedapp://auth-callback')) return;
+      // L'app resta in foreground per tutto l'OAuth (il browser di sistema si
+      // apre come overlay, non come app separata): in certi casi iOS consegna
+      // lo stesso appUrlOpen due volte, e un codice OAuth e' utilizzabile una
+      // sola volta — la seconda exchangeCodeForSession fallirebbe e rischia di
+      // vincere la corsa sul redirect finale. Ignoriamo un secondo evento
+      // identico al precedente.
+      if (url === lastHandledUrl) return;
+      lastHandledUrl = url;
       try {
         const code = new URL(url).searchParams.get('code');
         if (code) {
@@ -97,6 +106,10 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (e) {
         console.error('OAuth callback error', e);
+        // TEMPORANEO: diagnosi del fallimento silenzioso del login nativo
+        // segnalato dall'utente (torna a Welcome/Login senza errore visibile).
+        // Rimuovere una volta identificata la causa reale.
+        alert('Errore login: ' + (e?.message || e));
       } finally {
         await Browser.close().catch(() => {});
         const returnTo = sessionStorage.getItem('oauth_return_to') || '/home';
