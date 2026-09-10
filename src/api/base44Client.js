@@ -12,22 +12,45 @@
 // ============================================================================
 
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
+import { SocialLogin } from '@capgo/capacitor-social-login';
 import { supabase } from '@/lib/supabaseClient';
 
 const FUNCTIONS_BASE = '/api';
 
-// Google e Apple non permettono l'OAuth dentro una webview embedded come
-// quella dell'app nativa: il flusso si apre per forza in un browser di
-// sistema. Il redirect finale punta a una pagina HTTPS ponte (vedi
-// public/native-auth-callback.html) invece che direttamente allo scheme
-// personalizzato "focusedapp://" (registrato in Info.plist/AndroidManifest,
-// intercettato da appUrlOpen in AuthContext.jsx): Sign in with Apple usa
-// response_mode=form_post, e un redirect diretto a uno scheme personalizzato
-// dopo una risposta POST fa si' che Safari/SFSafariViewController tenti di
-// scaricare la risposta come file invece di aprire l'app. La pagina ponte
-// fa quel redirect via JavaScript (contesto GET), evitando il problema.
-const NATIVE_OAUTH_REDIRECT = `${window.location.origin}/native-auth-callback`;
+// Un browser esterno per l'OAuth (aperto dentro l'app tramite un overlay di
+// sistema, poi rimbalzato indietro con uno scheme personalizzato) si e'
+// dimostrato fragile su iOS: Sign in with Apple manda in errore quel giro,
+// e in generale iOS puo' bloccare senza nessun errore un redirect verso uno
+// scheme personalizzato se non e' innescato da un tap reale dell'utente.
+// Gli SDK nativi (SocialLogin) evitano il problema alla radice: l'utente si
+// autentica con il sistema operativo direttamente (Face ID / account Google
+// nativo), senza mai passare da un browser — il risultato e' un id_token che
+// passiamo a Supabase con signInWithIdToken.
+let socialLoginInitPromise = null;
+function ensureSocialLoginInitialized() {
+  if (!socialLoginInitPromise) {
+    socialLoginInitPromise = SocialLogin.initialize({
+      apple: {}, // iOS usa l'entitlement Sign In with Apple del bundle ID, nessun client id da configurare qui
+      google: {
+        // Client ID iOS (tipo "iOS", non quello Web usato da Supabase per il
+        // web) da Google Cloud Console -> Credentials. Va sostituito con il
+        // valore vero prima che il login Google nativo possa funzionare.
+        iOSClientId: 'TODO_IOS_CLIENT_ID.apps.googleusercontent.com',
+      },
+    });
+  }
+  return socialLoginInitPromise;
+}
+
+async function loginWithNativeSdk(provider, returnTo) {
+  await ensureSocialLoginInitialized();
+  const { result } = await SocialLogin.login({ provider, options: {} });
+  const idToken = result?.idToken;
+  if (!idToken) throw shimError({ message: 'Nessun token restituito dal provider' }, 'Login failed');
+  const { error } = await supabase.auth.signInWithIdToken({ provider, token: idToken });
+  if (error) throw shimError(error, 'Login failed');
+  window.location.href = returnTo || '/home';
+}
 
 // ---------------------------------------------------------------------------
 // Utility condivise
@@ -332,19 +355,8 @@ async function loginViaEmailPassword(email, password) {
 }
 
 async function loginWithProvider(provider, returnTo) {
-  if (Capacitor.isNativePlatform()) {
-    // Apre l'OAuth in un browser di sistema (obbligatorio per Google/Apple)
-    // ma senza lasciare subito la pagina: recuperiamo prima l'URL con
-    // skipBrowserRedirect, poi lo apriamo noi con Browser.open cosi' possiamo
-    // richiudere quella scheda quando arriva il redirect verso il nostro
-    // scheme personalizzato (intercettato in AuthContext.jsx).
-    if (returnTo) sessionStorage.setItem('oauth_return_to', returnTo);
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: NATIVE_OAUTH_REDIRECT, skipBrowserRedirect: true },
-    });
-    if (error) throw shimError(error, 'Login failed');
-    if (data?.url) await Browser.open({ url: data.url });
+  if (Capacitor.isNativePlatform() && (provider === 'apple' || provider === 'google')) {
+    await loginWithNativeSdk(provider, returnTo);
     return;
   }
   const redirectTo = new URL(returnTo || '/home', window.location.origin).toString();

@@ -17,6 +17,14 @@
     "SplashScreen": {
       "launchAutoHide": false,
       "backgroundColor": "#000000"
+    },
+    "SocialLogin": {
+      "providers": {
+        "google": true,
+        "apple": true,
+        "facebook": false,
+        "twitter": false
+      }
     }
   }
 }
