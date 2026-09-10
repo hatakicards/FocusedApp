@@ -32,10 +32,10 @@ function ensureSocialLoginInitialized() {
     socialLoginInitPromise = SocialLogin.initialize({
       apple: {}, // iOS usa l'entitlement Sign In with Apple del bundle ID, nessun client id da configurare qui
       google: {
-        // Client ID iOS (tipo "iOS", non quello Web usato da Supabase per il
-        // web) da Google Cloud Console -> Credentials. Va sostituito con il
-        // valore vero prima che il login Google nativo possa funzionare.
-        iOSClientId: 'TODO_IOS_CLIENT_ID.apps.googleusercontent.com',
+        // Client ID di tipo "iOS" (Google Cloud Console -> API e servizi ->
+        // Credenziali), distinto da quello "Applicazione web" usato da
+        // Supabase per il flusso web.
+        iOSClientId: '30875501313-k1snc56glgsdvfeb6voti1947jh55k5d.apps.googleusercontent.com',
       },
     });
   }
