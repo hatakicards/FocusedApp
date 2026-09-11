@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Image } from '@/components/ui/image';
-import { LogOut, Clock, Flame, Trophy, Target, Trash2, ChevronRight, Check, Globe, Crown, Lock, Gift, Sparkles, Megaphone, Ban, Lightbulb } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { LogOut, Clock, Trash2, Check, Globe, Crown, Sparkles, Ban, Gift } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useActivities, useRatings, useGoals, useUserSettings, useTasks, useInvalidateAll, useLessonGrades } from '@/lib/useAppData';
 import { base44 } from '@/api/base44Client';
 import { getDB } from '@/lib/guestDB';
-import { LOGO_URL, CATEGORIES, RANKS } from '@/lib/constants';
-import { computeLongestStreak, computeCategoryRank } from '@/lib/productivity';
+import { LOGO_URL, CATEGORIES } from '@/lib/constants';
+import { computeCategoryRank } from '@/lib/productivity';
 import { useI18n, useT, LANGUAGES } from '@/lib/i18n';
 import RankBadge from '@/components/RankBadge';
 import TimeCapsule from '@/components/TimeCapsule';
@@ -33,7 +32,6 @@ import {
 
 export default function Profilo() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const { data: activities } = useActivities();
   const { data: ratings } = useRatings();
   const { data: goals } = useGoals();
@@ -136,16 +134,9 @@ export default function Profilo() {
     }
   };
 
-  const highestStreak = (activities || []).reduce((max, a) => {
-    const aRatings = (ratings || []).filter((r) => r.activity_id === a.id);
-    return Math.max(max, computeLongestStreak(aRatings));
-  }, 0);
-
   const categoryRanks = CATEGORIES.map((cat) =>
     computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || [])
   );
-  const highestRankIndex = Math.max(-1, ...categoryRanks.map((r) => r.rankIndex));
-  const highestRank = highestRankIndex >= 0 ? RANKS[highestRankIndex] : null;
 
   const completedGoals = (goals || [])
     .filter((g) => g.completed && g.completed_date)
@@ -191,72 +182,6 @@ export default function Profilo() {
         </div>
         <h1 className="text-xl font-bold tracking-tight">{user?.isGuest ? t('guest_logged') : (user?.full_name || user?.email)}</h1>
         <p className="text-sm text-muted-foreground">{user?.isGuest ? t('guest_data_local') : user?.email}</p>
-      </div>
-
-      {/* Work with Us */}
-      <button
-        onClick={() => navigate('/work-with-us')}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors mb-3"
-      >
-        <Megaphone size={12} />
-        {t('wwu_btn')}
-      </button>
-
-      {/* Invite friends */}
-      <button
-        onClick={() => navigate('/invita')}
-        className="flex w-full items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 mb-6 hover:bg-emerald-500/10 transition-colors"
-      >
-        <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-          <Gift size={18} className="text-emerald-500" />
-        </div>
-        <div className="text-left flex-1">
-          <p className="text-sm font-semibold">{t('profilo_invita')}</p>
-          <p className="text-xs text-muted-foreground">{t('profilo_invita_sub')}</p>
-        </div>
-        <ChevronRight size={18} className="text-muted-foreground" />
-      </button>
-
-      {/* Dream Functionality */}
-      <button
-        onClick={() => navigate('/dream')}
-        className="flex w-full items-center gap-3 rounded-2xl border border-foreground/20 bg-foreground/5 p-4 mb-6 hover:bg-foreground/10 transition-colors"
-      >
-        <div className="w-10 h-10 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
-          <Lightbulb size={18} className="text-foreground" />
-        </div>
-        <div className="text-left flex-1">
-          <p className="text-sm font-semibold">{t('dream_btn')}</p>
-          <p className="text-xs text-muted-foreground">{t('dream_btn_sub')}</p>
-        </div>
-        <ChevronRight size={18} className="text-muted-foreground" />
-      </button>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="rounded-2xl border border-border bg-card p-4 flex flex-col items-center text-center">
-          <Flame size={18} className="text-foreground mb-1" />
-          <span className="text-2xl font-bold">{highestStreak}</span>
-          <span className="text-[10px] text-muted-foreground mt-0.5">{t('profilo_streak_record')}</span>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 flex flex-col items-center text-center">
-          {highestRank ? (
-            <>
-              <RankBadge rankId={highestRank.id} size="sm" showName={false} />
-              <span className="text-[10px] text-muted-foreground mt-1">{t('rank_' + highestRank.id)}</span>
-            </>
-          ) : (
-            <>
-              <Trophy size={18} className="text-muted-foreground mb-1" />
-              <span className="text-[10px] text-muted-foreground mt-0.5">{t('nessun_rank')}</span>
-            </>
-          )}
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 flex flex-col items-center text-center">
-          <Target size={18} className="text-foreground mb-1" />
-          <span className="text-2xl font-bold">{completedGoals.length}</span>
-          <span className="text-[10px] text-muted-foreground mt-0.5">{t('profilo_obiettivi')}</span>
-        </div>
       </div>
 
       {/* Motivazione */}
@@ -348,20 +273,6 @@ export default function Profilo() {
           })}
         </div>
       </div>
-
-      {/* Statistiche di vita */}
-      <Link to="/obiettivi?tab=lifestats" className="block rounded-2xl border border-border bg-card p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold flex items-center gap-2">
-              {t('profilo_stats_vita')}
-              {!sub.canUseLifeStats && <Lock size={14} className="text-muted-foreground" />}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t('profilo_stats_sub')}</p>
-          </div>
-          <ChevronRight size={18} className="text-muted-foreground" />
-        </div>
-      </Link>
 
       {/* Time capsule */}
       <div className="rounded-2xl border border-border bg-card p-4 mb-6">

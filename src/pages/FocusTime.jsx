@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles } from 'lucide-react';
+import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles, Hourglass, ShieldOff } from 'lucide-react';
 import {
   useFocusSessions,
   useHomeworks,
@@ -148,6 +148,40 @@ export default function FocusTime() {
           </header>
 
           <FocusStats sessions={sessions} />
+
+          {/* Limiti di utilizzo + Focus Sessions: richiedono l'entitlement
+              Family Controls di Apple (richiesto, in attesa di approvazione
+              al 2026-09-11) — mostrate come anteprima finche' non e' pronto. */}
+          <div className="space-y-3 mb-6">
+            <div className="rounded-2xl border border-border bg-card p-4 opacity-70">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+                  <Hourglass size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">{t('focus_limiti_titolo')}</p>
+                    <span className="text-[9px] font-bold uppercase tracking-wider rounded-full bg-foreground/10 px-2 py-0.5">{t('focus_coming_soon')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('focus_limiti_desc')}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-4 opacity-70">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+                  <ShieldOff size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">{t('focus_sessions_titolo')}</p>
+                    <span className="text-[9px] font-bold uppercase tracking-wider rounded-full bg-foreground/10 px-2 py-0.5">{t('focus_coming_soon')}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('focus_sessions_desc')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <button
             onClick={() => setQuickPick(true)}

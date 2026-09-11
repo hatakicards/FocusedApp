@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ListChecks, CalendarClock } from 'lucide-react';
+import { Check, ListChecks, CalendarClock, Gift, Lightbulb, Megaphone, Settings, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   useDayEntries,
@@ -15,7 +15,6 @@ import { useT } from '@/lib/i18n';
 import RatingPicker from '@/components/RatingPicker';
 import ProfileSelector from '@/components/ProfileSelector';
 import PremiumModal from '@/components/PremiumModal';
-import ActivitiesList from '@/components/abitudini/ActivitiesList';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import PullToRefresh from '@/components/PullToRefresh';
 import TutorialDialog from '@/components/TutorialDialog';
@@ -81,7 +80,7 @@ export default function Oggi() {
             className="w-full h-full object-cover object-center"
           />
         </div>
-        <div className="absolute inset-0 flex flex-col px-4 pt-6 pb-4">
+        <div className="absolute inset-0 flex flex-col px-4 pt-10 pb-4">
           <h1 className="text-xl font-bold tracking-tight text-center text-white leading-tight px-2">
             {t(questionKey)}
           </h1>
@@ -141,7 +140,7 @@ export default function Oggi() {
       )}
 
       {/* === Selezione profilo === */}
-      <div className="mb-6">
+      <div className="mb-4">
         <ProfileSelector
           value={settings?.profile_type || 'base'}
           onChange={handleProfileChange}
@@ -152,8 +151,42 @@ export default function Oggi() {
       </div>
       <PremiumModal open={showPremium} onClose={() => setShowPremium(false)} />
 
-      {/* === Attività/Abitudini === */}
-      <ActivitiesList />
+      {/* === Invita amici / Dream / Work with us === */}
+      <div className="grid grid-cols-3 gap-2.5 mb-3">
+        <button
+          onClick={() => navigate('/invita')}
+          className="flex flex-col items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-center hover:bg-emerald-500/10 transition-colors"
+        >
+          <Gift size={18} className="text-emerald-500" />
+          <span className="text-[11px] font-semibold leading-tight">{t('profilo_invita')}</span>
+        </button>
+        <button
+          onClick={() => navigate('/dream')}
+          className="flex flex-col items-center gap-2 rounded-2xl border border-foreground/20 bg-foreground/5 p-3 text-center hover:bg-foreground/10 transition-colors"
+        >
+          <Lightbulb size={18} className="text-foreground" />
+          <span className="text-[11px] font-semibold leading-tight">{t('dream_btn')}</span>
+        </button>
+        <button
+          onClick={() => navigate('/work-with-us')}
+          className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3 text-center hover:bg-accent/30 transition-colors"
+        >
+          <Megaphone size={18} className="text-foreground" />
+          <span className="text-[11px] font-semibold leading-tight">{t('wwu_btn')}</span>
+        </button>
+      </div>
+
+      {/* === Impostazioni profilo === */}
+      <button
+        onClick={() => navigate('/profilo')}
+        className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 mb-6 hover:bg-accent/30 transition-colors"
+      >
+        <div className="w-9 h-9 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+          <Settings size={16} className="text-foreground" />
+        </div>
+        <span className="flex-1 text-left text-sm font-semibold">{t('home_impostazioni_profilo')}</span>
+        <ChevronRight size={18} className="text-muted-foreground" />
+      </button>
     </div>
     <TutorialDialog pageId="oggi" />
     </PullToRefresh>
