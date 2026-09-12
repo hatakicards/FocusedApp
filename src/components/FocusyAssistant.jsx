@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, Bot, User, Loader2, Lock, CheckCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { useT } from '@/lib/i18n';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -288,6 +289,8 @@ const RESPONSE_SCHEMA = {
 export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false, inline = false }) {
   const t = useT();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isGuest = !!user?.isGuest;
   const [openState, setOpenState] = useState(defaultOpen);
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = onOpenChange || setOpenState;
@@ -317,7 +320,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const limit = LIMITS[tier] ?? LIMITS.free;
   const messagesLeft = isPremium ? Infinity : Math.max(0, limit - dailyCount);
-  const canSend = isPremium || dailyCount < limit;
+  const canSend = !isGuest && (isPremium || dailyCount < limit);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -493,7 +496,9 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     }
   }, [loading, canSend, t]);
 
-  const limitLabel = isPremium
+  const limitLabel = isGuest
+    ? t('guest_logged')
+    : isPremium
     ? t('focusy_unlimited')
     : `${messagesLeft}/${limit} ${t('focusy_messages_left')}`;
 
@@ -501,7 +506,24 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const messagesBody = (
     <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
-      {messages.length === 0 && (
+      {messages.length === 0 && isGuest && (
+        <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background">
+            <Lock size={28} />
+          </div>
+          <div>
+            <p className="text-xl font-bold mb-2">{t('focusy_guest_title')}</p>
+            <p className="text-xs text-muted-foreground max-w-[260px]">{t('focusy_guest_desc')}</p>
+          </div>
+          <a
+            href="/login"
+            className="mt-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background"
+          >
+            {t('focusy_guest_btn')}
+          </a>
+        </div>
+      )}
+      {messages.length === 0 && !isGuest && (
         <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground text-background">
             <Sparkles size={28} />
@@ -559,7 +581,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           </div>
         </div>
       )}
-      {!canSend && !loading && (
+      {!canSend && !isGuest && !loading && (
         <div className="flex flex-col items-center gap-2 py-4 text-center">
           <Lock size={24} className="text-muted-foreground" />
           <p className="text-xs text-muted-foreground max-w-[240px]">{t('focusy_limit_reached')}</p>
@@ -607,7 +629,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           </span>
         </div>
         {messagesBody}
-        {inputBar}
+        {!isGuest && inputBar}
       </div>
     );
   }
@@ -673,7 +695,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
               {messagesBody}
 
               {/* Input */}
-              {inputBar}
+              {!isGuest && inputBar}
             </motion.div>
           </motion.div>
         )}
