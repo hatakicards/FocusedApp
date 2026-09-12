@@ -82,6 +82,8 @@ workflows:
           keychain initialize
           app-store-connect fetch-signing-files "org.focusedapp.app" \
             --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "org.focusedapp.app.widget" \
+            --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Build IPA firmato

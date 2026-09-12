@@ -4,4 +4,5 @@
     <string name="title_activity_main">Focused</string>
     <string name="package_name">org.focusedapp.app</string>
     <string name="custom_url_scheme">org.focusedapp.app</string>
+    <string name="widget_description">Il tuo streak e il Focus Score di oggi</string>
 </resources>
