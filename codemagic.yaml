@@ -81,7 +81,9 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
+          rm -rf ~/Library/MobileDevice/Provisioning\ Profiles/
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+          cp ios/certs/FocusedApp.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedApp.mobileprovision
           cp ios/certs/FocusedWidget.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedWidget.mobileprovision
           xcode-project use-profiles
       - name: Build IPA firmato
