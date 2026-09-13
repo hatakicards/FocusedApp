@@ -57,7 +57,9 @@ workflows:
       xcode: latest
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: org.focusedapp.app
+        bundle_identifier:
+          - org.focusedapp.app
+          - org.focusedapp.app.widget
       vars:
         # ID numerico dell'app su App Store Connect (da:
         # appstoreconnect.apple.com/.../apps/<questo numero>/testflight/...)
@@ -80,10 +82,6 @@ workflows:
       - name: Firma automatica (certificati + provisioning profile)
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "org.focusedapp.app" \
-            --type IOS_APP_STORE --create
-          app-store-connect fetch-signing-files "org.focusedapp.app.widget" \
-            --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Build IPA firmato
