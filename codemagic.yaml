@@ -81,7 +81,8 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          app-store-connect fetch-signing-files "org.focusedapp.app.widget" --type IOS_APP_STORE
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+          cp ios/certs/FocusedWidget.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedWidget.mobileprovision
           xcode-project use-profiles
       - name: Build IPA firmato
         script: |
