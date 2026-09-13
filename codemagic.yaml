@@ -80,11 +80,8 @@ workflows:
       - name: Firma automatica (certificati + provisioning profile)
         script: |
           keychain initialize
-          echo "--- Fetching org.focusedapp.app.widget ---"
-          app-store-connect fetch-signing-files "org.focusedapp.app.widget" --type IOS_APP_STORE --create
-          FETCH_EXIT=$?
-          echo "--- Done fetching, exit code $FETCH_EXIT ---"
           keychain add-certificates
+          app-store-connect fetch-signing-files "org.focusedapp.app.widget" --type IOS_APP_STORE --create
           xcode-project use-profiles
       - name: Build IPA firmato
         script: |
