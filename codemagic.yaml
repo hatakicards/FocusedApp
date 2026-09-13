@@ -81,10 +81,7 @@ workflows:
         script: |
           keychain initialize
           keychain add-certificates
-          echo "=== FETCH WIDGET START ==="
-          app-store-connect fetch-signing-files "org.focusedapp.app.widget" --type IOS_APP_STORE --create --verbose || echo "=== FETCH WIDGET FAILED exit $? ==="
-          echo "=== FETCH WIDGET END ==="
-          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ || echo "no profiles dir"
+          app-store-connect fetch-signing-files "org.focusedapp.app.widget" --type IOS_APP_STORE
           xcode-project use-profiles
       - name: Build IPA firmato
         script: |
