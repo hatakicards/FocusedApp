@@ -5,8 +5,11 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+// shouldScaleBackground applica uno scale() al contenuto dietro il drawer:
+// su iOS WKWebView quel transform disallinea le coordinate del touch e fa
+// si' che il tap su un'opzione ne selezioni un'altra (o nessuna). Disattivato.
 const Drawer = ({
-  shouldScaleBackground = true,
+  shouldScaleBackground = false,
   ...props
 }) => (
   <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
