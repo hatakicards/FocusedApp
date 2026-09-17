@@ -42,14 +42,30 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = () => {
+  const handleGoogle = async () => {
+    setError("");
     setGuestMode(false);
-    base44.auth.loginWithProvider("google", safeReturnTo());
+    setLoading(true);
+    try {
+      await base44.auth.loginWithProvider("google", safeReturnTo());
+    } catch (err) {
+      setError(err.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleApple = () => {
+  const handleApple = async () => {
+    setError("");
     setGuestMode(false);
-    base44.auth.loginWithProvider("apple", safeReturnTo());
+    setLoading(true);
+    try {
+      await base44.auth.loginWithProvider("apple", safeReturnTo());
+    } catch (err) {
+      setError(err.message || "Apple sign-in failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,8 +86,9 @@ export default function Login() {
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-3"
         onClick={handleApple}
+        disabled={loading}
       >
-        <AppleIcon className="w-5 h-5 mr-2" />
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AppleIcon className="w-5 h-5 mr-2" />}
         Continue with Apple
       </Button>
 
@@ -79,8 +96,9 @@ export default function Login() {
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"
         onClick={handleGoogle}
+        disabled={loading}
       >
-        <GoogleIcon className="w-5 h-5 mr-2" />
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <GoogleIcon className="w-5 h-5 mr-2" />}
         Continue with Google
       </Button>
 

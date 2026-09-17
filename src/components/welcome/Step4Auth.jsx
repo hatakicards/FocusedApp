@@ -16,16 +16,32 @@ export default function Step4Auth({ data, onAuthRedirect, onBack }) {
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState('');
 
-  const handleGoogle = () => {
-    onAuthRedirect();
+  const handleGoogle = async () => {
+    setError('');
     setGuestMode(false);
-    base44.auth.loginWithProvider('google', '/welcome');
+    setLoading(true);
+    onAuthRedirect(); // salva i dati onboarding in localStorage prima del redirect nativo
+    try {
+      await base44.auth.loginWithProvider('google', '/welcome');
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleApple = () => {
-    onAuthRedirect();
+  const handleApple = async () => {
+    setError('');
     setGuestMode(false);
-    base44.auth.loginWithProvider('apple', '/welcome');
+    setLoading(true);
+    onAuthRedirect(); // salva i dati onboarding in localStorage prima del redirect nativo
+    try {
+      await base44.auth.loginWithProvider('apple', '/welcome');
+    } catch (err) {
+      setError(err.message || 'Apple sign-in failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -116,17 +132,19 @@ export default function Step4Auth({ data, onAuthRedirect, onBack }) {
 
         <button
           onClick={handleApple}
-          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mb-3 hover:bg-muted transition-colors"
+          disabled={loading}
+          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mb-3 hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <AppleIcon className="w-5 h-5" />
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <AppleIcon className="w-5 h-5" />}
           Continue with Apple
         </button>
 
         <button
           onClick={handleGoogle}
-          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mb-4 hover:bg-muted transition-colors"
+          disabled={loading}
+          className="w-full rounded-2xl border border-border bg-card py-3.5 text-sm font-semibold flex items-center justify-center gap-2 mb-4 hover:bg-muted transition-colors disabled:opacity-50"
         >
-          <GoogleIcon className="w-5 h-5" />
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
           Continue with Google
         </button>
 
