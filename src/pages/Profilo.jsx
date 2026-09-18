@@ -286,8 +286,10 @@ export default function Profilo() {
       {/* Archivio */}
       <Archive tasks={tasks} ratings={ratings} />
 
-      {/* Promo code redemption */}
-      {!sub.promoActive && (
+      {/* Promo code redemption — non mostrato nell'app nativa: Apple vieta
+          (Guideline 3.1.1) di sbloccare abbonamenti con meccanismi diversi
+          dall'in-app purchase. Resta disponibile solo sul sito web. */}
+      {!sub.promoActive && !isRevenueCatAvailable() && (
         <div className="rounded-2xl border border-border bg-card p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Gift size={16} className="text-foreground" />
