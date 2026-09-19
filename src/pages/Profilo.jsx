@@ -111,7 +111,7 @@ export default function Profilo() {
       }
       return;
     }
-    const result = await redeemFreeCode(code, { settings, user, invalidate });
+    const result = await redeemFreeCode(code, { invalidate });
     setPromoStatus(result);
     if (result === 'success') {
       setPromoCode('');

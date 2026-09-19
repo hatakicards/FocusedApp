@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useT } from '@/lib/i18n';
-import { useUserSettings, useSubscription, useInvalidateAll } from '@/lib/useAppData';
-import { useAuth } from '@/lib/AuthContext';
+import { useSubscription, useInvalidateAll } from '@/lib/useAppData';
 import { redeemFreeCode } from '@/lib/promoCodes';
+import { isRevenueCatAvailable } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
 const AD_INTERVAL = 120000;
 const PROMO_CODE = 'NEWICEPROMO!';
 
-const ADS = [
+const ALL_ADS = [
   { titleKey: 'wwu_ads_title', subKey: 'wwu_ads_sub', ctaKey: 'wwu_btn', action: 'work_with_us' },
   { titleKey: 'ad2_title', subKey: 'ad2_sub', ctaKey: 'ad2_cta', action: 'work_with_us' },
   { titleKey: 'i5_title', subKey: 'i5_sub', ctaKey: 'i5_cta', action: 'work_with_us' },
@@ -20,11 +20,14 @@ const ADS = [
   { titleKey: 'ad_promo_title', subKey: 'ad_promo_sub', ctaKey: 'ad_promo_cta', action: 'redeem_promo' },
 ];
 
+// Su iOS/Android nativo l'annuncio "guarda e sblocca premium" non deve
+// nemmeno comparire nella rotazione: sbloccare un abbonamento con un
+// meccanismo diverso dall'in-app purchase viola la Guideline 3.1.1 di Apple.
+const ADS = isRevenueCatAvailable() ? ALL_ADS.filter((a) => a.action !== 'redeem_promo') : ALL_ADS;
+
 export default function FullScreenAd({ enabled, onCTA }) {
   const t = useT();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { data: settings } = useUserSettings();
   const sub = useSubscription();
   const invalidate = useInvalidateAll();
   const [show, setShow] = useState(false);
@@ -54,7 +57,7 @@ export default function FullScreenAd({ enabled, onCTA }) {
 
   const handleActivatePromo = async () => {
     setPromoStatus('checking');
-    const result = await redeemFreeCode(PROMO_CODE, { settings, user, invalidate });
+    const result = await redeemFreeCode(PROMO_CODE, { invalidate });
     setPromoStatus(result);
     if (result === 'success') {
       setCelebrateTier('premium');
