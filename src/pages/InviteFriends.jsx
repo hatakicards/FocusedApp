@@ -7,6 +7,7 @@ import { useUserSettings, useInvalidateAll } from '@/lib/useAppData';
 import { useAuth } from '@/lib/AuthContext';
 import { useT } from '@/lib/i18n';
 import { toast } from '@/components/ui/use-toast';
+import { isRevenueCatAvailable } from '@/lib/revenueCat';
 
 function generateReferralCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -37,6 +38,13 @@ export default function InviteFriends() {
   const referralLink = referralCode
     ? `${window.location.origin}/?ref=${referralCode}`
     : '';
+
+  // Il programma inviti premia con mesi premium gratuiti fuori dall'in-app
+  // purchase (Guideline 3.1.1): la pagina non deve essere raggiungibile
+  // nell'app nativa, nemmeno navigando direttamente all'URL.
+  useEffect(() => {
+    if (isRevenueCatAvailable()) navigate('/profilo', { replace: true });
+  }, [navigate]);
 
   // Generate referral code if not exists
   useEffect(() => {

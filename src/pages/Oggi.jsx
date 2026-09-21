@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ListChecks, CalendarClock, Gift, Lightbulb, Megaphone, Settings, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { isRevenueCatAvailable } from '@/lib/revenueCat';
 import {
   useDayEntries,
   useUserSettings,
@@ -151,15 +152,19 @@ export default function Oggi() {
       </div>
       <PremiumModal open={showPremium} onClose={() => setShowPremium(false)} />
 
-      {/* === Invita amici / Dream / Work with us === */}
-      <div className="grid grid-cols-3 gap-2.5 mb-3">
-        <button
-          onClick={() => navigate('/invita')}
-          className="flex flex-col items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-center hover:bg-emerald-500/10 transition-colors"
-        >
-          <Gift size={18} className="text-emerald-500" />
-          <span className="text-[11px] font-semibold leading-tight">{t('profilo_invita')}</span>
-        </button>
+      {/* === Invita amici / Dream / Work with us ===
+          "Invita amici" premia con mesi premium gratuiti fuori dall'in-app
+          purchase (Guideline 3.1.1): non va mostrato nell'app nativa. */}
+      <div className={`grid gap-2.5 mb-3 ${isRevenueCatAvailable() ? 'grid-cols-2' : 'grid-cols-3'}`}>
+        {!isRevenueCatAvailable() && (
+          <button
+            onClick={() => navigate('/invita')}
+            className="flex flex-col items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-center hover:bg-emerald-500/10 transition-colors"
+          >
+            <Gift size={18} className="text-emerald-500" />
+            <span className="text-[11px] font-semibold leading-tight">{t('profilo_invita')}</span>
+          </button>
+        )}
         <button
           onClick={() => navigate('/dream')}
           className="flex flex-col items-center gap-2 rounded-2xl border border-foreground/20 bg-foreground/5 p-3 text-center hover:bg-foreground/10 transition-colors"
