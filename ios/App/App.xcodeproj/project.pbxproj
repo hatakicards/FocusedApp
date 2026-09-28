@@ -18,6 +18,9 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		FCAA00000000000000000005 /* FocusedWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAA00000000000000000004 /* FocusedWidget.swift */; };
 		FCAA00000000000000000011 /* FocusedWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FCAA00000000000000000001 /* FocusedWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FCBB00000000000000000004 /* FocusedScreenTimePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */; };
+		FCBB00000000000000000005 /* FocusedWidgetSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */; };
+		FCBB00000000000000000006 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +63,9 @@
 		FCAA00000000000000000004 /* FocusedWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedWidget.swift; sourceTree = "<group>"; };
 		FCAA00000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCAA00000000000000000007 /* FocusedWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedWidget.entitlements; sourceTree = "<group>"; };
+		FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedScreenTimePlugin.swift; sourceTree = "<group>"; };
+		FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedWidgetSyncPlugin.swift; sourceTree = "<group>"; };
+		FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,6 +128,9 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */,
+				FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */,
+				FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -221,6 +230,7 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				FCBB00000000000000000006 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,6 +250,8 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				FCBB00000000000000000004 /* FocusedScreenTimePlugin.swift in Sources */,
+				FCBB00000000000000000005 /* FocusedWidgetSyncPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
