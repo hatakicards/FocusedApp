@@ -22,6 +22,13 @@ function tierFromProductId(productId) {
 const GRANT_EVENTS = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'UNCANCELLATION']);
 const REVOKE_EVENTS = new Set(['EXPIRATION']);
 
+// app_user_id degli acquisti fatti in modalita' ospite (nessuna registrazione
+// richiesta, Apple Guideline 5.1.1(v)) e' un id anonimo generato da
+// RevenueCat, non uno user.id Supabase — quegli acquisti vengono sbloccati
+// lato client (vedi unlockGuestSubscription in src/lib/guestDB.js), qui non
+// c'e' nessuna riga utente a cui agganciarli.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function onRequestPost({ request, env }) {
   try {
     if (env.REVENUECAT_WEBHOOK_SECRET) {
@@ -37,6 +44,10 @@ export async function onRequestPost({ request, env }) {
 
     const userId = event.app_user_id;
     const tier = tierFromProductId(event.product_id);
+
+    if (!UUID_RE.test(userId || '')) {
+      return jsonResponse({ received: true, skipped: 'non-uuid app_user_id (guest purchase)' });
+    }
 
     if (userId && tier && GRANT_EVENTS.has(event.type)) {
       const supabaseAdmin = getSupabaseAdmin(env);

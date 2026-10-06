@@ -6,8 +6,9 @@ import { X, Crown, Star, Ban } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
-import { isRevenueCatAvailable, purchaseSubscription, restorePurchases } from '@/lib/revenueCat';
+import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, tierFromProductId } from '@/lib/revenueCat';
 
 const FEATURES = [
   { key: 'pm_no_ads', label: 'NO Ads', tier: 'pro' },
@@ -74,6 +75,7 @@ export default function PremiumModal({ open, onClose }) {
       setBuying(tier);
       try {
         await purchaseSubscription(tier, period);
+        if (user?.isGuest) await unlockGuestSubscription(tier);
         invalidate();
         onClose();
       } catch (e) {
@@ -116,9 +118,15 @@ export default function PremiumModal({ open, onClose }) {
     setRestoreMessage(null);
     try {
       const customerInfo = await restorePurchases();
-      const active = Object.keys(customerInfo?.entitlements?.active || {});
+      const activeEntitlements = Object.values(customerInfo?.entitlements?.active || {});
+      if (user?.isGuest && activeEntitlements.length) {
+        // Piu' entitlement attivi (raro): tiene il piu' alto, premium > pro.
+        const tiers = activeEntitlements.map((e) => tierFromProductId(e.productIdentifier)).filter(Boolean);
+        const tier = tiers.includes('premium') ? 'premium' : tiers[0];
+        if (tier) await unlockGuestSubscription(tier);
+      }
       invalidate();
-      setRestoreMessage(active.length ? t('pm_restore_success') : t('pm_restore_none'));
+      setRestoreMessage(activeEntitlements.length ? t('pm_restore_success') : t('pm_restore_none'));
     } catch (e) {
       console.error('RevenueCat restore error', e);
       setRestoreMessage(e.message || t('pm_restore_error'));
@@ -189,7 +197,7 @@ export default function PremiumModal({ open, onClose }) {
               <p className="text-sm text-muted-foreground">{t('pm_subtitle')}</p>
             </div>
 
-            {user?.isGuest ? (
+            {user?.isGuest && !isRevenueCatAvailable() ? (
               <div className="text-center py-8">
                 <Crown size={32} className="mx-auto mb-3 text-foreground" />
                 <h3 className="text-lg font-bold mb-2">{t('guest_upgrade_title')}</h3>

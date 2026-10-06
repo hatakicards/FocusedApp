@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useT } from '@/lib/i18n';
 import { useSubscription, useInvalidateAll } from '@/lib/useAppData';
@@ -89,9 +89,10 @@ export default function FullScreenAd({ enabled, onCTA }) {
           {canSkip && (
             <button
               onClick={close}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              aria-label={t('ad_salta')}
+              className="absolute top-4 right-4 rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <span className="text-xs">{t('ad_salta')}</span>
+              <X size={18} />
             </button>
           )}
           <div className="text-center py-2">

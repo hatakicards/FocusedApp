@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { clearQueue } from '@/lib/syncQueue';
 import { setGuestMode, isGuestFlagSet, getGuestUser, clearGuestData } from '@/lib/guestDB';
 import { syncWidgetSession, clearWidgetSession } from '@/lib/nativeWidgetSync';
-import { configureRevenueCat, logOutRevenueCat } from '@/lib/revenueCat';
+import { configureRevenueCat, configureRevenueCatAnonymous, logOutRevenueCat } from '@/lib/revenueCat';
 
 const AuthContext = createContext();
 
@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }) => {
       setAuthError(null);
       setAuthChecked(true);
       setIsLoadingAuth(false);
+      configureRevenueCatAnonymous();
       // Check for real auth in background — if a real token exists (e.g. user
       // logged in for real but guest flag wasn't cleared), switch to real user.
       base44.auth.me().then((me) => {
@@ -101,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
     setAuthChecked(true);
     setIsLoadingAuth(false);
+    configureRevenueCatAnonymous();
   }, []);
 
   const logout = useCallback(() => {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
-import { getDB } from '@/lib/guestDB';
+import { getDB, unlockGuestSubscription } from '@/lib/guestDB';
 import { safeReturnTo } from '@/lib/authReturnTo';
 import { Image } from '@/components/ui/image';
 import { LOGO_URL } from '@/lib/constants';
@@ -17,7 +17,7 @@ import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
 const STORAGE_KEY = 'welcome_data';
 
 export default function Welcome() {
-  const { isAuthenticated, user, isLoadingAuth } = useAuth();
+  const { isAuthenticated, user, isLoadingAuth, guestLogin } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
@@ -55,12 +55,12 @@ export default function Welcome() {
     dataSaved.current = true;
     (async () => {
       try {
-        if (data.name) {
+        if (data.name && !user.isGuest) {
           await base44.auth.updateMe({ full_name: data.name });
         }
         const existing = await getDB().UserSettings.filter({ created_by_id: user.id }, '-created_date', 10);
         const settingsData = {
-          birth_date: data.birthDate,
+          birth_date: data.birthDate || null,
           dream: data.dream,
           reminder_time: data.reminderTime,
           reminder_enabled: data.reminderEnabled,
@@ -91,6 +91,14 @@ export default function Welcome() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   };
 
+  // Apple Guideline 5.1.1(v): la registrazione deve essere opzionale, non un
+  // prerequisito per comprare — salva i dati come prima di un redirect auth
+  // reale cosi' l'effect sopra porta a step 5, ma senza nessun redirect.
+  const handleGuestContinue = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    guestLogin();
+  };
+
   const handleFinish = async (choice) => {
     // Set onboarded = true
     try {
@@ -115,6 +123,7 @@ export default function Welcome() {
     if (isRevenueCatAvailable()) {
       try {
         await purchaseSubscription(choice, 'monthly');
+        if (user?.isGuest) await unlockGuestSubscription(choice);
       } catch (e) {
         console.error('RevenueCat purchase error', e);
         if (!e.userCancelled) {
@@ -201,7 +210,7 @@ export default function Welcome() {
             {step === 1 && <Step1Name data={data} onNext={handleNext} />}
             {step === 2 && <Step2Dream data={data} onNext={handleNext} onBack={handleBack} />}
             {step === 3 && <Step3Reminder data={data} onNext={handleNext} onBack={handleBack} />}
-            {step === 4 && <Step4Auth data={data} onAuthRedirect={handleAuthRedirect} onBack={handleBack} />}
+            {step === 4 && <Step4Auth data={data} onAuthRedirect={handleAuthRedirect} onGuest={handleGuestContinue} onBack={handleBack} />}
             {step === 5 && <Step5Premium data={data} onFinish={handleFinish} />}
           </motion.div>
         </AnimatePresence>

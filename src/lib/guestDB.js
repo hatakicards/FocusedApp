@@ -195,3 +195,20 @@ const guestEntities = new Proxy(
 export function getDB() {
   return __isGuest ? guestEntities : base44.entities;
 }
+
+// Per un acquisto IAP fatto in modalita' ospite non esiste nessun webhook
+// server-side che possa aggiornare lo stato (l'appUserID di RevenueCat e'
+// anonimo e non corrisponde a nessun utente Supabase) — qui sblocchiamo
+// l'entitlement direttamente nello store locale, speculare a quello che
+// functions/api/revenuecat-webhook.js fa per gli utenti registrati.
+export async function unlockGuestSubscription(tier) {
+  if (!__isGuest) return;
+  const items = getStore('UserSettings');
+  if (items.length > 0) {
+    items[0] = { ...items[0], subscription_tier: tier, ads_removed: true, updated_date: new Date().toISOString() };
+    setStore('UserSettings', items);
+  } else {
+    items.push(addBuiltins({ subscription_tier: tier, ads_removed: true, trial_start: new Date().toISOString() }));
+    setStore('UserSettings', items);
+  }
+}

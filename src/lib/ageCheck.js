@@ -16,7 +16,10 @@ export function calculateAge(birthDate) {
   return age;
 }
 
+// Nessuna data di nascita inserita (campo ora opzionale in onboarding) =>
+// trattato come minorenne di default, finche' l'utente non la fornisce.
 export function isMinor(birthDate) {
+  if (!birthDate) return true;
   const age = calculateAge(birthDate);
   return age !== null && age < 18;
 }

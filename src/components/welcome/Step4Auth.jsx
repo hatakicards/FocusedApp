@@ -6,7 +6,7 @@ import GoogleIcon from '@/components/GoogleIcon';
 import AppleIcon from '@/components/AppleIcon';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
-export default function Step4Auth({ data, onAuthRedirect, onBack }) {
+export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
   const [mode, setMode] = useState('register'); // 'register' | 'login'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -220,6 +220,13 @@ export default function Step4Auth({ data, onAuthRedirect, onBack }) {
           <span className="text-foreground font-semibold">
             {mode === 'register' ? 'Log in' : 'Sign up'}
           </span>
+        </button>
+
+        <button
+          onClick={onGuest}
+          className="w-full text-center text-xs text-muted-foreground/70 mt-3 underline underline-offset-2"
+        >
+          Continue without an account
         </button>
       </div>
 
