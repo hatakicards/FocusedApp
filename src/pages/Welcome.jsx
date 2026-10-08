@@ -13,6 +13,7 @@ import Step3Reminder from '@/components/welcome/Step3Reminder';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
 import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
+import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
 const STORAGE_KEY = 'welcome_data';
 
@@ -28,6 +29,7 @@ export default function Welcome() {
     reminderEnabled: true,
   });
   const dataSaved = useRef(false);
+  const [celebrateTier, setCelebrateTier] = useState(null);
 
   // On mount / auth change: if returning from auth with saved data, go to step 5
   useEffect(() => {
@@ -124,13 +126,17 @@ export default function Welcome() {
       try {
         await purchaseSubscription(choice, 'monthly');
         if (user?.isGuest) await unlockGuestSubscription(choice);
+        // Festeggia subito con l'acquisto gia' confermato da RevenueCat, poi
+        // vai in home quando l'animazione si chiude da sola (non prima, altrimenti
+        // lo smontaggio di questa pagina la interromperebbe a meta').
+        setCelebrateTier(choice);
       } catch (e) {
         console.error('RevenueCat purchase error', e);
         if (!e.userCancelled) {
           alert(e.message || 'Non è stato possibile completare l\'acquisto. Riprova dal tuo profilo.');
         }
+        navigate('/home', { replace: true });
       }
-      navigate('/home', { replace: true });
       return;
     }
 
@@ -215,6 +221,10 @@ export default function Welcome() {
           </motion.div>
         </AnimatePresence>
       </div>
+      <WelcomeToProAnimation
+        tier={celebrateTier}
+        onClose={() => { setCelebrateTier(null); navigate('/home', { replace: true }); }}
+      />
     </div>
   );
 }

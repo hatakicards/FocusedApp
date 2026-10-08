@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
 import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, tierFromProductId } from '@/lib/revenueCat';
+import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
 const FEATURES = [
   { key: 'pm_no_ads', label: 'NO Ads', tier: 'pro' },
@@ -51,6 +52,7 @@ export default function PremiumModal({ open, onClose }) {
   const [cancelResult, setCancelResult] = useState(null);
   const [restoring, setRestoring] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState(null);
+  const [celebrateTier, setCelebrateTier] = useState(null);
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -78,6 +80,10 @@ export default function PremiumModal({ open, onClose }) {
         if (user?.isGuest) await unlockGuestSubscription(tier);
         invalidate();
         onClose();
+        // Il DB/webhook puo' metterci qualche istante ad aggiornarsi — l'acquisto
+        // e' pero' gia' confermato qui da RevenueCat, quindi festeggiamo subito
+        // invece di aspettare che sub.isPro rifletta il nuovo stato.
+        setCelebrateTier(tier);
       } catch (e) {
         console.error('RevenueCat purchase error', e);
         if (!e.userCancelled) {
@@ -165,6 +171,7 @@ export default function PremiumModal({ open, onClose }) {
   };
 
   return createPortal(
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -327,7 +334,9 @@ export default function PremiumModal({ open, onClose }) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>
+    <WelcomeToProAnimation tier={celebrateTier} onClose={() => setCelebrateTier(null)} />
+    </>,
     document.body
   );
 }
