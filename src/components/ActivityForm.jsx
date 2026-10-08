@@ -45,7 +45,16 @@ export default function ActivityForm({ open, onClose, activity, onSaved }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent
+        className="max-w-sm"
+        onPointerDownOutside={(e) => {
+          // BottomSelect apre un Drawer (vaul) separato dal Dialog (radix) di
+          // questo form: le due librerie non si conoscono, quindi un tap su
+          // un'opzione del drawer viene letto da questo Dialog come "click
+          // fuori" e lo chiude prima che onValueChange arrivi a destinazione.
+          if (e.target.closest('[data-vaul-drawer], [data-vaul-overlay]')) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{activity ? t('af_modifica') : t('af_nuovo')}</DialogTitle>
         </DialogHeader>
