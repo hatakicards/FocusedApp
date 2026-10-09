@@ -1,8 +1,14 @@
 import { getSupabaseAdmin, getUserFromRequest, jsonResponse } from './_shared/supabaseAdmin.js';
-import { computeFocusScore, computeLongestStreak, computeCategoryRank, todayISO } from '../../src/lib/productivity.js';
-import { CATEGORIES } from '../../src/lib/constants.js';
+import { computeFocusScore, computeFocusScoreForDate, computeLongestStreak, computeCategoryRank, todayISO } from '../../src/lib/productivity.js';
+import { CATEGORIES, GYM_IMAGE_URL } from '../../src/lib/constants.js';
 
 const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function isoDaysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
 // Dati compatti per i widget nativi (iOS WidgetKit / Android Glance) — stessi
 // numeri mostrati in app, calcolati con le stesse funzioni di src/lib/productivity.js.
@@ -36,6 +42,10 @@ export async function onRequestGet({ request, env }) {
     const settings = settingsRes.data?.[0] || null;
 
     const focusScore = computeFocusScore(ratings, dayEntries, goals);
+    const focusScoreHistory = Array.from({ length: 7 }, (_, i) => isoDaysAgo(6 - i)).map((date) => ({
+      date,
+      score: computeFocusScoreForDate(ratings, dayEntries, goals, date),
+    }));
 
     const streak = activities.reduce((max, a) => {
       const aRatings = ratings.filter((r) => r.activity_id === a.id);
@@ -54,10 +64,11 @@ export async function onRequestGet({ request, env }) {
 
     return jsonResponse({
       focusScore,
+      focusScoreHistory,
       streak,
       ranks,
       tasks: tasks.map((t) => ({ id: t.id, title: t.title, type: t.type, dueDate: t.due_date })),
-      gym: todayGym ? { title: todayGym.title, exerciseCount: (todayGym.exercises || []).length } : null,
+      gym: todayGym ? { title: todayGym.title, exerciseCount: (todayGym.exercises || []).length, imageUrl: GYM_IMAGE_URL } : null,
       date: todayISO(),
     });
   } catch (error) {
