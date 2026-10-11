@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, X, Bot, User, Loader2, Lock, CheckCircle } from 'lucide-react';
+import { Sparkles, Send, X, Bot, User, Loader2, Lock, CheckCircle, Mic, Square } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { useT } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useUserSettings,
@@ -22,10 +22,14 @@ import {
   useVerifiche,
   useGradeGoals,
   useHomeworks,
+  useCustomFoods,
 } from '@/lib/useAppData';
 import { normalizeGrade } from '@/lib/grades';
 import { sortHomeworkByPriority, priorityTier, averageNormalizedGradeForSubject } from '@/lib/studyPriority';
 import { buildGymSummary } from '@/lib/gymContext';
+import { FOODS, getFoodById, computeFoodLogTotals } from '@/lib/foodDatabase';
+import { todayISO } from '@/lib/productivity';
+import { createDictation, isDictationAvailable } from '@/lib/speech';
 
 const SUGGESTIONS = [
   { key: 'focusy_sugg_gym', text: 'Come posso migliorare la mia scheda di allenamento?' },
@@ -258,6 +262,29 @@ REGOLE:
 - Se mancano dati per un consiglio, dillo e suggerisci di registrarli.`;
 }
 
+// Sezione del prompt per il registro cibo: solo Premium, come BodyFuel.
+function buildFoodSection({ isPremium, bodyFuelEntries, customFoods }) {
+  if (!isPremium) {
+    return `=== REGISTRO CIBO ===
+Il registro cibo (BodyFuel) e' una funzione Premium: se l'utente ti dice cosa ha mangiato, rispondi che per registrarlo serve il piano Premium e NON usare log_food.`;
+  }
+  const today = todayISO();
+  const todayEntry = (bodyFuelEntries || []).find((e) => e.date === today);
+  const logged = (todayEntry?.food_log || [])
+    .map((i) => `${getFoodById(i.food_id, customFoods)?.name || i.food_id} ${i.grams}g`)
+    .join(', ');
+  const known = [...FOODS, ...(customFoods || [])]
+    .map((f) => `${f.id}=${f.name} (${f.kcal}kcal/100g)`)
+    .join('; ');
+  return `=== REGISTRO CIBO (Premium) ===
+GIA' REGISTRATO OGGI: ${logged || 'niente'}
+Se l'utente dice cosa ha mangiato o bevuto (anche a voce), usa UNA azione log_food con "items": un elemento per alimento, ognuno con "grams" (stima una porzione normale se non la dice: un piatto di pasta ~80g a secco, un uovo ~60g, una fetta di pane ~30g, un bicchiere ~200g).
+- Alimento presente in ALIMENTI NOTI: "food_id" = l'id esatto, grams.
+- Altro alimento: "food_id" vuoto, "name", grams e i valori STIMATI per 100g: "kcal","protein","carbs","lipids".
+- Non registrare due volte quello che e' gia' registrato oggi. Nel "reply" riassumi in una riga cosa hai registrato e dichiara che le quantita' sono stime.
+ALIMENTI NOTI: ${known}`;
+}
+
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -267,7 +294,7 @@ const RESPONSE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework'] },
+          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework', 'log_food'] },
           name: { type: 'string' },
           category: { type: 'string' },
           emoji: { type: 'string' },
@@ -279,6 +306,21 @@ const RESPONSE_SCHEMA = {
           due_date: { type: 'string' },
           notes: { type: 'string' },
           subject: { type: 'string' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                food_id: { type: 'string' },
+                name: { type: 'string' },
+                grams: { type: 'number' },
+                kcal: { type: 'number' },
+                protein: { type: 'number' },
+                carbs: { type: 'number' },
+                lipids: { type: 'number' },
+              },
+            },
+          },
         },
       },
     },
@@ -287,7 +329,7 @@ const RESPONSE_SCHEMA = {
 };
 
 export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false, inline = false }) {
-  const t = useT();
+  const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { user } = useAuth();
   const isGuest = !!user?.isGuest;
@@ -316,6 +358,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   const { data: verifiche } = useVerifiche();
   const { data: gradeGoals } = useGradeGoals();
   const { data: homeworks } = useHomeworks();
+  const { data: customFoods } = useCustomFoods();
   const { tier, isPremium } = useSubscription();
 
   const limit = LIMITS[tier] ?? LIMITS.free;
@@ -328,8 +371,96 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     }
   }, [messages, loading, actionResults]);
 
+  // Dettatura: parte solo quando premi il microfono, scrive nel campo di testo e si
+  // ferma da sola (o se chiudi la chat / l'app va in secondo piano).
+  const [dictationAvailable, setDictationAvailable] = useState(false);
+  const [listening, setListening] = useState(false);
+  const dictationRef = useRef(null);
+  const inputBaseRef = useRef('');
+
+  useEffect(() => {
+    isDictationAvailable().then(setDictationAvailable);
+  }, []);
+
+  useEffect(() => {
+    const d = createDictation({
+      language: locale,
+      onText: (text) => {
+        const base = inputBaseRef.current;
+        setInput(base ? `${base} ${text}` : text);
+      },
+      onEnd: () => setListening(false),
+    });
+    dictationRef.current = d;
+    return () => { d.stop(); };
+  }, [locale]);
+
+  useEffect(() => {
+    if (open === false) dictationRef.current?.stop();
+  }, [open]);
+
+  const toggleDictation = async () => {
+    if (listening) {
+      await dictationRef.current?.stop();
+      return;
+    }
+    inputBaseRef.current = input.trim();
+    const started = await dictationRef.current?.start();
+    setListening(!!started);
+  };
+
   const executeAction = useCallback(async (action) => {
     try {
+      if (action.type === 'log_food') {
+        if (!isPremium) return { ok: false, label: t('focusy_action_food_premium') };
+        const items = Array.isArray(action.items) ? action.items : [];
+        let foods = qc.getQueryData(['customFoods', user?.id]) || customFoods || [];
+        const added = [];
+        for (const it of items) {
+          const grams = Math.round(Number(it.grams) || 0);
+          if (grams <= 0 || grams > 3000) continue;
+          let foodId = it.food_id && getFoodById(it.food_id, foods) ? it.food_id : null;
+          if (!foodId) {
+            const name = String(it.name || '').trim();
+            const kcal = Number(it.kcal) || 0;
+            if (!name || kcal <= 0) continue;
+            const existingFood = foods.find((f) => String(f.name).toLowerCase() === name.toLowerCase());
+            if (existingFood) {
+              foodId = existingFood.id;
+            } else {
+              const created = await base44.entities.CustomFood.create({
+                name,
+                kcal,
+                protein: Number(it.protein) || 0,
+                carbs: Number(it.carbs) || 0,
+                lipids: Number(it.lipids) || 0,
+              });
+              foods = [...foods, created];
+              foodId = created.id;
+            }
+          }
+          added.push({ food_id: foodId, grams, _id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+        }
+        if (!added.length) return { ok: false, label: t('focusy_action_unknown') };
+
+        const today = todayISO();
+        const entries = qc.getQueryData(['bodyFuelEntries', user?.id]) || bodyFuelEntries || [];
+        const existing = entries.find((e) => e.date === today);
+        const foodLog = [...(existing?.food_log || []), ...added];
+        const totals = computeFoodLogTotals(foodLog, foods);
+        const payload = {
+          food_log: foodLog,
+          calories_consumed: totals.kcal,
+          protein_consumed: totals.protein,
+          carbs_consumed: totals.carbs,
+          lipids_consumed: totals.lipids,
+        };
+        if (existing) await base44.entities.BodyFuelEntry.update(existing.id, payload);
+        else await base44.entities.BodyFuelEntry.create({ date: today, ...payload });
+        qc.invalidateQueries({ queryKey: ['bodyFuelEntries'] });
+        qc.invalidateQueries({ queryKey: ['customFoods'] });
+        return { ok: true, label: `${t('focusy_action_logged_food')} (${added.length})` };
+      }
       if (action.type === 'create_activity') {
         await base44.entities.Activity.create({
           name: action.name,
@@ -389,7 +520,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       console.error('Focusy action error', e);
       return { ok: false, label: t('focusy_action_error') };
     }
-  }, [activities, qc, t]);
+  }, [activities, qc, t, isPremium, user?.id, customFoods, bodyFuelEntries]);
 
   const sendMessage = useCallback(async (text) => {
     if (!text.trim() || loading || !canSend) return;
@@ -402,7 +533,8 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     try {
       const context = buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks });
       const conversationHistory = messages.slice(-6).map((m) => `${m.role === 'user' ? 'Utente' : 'Focusy'}: ${m.content}`).join('\n');
-      const prompt = `${context}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
+      const foodSection = buildFoodSection({ isPremium, bodyFuelEntries, customFoods });
+      const prompt = `${context}\n\n${foodSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -431,7 +563,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     } finally {
       setLoading(false);
     }
-  }, [loading, canSend, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
+  }, [loading, canSend, isPremium, customFoods, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
 
   useEffect(() => {
     if (initialPrompt && open && !sentInitialRef.current) {
@@ -603,6 +735,16 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           disabled={loading || !canSend}
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
         />
+        {dictationAvailable && (
+          <button
+            onClick={toggleDictation}
+            disabled={loading || !canSend}
+            aria-label={listening ? t('focusy_voice_stop') : t('focusy_voice_start')}
+            className={`flex h-9 w-9 items-center justify-center rounded-xl shrink-0 disabled:opacity-30 ${listening ? 'bg-destructive text-destructive-foreground animate-pulse' : 'bg-muted text-foreground'}`}
+          >
+            {listening ? <Square size={14} fill="currentColor" /> : <Mic size={16} />}
+          </button>
+        )}
         <button
           onClick={() => sendMessage(input)}
           disabled={loading || !input.trim() || !canSend}

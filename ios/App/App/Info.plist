@@ -6,6 +6,10 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Focused usa il microfono solo quando premi il pulsante di dettatura in Focusy, per trascrivere la tua voce in testo.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Focused usa il riconoscimento vocale solo quando premi il pulsante di dettatura in Focusy, per trasformare quello che dici in un messaggio.</string>
 	<key>CFBundleDisplayName</key>
         <string>Focused</string>
 	<key>CFBundleExecutable</key>
