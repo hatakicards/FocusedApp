@@ -83,14 +83,28 @@ workflows:
           keychain add-certificates
           rm -rf ~/Library/MobileDevice/Provisioning\ Profiles/
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
-          cp ios/certs/FocusedApp.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedApp.mobileprovision
+          # Profilo dell'app: scaricato fresco da Apple, perche' ogni capability aggiunta
+          # all'App ID (HealthKit, Family Controls...) cambia le entitlements e il file
+          # committato in ios/certs diventa invalido. Se il download fallisce si ripiega
+          # su quello committato.
+          if ! app-store-connect fetch-signing-files "org.focusedapp.app" --type IOS_APP_STORE; then
+            echo "fetch-signing-files fallito: uso il profilo committato dell'app"
+            cp ios/certs/FocusedApp.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedApp.mobileprovision
+          fi
+          # Profilo del widget: sempre dal repo (il fetch non funziona per il widget).
           cp ios/certs/FocusedWidget.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedWidget.mobileprovision
+          echo "=== Profili installati ==="
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
           xcode-project use-profiles
       - name: Build IPA firmato
         script: |
           xcode-project build-ipa \
             --project ios/App/App.xcodeproj \
-            --scheme App
+            --scheme App || {
+              echo "=== ERRORI xcodebuild ==="
+              grep -h -E "error:|requires a provisioning|doesn't include|doesn't match|entitlement" /tmp/xcodebuild_logs/*.log | sort -u | head -60
+              exit 1
+            }
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
