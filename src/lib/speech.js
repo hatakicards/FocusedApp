@@ -44,7 +44,7 @@ export function createDictation({ language, onText, onEnd }) {
     active = true;
     try {
       if (isNative()) {
-        const { granted } = await FocusedSpeech.requestPermissions();
+        const { granted } = await FocusedSpeech.askPermissions();
         if (!granted) { active = false; return false; }
         handles.push(await FocusedSpeech.addListener('partialResults', (e) => onText?.(e.text || '')));
         handles.push(await FocusedSpeech.addListener('ended', finish));

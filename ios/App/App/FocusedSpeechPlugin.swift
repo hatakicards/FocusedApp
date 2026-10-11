@@ -15,7 +15,7 @@ public class FocusedSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "FocusedSpeech"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "available", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "askPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
     ]
@@ -39,7 +39,7 @@ public class FocusedSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["available": SFSpeechRecognizer()?.isAvailable ?? false])
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc func askPermissions(_ call: CAPPluginCall) {
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else {
                 call.resolve(["granted": false])
