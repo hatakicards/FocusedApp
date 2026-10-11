@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/select';
 import IphoneToggle from '@/components/IphoneToggle';
 import { useT } from '@/lib/i18n';
+import FocusBlockPicker from '@/components/FocusBlockPicker';
+import { isScreenTimeSupported, getDefaultMode } from '@/lib/nativeScreenTime';
 
 const DURATIONS = [15, 25, 50, 90];
 
@@ -21,6 +23,7 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
   const [spotify, setSpotify] = useState('');
   const [reminder, setReminder] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [blockMode, setBlockMode] = useState(getDefaultMode);
 
   const reset = () => {
     setTitle(''); setWhen(''); setSpotify(''); setDuration(25); setReminder(true);
@@ -36,7 +39,7 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
         duration_minutes: Number(duration),
         spotify_url: spotify.trim() || null,
         reminder_enabled: reminder,
-      });
+      }, blockMode);
       reset();
       onClose();
     } finally {
@@ -76,6 +79,12 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
             <Label>{t('ft_promemoria')}</Label>
             <IphoneToggle checked={reminder} onChange={setReminder} />
           </div>
+          {isScreenTimeSupported() && (
+            <div className="space-y-1.5">
+              <Label>{t('fb_titolo')}</Label>
+              <FocusBlockPicker mode={blockMode} onChange={setBlockMode} />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>{t('annulla')}</Button>

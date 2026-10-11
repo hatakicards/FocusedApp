@@ -10,11 +10,16 @@ import ManagedSettings
 // Apple non dice a nessuna app QUALI app l'utente ha scelto, solo token opachi)
 // e shield ManagedSettings per la durata della sessione.
 //
+// Due liste scelte dall'utente: "block" (app da bloccare) e "keep" (app da lasciare
+// attive). Modalita' di blocco: "selected" blocca solo la lista block; "all_except"
+// blocca tutto tranne la lista keep. In "all_except" Focused viene SEMPRE esentato
+// (token ricavato dal bundle id): se non e' possibile ottenerlo il blocco non parte,
+// cosi' l'utente non resta mai chiuso fuori dall'app che deve sbloccare.
+//
 // Limite noto: senza un'estensione DeviceActivityMonitor nessuno sblocca lo shield
 // a sessione finita se l'app e' chiusa. Per questo la fine del blocco e' salvata
 // nell'App Group e ogni volta che l'app torna attiva (e al caricamento del
-// plugin) lo shield scaduto viene tolto. Il blocco riguarda solo le app scelte
-// dall'utente, mai Focused stesso, cosi' l'utente non resta mai chiuso fuori.
+// plugin) lo shield scaduto viene tolto.
 @available(iOS 16.0, *)
 @objc(FocusedScreenTimePlugin)
 public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
@@ -31,7 +36,8 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     static let appGroupId = "group.org.focusedapp.app"
-    private static let selectionKey = "app_selection"
+    private static let selectionKey = "app_selection" // lista "block" (chiave storica)
+    private static let keepKey = "app_selection_keep"
     private static let blockEndKey = "block_end_at"
 
     private let store = ManagedSettingsStore()
@@ -88,14 +94,15 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             }
             let title = call.getString("title") ?? "Apps"
             let done = call.getString("done") ?? "Done"
-            let existing = self.loadSelection() ?? FamilyActivitySelection()
+            let kind = call.getString("kind") ?? "block"
+            let existing = self.loadSelection(kind) ?? FamilyActivitySelection()
             // Lo sheet si puo' chiudere anche trascinandolo giu': la promise va risolta una sola volta.
             var finished = false
             let picker = FamilyActivityPickerHost(selection: existing, title: title, doneLabel: done) { result in
                 if finished { return }
                 finished = true
-                if let result = result { self.saveSelection(result) }
-                call.resolve(["count": self.selectionCount(self.loadSelection())])
+                if let result = result { self.saveSelection(result, kind) }
+                call.resolve(["count": self.selectionCount(self.loadSelection(kind))])
             }
             let hosting = UIHostingController(rootView: picker)
             topVC.present(hosting, animated: true)
@@ -103,7 +110,8 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func getSelectionSummary(_ call: CAPPluginCall) {
-        call.resolve(["count": selectionCount(loadSelection())])
+        let kind = call.getString("kind") ?? "block"
+        call.resolve(["count": selectionCount(loadSelection(kind))])
     }
 
     private func selectionCount(_ selection: FamilyActivitySelection?) -> Int {
@@ -122,13 +130,30 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("invalid_end_at")
             return
         }
-        guard let selection = loadSelection(), selectionCount(selection) > 0 else {
-            call.reject("no_selection")
-            return
+        let mode = call.getString("mode") ?? "selected"
+        if mode == "all_except" {
+            // Focused deve restare apribile: senza il suo token non blocchiamo nulla.
+            guard let selfId = Bundle.main.bundleIdentifier,
+                  let selfToken = Application(bundleIdentifier: selfId).token else {
+                call.reject("cannot_exempt_self")
+                return
+            }
+            let keep = loadSelection("keep") ?? FamilyActivitySelection()
+            var keepApps = keep.applicationTokens
+            keepApps.insert(selfToken)
+            store.shield.applications = nil
+            store.shield.applicationCategories = .all(except: keepApps)
+            store.shield.webDomains = nil
+            store.shield.webDomainCategories = .all(except: keep.webDomainTokens)
+        } else {
+            guard let selection = loadSelection("block"), selectionCount(selection) > 0 else {
+                call.reject("no_selection")
+                return
+            }
+            store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
+            store.shield.applicationCategories = selection.categoryTokens.isEmpty ? nil : .specific(selection.categoryTokens)
+            store.shield.webDomains = selection.webDomainTokens.isEmpty ? nil : selection.webDomainTokens
         }
-        store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
-        store.shield.applicationCategories = selection.categoryTokens.isEmpty ? nil : .specific(selection.categoryTokens)
-        store.shield.webDomains = selection.webDomainTokens.isEmpty ? nil : selection.webDomainTokens
         sharedDefaults?.set(endAt.timeIntervalSince1970, forKey: Self.blockEndKey)
 
         scheduleEndTimer(for: endAt)
@@ -168,6 +193,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         store.shield.applications = nil
         store.shield.applicationCategories = nil
         store.shield.webDomains = nil
+        store.shield.webDomainCategories = nil
         sharedDefaults?.removeObject(forKey: Self.blockEndKey)
         notifyListeners("blockEnded", data: [:])
     }
@@ -188,14 +214,18 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - Persistenza selezione
 
-    private func saveSelection(_ selection: FamilyActivitySelection) {
+    private func key(_ kind: String) -> String {
+        kind == "keep" ? Self.keepKey : Self.selectionKey
+    }
+
+    private func saveSelection(_ selection: FamilyActivitySelection, _ kind: String) {
         if let data = try? JSONEncoder().encode(selection) {
-            sharedDefaults?.set(data, forKey: Self.selectionKey)
+            sharedDefaults?.set(data, forKey: key(kind))
         }
     }
 
-    private func loadSelection() -> FamilyActivitySelection? {
-        guard let data = sharedDefaults?.data(forKey: Self.selectionKey) else { return nil }
+    private func loadSelection(_ kind: String) -> FamilyActivitySelection? {
+        guard let data = sharedDefaults?.data(forKey: key(kind)) else { return nil }
         return try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
     }
 }

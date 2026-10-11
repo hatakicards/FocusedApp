@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, BarChart3, Target, User, ListTodo, Flame, GraduationCap, Briefcase, Lock, Megaphone, Lightbulb, Gift, Sparkles, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, BarChart3, Target, User, ListTodo, Flame, GraduationCap, Briefcase, Lock, Megaphone, Lightbulb, Gift, Sparkles, ShieldCheck, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { useUserSettings, useSubscription } from '@/lib/useAppData';
@@ -31,6 +31,7 @@ export default function Sidebar() {
     { to: '/home', key: 'oggi', icon: CheckCircle2, end: true },
     { to: '/abitudini', key: 'abitudini', icon: BarChart3, end: false },
     { to: '/agenda', key: 'agenda', icon: ListTodo, end: false },
+    { to: '/focus', key: 'focus', icon: Clock, end: false },
     { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false, locked: !sub.canUseRankings },
     { to: '/focusy', key: 'focusy', icon: Sparkles, end: false },
     { to: personalTab.to, key: 'personal', icon: personalTab.icon, end: false, locked: !sub.canUseProfiles },

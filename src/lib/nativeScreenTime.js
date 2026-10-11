@@ -5,7 +5,13 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 // permette di sapere QUALI app l'utente ha scelto, solo quante.
 const FocusedScreenTime = registerPlugin('FocusedScreenTime');
 
-const BLOCK_PREF_KEY = 'focus_block_enabled';
+const MODE_KEY = 'focus_block_mode';
+const LEGACY_KEY = 'focus_block_enabled';
+const SESSION_MODES_KEY = 'focus_block_session_modes';
+
+// off = non blocca; selected = blocca solo le app scelte; all_except = blocca tutto
+// tranne le app scelte da lasciare attive (Focused resta sempre apribile).
+export const BLOCK_MODES = ['off', 'selected', 'all_except'];
 
 export const isScreenTimeSupported = () => Capacitor.getPlatform() === 'ios';
 
@@ -24,23 +30,60 @@ export const getAuthorizationStatus = () =>
 export const requestAuthorization = () =>
   call(async () => (await FocusedScreenTime.requestAuthorization()).status, 'denied');
 
-export const pickApps = ({ title, done }) =>
-  call(async () => (await FocusedScreenTime.pickApps({ title, done })).count, null);
+// kind: 'block' (app da bloccare) | 'keep' (app da lasciare attive)
+export const pickApps = ({ kind = 'block', title, done }) =>
+  call(async () => (await FocusedScreenTime.pickApps({ kind, title, done })).count, null);
 
-export const getSelectionCount = () =>
-  call(async () => (await FocusedScreenTime.getSelectionSummary()).count, 0);
+export const getSelectionCount = (kind = 'block') =>
+  call(async () => (await FocusedScreenTime.getSelectionSummary({ kind })).count, 0);
 
-export const startBlock = (endAt) =>
-  call(async () => (await FocusedScreenTime.startBlock({ endAt: endAt.toISOString() })).active, false);
+export async function startBlock(endAt, mode = 'selected') {
+  if (!isScreenTimeSupported()) return { active: false };
+  try {
+    const r = await FocusedScreenTime.startBlock({ endAt: endAt.toISOString(), mode });
+    return { active: !!r.active };
+  } catch (e) {
+    return { active: false, error: e?.code || e?.message || 'error' };
+  }
+}
 
 export const stopBlock = () => call(async () => (await FocusedScreenTime.stopBlock()).active, false);
 
 export const getBlockState = () => call(() => FocusedScreenTime.getBlockState(), { active: false });
 
-export function isBlockEnabled() {
-  try { return localStorage.getItem(BLOCK_PREF_KEY) === '1'; } catch { return false; }
+const readJSON = (key, fallback) => {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+};
+
+export function getDefaultMode() {
+  try {
+    const m = localStorage.getItem(MODE_KEY);
+    if (BLOCK_MODES.includes(m)) return m;
+    if (localStorage.getItem(LEGACY_KEY) === '1') return 'selected';
+  } catch { /* ignore */ }
+  return 'off';
 }
 
-export function setBlockEnabled(on) {
-  try { localStorage.setItem(BLOCK_PREF_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+export function setDefaultMode(mode) {
+  try { localStorage.setItem(MODE_KEY, mode); } catch { /* ignore */ }
+}
+
+// Ogni sessione puo' avere la sua modalita'; se non ne ha, vale il default.
+export function getSessionMode(sessionId) {
+  const m = sessionId ? readJSON(SESSION_MODES_KEY, {})[sessionId] : null;
+  return BLOCK_MODES.includes(m) ? m : getDefaultMode();
+}
+
+export function setSessionMode(sessionId, mode) {
+  if (!sessionId) return;
+  const map = readJSON(SESSION_MODES_KEY, {});
+  map[sessionId] = mode;
+  try { localStorage.setItem(SESSION_MODES_KEY, JSON.stringify(map)); } catch { /* ignore */ }
+}
+
+// La modalita' effettiva per una sessione: 'off' se manca la lista necessaria.
+export async function resolveBlockMode(mode) {
+  if (!isScreenTimeSupported() || mode === 'off') return 'off';
+  if (mode === 'selected') return (await getSelectionCount('block')) > 0 ? 'selected' : 'off';
+  return mode;
 }

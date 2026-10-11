@@ -7,7 +7,6 @@ import {
   useBooks,
 } from '@/lib/useAppData';
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
-import FocusTimeCard from '@/components/profile/FocusTimeCard';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
 import { todayISO } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
@@ -254,9 +253,8 @@ export default function AgendaDesktop() {
             )}
           </div>
 
-          {/* RIGHT: focus time + calendar */}
+          {/* RIGHT: calendar */}
           <div className="space-y-4">
-            <FocusTimeCard />
             <div className="rounded-2xl border border-border bg-card p-4">
               <AgendaCalendarView />
             </div>

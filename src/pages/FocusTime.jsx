@@ -18,7 +18,15 @@ import FocusStats from '@/components/FocusStats';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import GymStartCard from '@/components/gym/GymStartCard';
 import FocusBlockCard from '@/components/FocusBlockCard';
-import { isScreenTimeSupported, isBlockEnabled, getSelectionCount } from '@/lib/nativeScreenTime';
+import FocusBlockPicker from '@/components/FocusBlockPicker';
+import {
+  isScreenTimeSupported,
+  getDefaultMode,
+  setDefaultMode,
+  getSessionMode,
+  setSessionMode,
+  resolveBlockMode,
+} from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
 
 const HINT_KEYS = { 15: 'ft_hint_short', 25: 'ft_hint_pomodoro', 50: 'ft_hint_deep', 90: 'ft_hint_flow' };
@@ -38,6 +46,7 @@ export default function FocusTime() {
   const [timer, setTimer] = useState(null);
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [askFocusy, setAskFocusy] = useState(false);
+  const [quickMode, setQuickMode] = useState(getDefaultMode);
   const prefillHandledRef = useRef(false);
 
   useEffect(() => {
@@ -94,10 +103,13 @@ export default function FocusTime() {
     return () => clearInterval(id);
   }, [upcoming]);
 
-  const handleStart = async (session) => {
-    const blockApps = isScreenTimeSupported() && isBlockEnabled() && (await getSelectionCount()) > 0;
+  // modeOverride: la modalita' scelta adesso (avvio rapido); altrimenti quella salvata
+  // per la sessione, o il valore predefinito.
+  const handleStart = async (session, modeOverride) => {
+    const wanted = modeOverride ?? (session?.id ? getSessionMode(session.id) : getDefaultMode());
+    const blockMode = await resolveBlockMode(wanted);
     setTimer({
-      blockApps,
+      blockMode,
       durationMin: session?.duration_minutes || 25,
       spotifyUrl: session?.spotify_url || null,
       session: session || null,
@@ -120,8 +132,9 @@ export default function FocusTime() {
     await optimisticFocusTimeDelete(id);
   };
 
-  const handleSchedule = async (payload) => {
-    await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
+  const handleSchedule = async (payload, blockMode) => {
+    const created = await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
+    if (created?.id && blockMode) setSessionMode(created.id, blockMode);
   };
 
   const handleQuickStart = async (mins) => {
@@ -135,7 +148,9 @@ export default function FocusTime() {
     });
     setQuickPick(false);
     setPrefillHomework(null);
-    handleStart(created);
+    if (created?.id) setSessionMode(created.id, quickMode);
+    setDefaultMode(quickMode);
+    handleStart(created, quickMode);
   };
 
   return (
@@ -258,6 +273,11 @@ export default function FocusTime() {
                 <span className="font-semibold">{prefillHomework.subject} — {prefillHomework.title}</span>
               </div>
             )}
+            {isScreenTimeSupported() && (
+              <div className="mb-5 rounded-2xl border border-border p-3">
+                <FocusBlockPicker mode={quickMode} onChange={setQuickMode} />
+              </div>
+            )}
             <h3 className="text-base font-semibold mb-4">{t('ft_quanto')}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[15, 25, 50, 90].map((mins) => (
@@ -281,7 +301,7 @@ export default function FocusTime() {
           durationMin={timer.durationMin}
           spotifyUrl={timer.spotifyUrl}
           session={timer.session}
-          blockApps={timer.blockApps}
+          blockMode={timer.blockMode}
           onComplete={handleComplete}
           onClose={() => setTimer(null)}
         />

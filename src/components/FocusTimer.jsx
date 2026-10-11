@@ -14,7 +14,7 @@ const fmt = (ms) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps, onComplete, onClose }) {
+export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode, onComplete, onClose }) {
   const t = useT();
   const totalMs = durationMin * 60 * 1000;
   const [remaining, setRemaining] = useState(totalMs);
@@ -22,6 +22,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps
   const endAtRef = useRef(Date.now() + totalMs);
   const wakeRef = useRef(null);
   const pushedRef = useRef(false);
+  const [blockFailed, setBlockFailed] = useState(false);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -64,8 +65,8 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps
   // Blocco app durante la sessione (solo iOS, solo se l'utente l'ha attivato) e
   // notifica di fine sessione per quando Focused e' in secondo piano.
   useEffect(() => {
-    if (!blockApps) return undefined;
-    startBlock(new Date(endAtRef.current));
+    if (!blockMode || blockMode === 'off') return undefined;
+    startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(true); });
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     return () => {
       stopBlock();
@@ -87,7 +88,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps
         clearInterval(id);
         setRemaining(0);
         setDone(true);
-        if (blockApps) stopBlock();
+        if (blockMode && blockMode !== 'off') stopBlock();
         try { wakeRef.current?.release?.(); } catch { /* ignore */ }
         try {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -162,6 +163,8 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps
             <Play size={16} /> {t('ftimer_apri_spotify')}
           </button>
         )}
+
+        {blockFailed && <p className="mt-6 max-w-xs text-center text-xs text-muted-foreground">{t('fb_err')}</p>}
 
         <button onClick={handleStop} className="mt-8 text-sm font-semibold text-muted-foreground hover:text-foreground">
           {t('ftimer_termina')}
