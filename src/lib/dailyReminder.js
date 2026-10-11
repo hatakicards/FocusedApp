@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
+import { useActivities, useGymSessions, useSubscription } from '@/lib/useAppData';
+import { getRecentEvents, typicalHour } from '@/lib/healthSense';
 
 // Promemoria serale: una notifica locale all'orario scelto dall'utente. iOS non
 // permette di condizionare una notifica ripetuta, quindi se ne programmano le
@@ -107,4 +109,75 @@ export async function cancelSessionEnd() {
   try {
     await LN.cancel({ notifications: [{ id: SESSION_END_ID }] });
   } catch { /* ignore */ }
+}
+
+// Spinta sugli allenamenti in scheda: nei giorni in cui hai una sessione in programma
+// ("Oggi hai Push day, che stai aspettando?"), all'ora in cui di solito ti alleni
+// (dedotta dagli allenamenti rilevati, altrimenti le 18). Salta oggi se hai gia'
+// fatto l'allenamento. Si riprogramma a ogni apertura, come il promemoria serale.
+const GYM_NUDGE_BASE_ID = 7200;
+const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+export async function syncGymNudges({ enabled, sessions, doneToday, hour, titleFor, genericBody }) {
+  const LN = await loadPlugin();
+  if (!LN) return;
+  try {
+    await LN.cancel({
+      notifications: Array.from({ length: DAYS_AHEAD }, (_, i) => ({ id: GYM_NUDGE_BASE_ID + i })),
+    });
+    if (!enabled || !sessions?.length) return;
+    if (!(await ensurePermission(LN))) return;
+
+    const now = Date.now();
+    const notifications = [];
+    for (let i = 0; i < DAYS_AHEAD; i += 1) {
+      const at = new Date();
+      at.setDate(at.getDate() + i);
+      at.setHours(hour, 0, 0, 0);
+      if (at.getTime() <= now + 5000) continue;
+      if (i === 0 && doneToday) continue;
+      const session = sessions.find((s) => s.day_of_week === WEEKDAY_IDS[at.getDay()]);
+      if (!session) continue;
+      notifications.push({
+        id: GYM_NUDGE_BASE_ID + i,
+        title: 'Focused',
+        body: session.title ? titleFor(session.title) : genericBody,
+        schedule: { at, allowWhileIdle: true },
+      });
+    }
+    if (notifications.length) await LN.schedule({ notifications });
+  } catch (e) {
+    console.warn('Gym nudge sync failed', e);
+  }
+}
+
+export function useGymNudges(ratings) {
+  const t = useT();
+  const { data: sessions } = useGymSessions();
+  const { data: activities } = useActivities();
+  const { isPro } = useSubscription();
+  const ready = sessions !== undefined && ratings !== undefined;
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const gymIds = new Set((activities || []).filter((a) => a.is_gym || a.preset_type === 'gym').map((a) => a.id));
+  const ratedGym = (ratings || []).some((r) => r.date === todayKey && gymIds.has(r.activity_id));
+  const sensedGym = getRecentEvents(2).some((e) => e.kind === 'gym' && e.date === todayKey);
+  const doneToday = ratedGym || sensedGym;
+  const planned = (sessions || []).filter((s) => (s.exercises || []).some((e) => e?.name?.trim()));
+  const plannedKey = planned.map((s) => `${s.day_of_week}:${s.title || ''}`).join('|');
+  const hour = typicalHour('gym');
+  const template = t('sense_nudge_gym');
+  const genericBody = t('sense_nudge_gym_generic');
+
+  useEffect(() => {
+    if (!ready) return;
+    syncGymNudges({
+      enabled: isPro,
+      sessions: planned,
+      doneToday,
+      hour,
+      titleFor: (title) => template.replace('{title}', title),
+      genericBody,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, isPro, doneToday, plannedKey, hour, template, genericBody]);
 }

@@ -10,6 +10,10 @@
 	<string>Focused usa il microfono solo quando premi il pulsante di dettatura in Focusy, per trascrivere la tua voce in testo.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Focused usa il riconoscimento vocale solo quando premi il pulsante di dettatura in Focusy, per trasformare quello che dici in un messaggio.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Focused legge i tuoi allenamenti, il sonno e i passi da Salute per capire cosa hai fatto e chiederti come e' andata, senza che tu debba scriverlo. I dati di Salute non vengono salvati sui nostri server; Focusy ne usa solo un breve riassunto per consigliarti.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Focused usa il movimento per riconoscere quando hai corso o camminato e chiederti come e' andata. I dati di movimento non vengono salvati sui nostri server.</string>
 	<key>CFBundleDisplayName</key>
         <string>Focused</string>
 	<key>CFBundleExecutable</key>

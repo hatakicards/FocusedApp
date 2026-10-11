@@ -30,6 +30,7 @@ import { buildGymSummary } from '@/lib/gymContext';
 import { FOODS, getFoodById, computeFoodLogTotals } from '@/lib/foodDatabase';
 import { todayISO } from '@/lib/productivity';
 import { createDictation, isDictationAvailable } from '@/lib/speech';
+import { buildSensedSummary } from '@/lib/healthSense';
 
 const SUGGESTIONS = [
   { key: 'focusy_sugg_gym', text: 'Come posso migliorare la mia scheda di allenamento?' },
@@ -534,7 +535,11 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       const context = buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks });
       const conversationHistory = messages.slice(-6).map((m) => `${m.role === 'user' ? 'Utente' : 'Focusy'}: ${m.content}`).join('\n');
       const foodSection = buildFoodSection({ isPremium, bodyFuelEntries, customFoods });
-      const prompt = `${context}\n\n${foodSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
+      const sensed = buildSensedSummary();
+      const sensedSection = sensed
+        ? `=== ATTIVITA' RILEVATE DA SALUTE/MOVIMENTO (ultimi 14 giorni, dal telefono dell'utente) ===\n${sensed}\nUsale per commentare la costanza (es. quante volte si e' allenato questa settimana) e per confrontarle con la scheda e con quello che l'utente dice: se afferma di aver fatto qualcosa che qui non risulta, faglielo notare con gentilezza e senza accusarlo.`
+        : '';
+      const prompt = `${context}\n\n${foodSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,

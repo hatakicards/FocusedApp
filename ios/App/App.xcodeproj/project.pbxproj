@@ -20,6 +20,7 @@
 		FCAA00000000000000000011 /* FocusedWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FCAA00000000000000000001 /* FocusedWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FCBB00000000000000000004 /* FocusedScreenTimePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */; };
 		FCBB00000000000000000008 /* FocusedSpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000007 /* FocusedSpeechPlugin.swift */; };
+		FCBB0000000000000000000A /* FocusedHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000009 /* FocusedHealthPlugin.swift */; };
 		FCBB00000000000000000005 /* FocusedWidgetSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */; };
 		FCBB00000000000000000006 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -66,6 +67,7 @@
 		FCAA00000000000000000007 /* FocusedWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedWidget.entitlements; sourceTree = "<group>"; };
 		FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedScreenTimePlugin.swift; sourceTree = "<group>"; };
 		FCBB00000000000000000007 /* FocusedSpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedSpeechPlugin.swift; sourceTree = "<group>"; };
+		FCBB00000000000000000009 /* FocusedHealthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedHealthPlugin.swift; sourceTree = "<group>"; };
 		FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedWidgetSyncPlugin.swift; sourceTree = "<group>"; };
 		FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -132,6 +134,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				FCBB00000000000000000001 /* FocusedScreenTimePlugin.swift */,
 				FCBB00000000000000000007 /* FocusedSpeechPlugin.swift */,
+				FCBB00000000000000000009 /* FocusedHealthPlugin.swift */,
 				FCBB00000000000000000002 /* FocusedWidgetSyncPlugin.swift */,
 				FCBB00000000000000000003 /* PrivacyInfo.xcprivacy */,
 			);
@@ -255,6 +258,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				FCBB00000000000000000004 /* FocusedScreenTimePlugin.swift in Sources */,
 				FCBB00000000000000000008 /* FocusedSpeechPlugin.swift in Sources */,
+				FCBB0000000000000000000A /* FocusedHealthPlugin.swift in Sources */,
 				FCBB00000000000000000005 /* FocusedWidgetSyncPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
