@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Play, Check } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import { startBlock, stopBlock } from '@/lib/nativeScreenTime';
+import { scheduleSessionEnd, cancelSessionEnd } from '@/lib/dailyReminder';
 
 const MIN_PERSIST_MS = 60 * 1000;
 
@@ -12,7 +14,7 @@ const fmt = (ms) => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 };
 
-export default function FocusTimer({ durationMin, spotifyUrl, session, onComplete, onClose }) {
+export default function FocusTimer({ durationMin, spotifyUrl, session, blockApps, onComplete, onClose }) {
   const t = useT();
   const totalMs = durationMin * 60 * 1000;
   const [remaining, setRemaining] = useState(totalMs);
@@ -59,6 +61,19 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, onComplet
     handleClose();
   };
 
+  // Blocco app durante la sessione (solo iOS, solo se l'utente l'ha attivato) e
+  // notifica di fine sessione per quando Focused e' in secondo piano.
+  useEffect(() => {
+    if (!blockApps) return undefined;
+    startBlock(new Date(endAtRef.current));
+    scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
+    return () => {
+      stopBlock();
+      cancelSessionEnd();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const acquire = async () => {
       try {
@@ -72,6 +87,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, onComplet
         clearInterval(id);
         setRemaining(0);
         setDone(true);
+        if (blockApps) stopBlock();
         try { wakeRef.current?.release?.(); } catch { /* ignore */ }
         try {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {

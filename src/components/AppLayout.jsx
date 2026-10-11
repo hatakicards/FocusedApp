@@ -15,9 +15,10 @@ import FullScreenAd from './FullScreenAd';
 import PromoExpiredModal from './PromoExpiredModal';
 import TrialWelcomeModal from './TrialWelcomeModal';
 import TrialExpiredModal from './TrialExpiredModal';
-import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate } from '@/lib/useAppData';
+import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate, useRatings } from '@/lib/useAppData';
 import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
+import { useDailyReminder } from '@/lib/dailyReminder';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
 
@@ -39,6 +40,8 @@ export default function AppLayout() {
   const { user } = useAuth();
   const optimisticSettingsUpdate = useOptimisticSettingsUpdate();
   useSyncInit();
+  const { data: ratings } = useRatings();
+  useDailyReminder(settings, ratings);
 
   // Track unique app usage — 1 event per person per session
   useEffect(() => {

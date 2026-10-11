@@ -55,5 +55,8 @@ public class FocusedWidgetSyncPlugin: CAPPlugin, CAPBridgedPlugin {
 final class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(FocusedWidgetSyncPlugin())
+        if #available(iOS 16.0, *) {
+            bridge?.registerPluginInstance(FocusedScreenTimePlugin())
+        }
     }
 }

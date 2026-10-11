@@ -17,6 +17,8 @@ import FocusScheduleForm from '@/components/FocusScheduleForm';
 import FocusStats from '@/components/FocusStats';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import GymStartCard from '@/components/gym/GymStartCard';
+import FocusBlockCard from '@/components/FocusBlockCard';
+import { isScreenTimeSupported, isBlockEnabled, getSelectionCount } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
 
 const HINT_KEYS = { 15: 'ft_hint_short', 25: 'ft_hint_pomodoro', 50: 'ft_hint_deep', 90: 'ft_hint_flow' };
@@ -92,8 +94,10 @@ export default function FocusTime() {
     return () => clearInterval(id);
   }, [upcoming]);
 
-  const handleStart = (session) => {
+  const handleStart = async (session) => {
+    const blockApps = isScreenTimeSupported() && isBlockEnabled() && (await getSelectionCount()) > 0;
     setTimer({
+      blockApps,
       durationMin: session?.duration_minutes || 25,
       spotifyUrl: session?.spotify_url || null,
       session: session || null,
@@ -162,6 +166,8 @@ export default function FocusTime() {
           </button>
 
           <GymStartCard className="mb-3" />
+
+          <FocusBlockCard className="mb-3" />
 
           <button
             onClick={() => setAskFocusy(true)}
@@ -275,6 +281,7 @@ export default function FocusTime() {
           durationMin={timer.durationMin}
           spotifyUrl={timer.spotifyUrl}
           session={timer.session}
+          blockApps={timer.blockApps}
           onComplete={handleComplete}
           onClose={() => setTimer(null)}
         />
