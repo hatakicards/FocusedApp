@@ -4,6 +4,8 @@ import { useUserSettings, useGymSessions, useSubscription } from '@/lib/useAppDa
 import { useI18n, useT, weekdayLongById } from '@/lib/i18n';
 import TutorialDialog from '@/components/TutorialDialog';
 import PremiumModal from '@/components/PremiumModal';
+import GymStartCard from '@/components/gym/GymStartCard';
+import { describeExercise } from '@/lib/gymSession';
 
 const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -68,6 +70,7 @@ export default function GymTracker() {
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('gt_scheda_oggi')}</h2>
           <p className="text-sm text-muted-foreground mb-4 capitalize">{todayName}</p>
+          <GymStartCard className="mb-4" />
           <div className="space-y-2">
             {exercises.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-4 text-center">
@@ -77,6 +80,7 @@ export default function GymTracker() {
               exercises.map((ex, i) => (
                 <div key={i} className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-sm font-medium">{ex.name}</p>
+                  <p className="text-xs font-semibold text-foreground/70 mt-0.5 tabular-nums">{describeExercise(ex)}</p>
                   {ex.info && (
                     <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{ex.info}</p>
                   )}

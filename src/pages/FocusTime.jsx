@@ -16,6 +16,7 @@ import FocusTimer from '@/components/FocusTimer';
 import FocusScheduleForm from '@/components/FocusScheduleForm';
 import FocusStats from '@/components/FocusStats';
 import FocusyAssistant from '@/components/FocusyAssistant';
+import GymStartCard from '@/components/gym/GymStartCard';
 import TutorialDialog from '@/components/TutorialDialog';
 
 const HINT_KEYS = { 15: 'ft_hint_short', 25: 'ft_hint_pomodoro', 50: 'ft_hint_deep', 90: 'ft_hint_flow' };
@@ -159,6 +160,8 @@ export default function FocusTime() {
             </div>
             <Play size={18} className="text-muted-foreground" />
           </button>
+
+          <GymStartCard className="mb-3" />
 
           <button
             onClick={() => setAskFocusy(true)}
