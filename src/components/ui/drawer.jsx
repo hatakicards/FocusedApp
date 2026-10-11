@@ -4,6 +4,7 @@ import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
+import { InsideOverlayContext } from "./overlay-context"
 
 // shouldScaleBackground applica uno scale() al contenuto dietro il drawer:
 // su iOS WKWebView quel transform disallinea le coordinate del touch e fa
@@ -41,7 +42,7 @@ const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) 
       )}
       {...props}>
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
+      <InsideOverlayContext.Provider value={true}>{children}</InsideOverlayContext.Provider>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ))
