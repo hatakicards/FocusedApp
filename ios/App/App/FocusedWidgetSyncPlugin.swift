@@ -48,3 +48,12 @@ public class FocusedWidgetSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 }
+
+// Capacitor non scopre da solo i plugin che stanno nel target dell'app (solo
+// quelli npm): senza questa registrazione syncSession fallisce con "plugin not
+// implemented" e il widget resta sempre su "Accedi nell'app".
+final class MainViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(FocusedWidgetSyncPlugin())
+    }
+}
