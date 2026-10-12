@@ -255,8 +255,8 @@ Compiti totali pendenti: ${pendingHomework.length} (impegnativi:${difficultyCoun
 Se l'utente chiede di creare qualcosa, compila "actions" con UN oggetto:
 1. create_activity: { "type":"create_activity", "name":"...", "category":"fitness|mente|apprendimento|custom", "emoji":"..." }
 2. create_goal: { "type":"create_goal", "title":"...", "timeframe":"daily|weekly|monthly|annual|lifetime", "difficulty":"easy|medium|hard", "activity_name":"<nome esatto da ATTIVITÀ ESISTENTI>" }
-3. create_task: { "type":"create_task", "title":"...", "task_type":"todo", "due_date":"YYYY-MM-DD (opzionale)", "notes":"(opzionale)" }
-4. create_event: { "type":"create_event", "title":"...", "task_type":"meeting|deadline", "due_date":"YYYY-MM-DD", "notes":"(opzionale)" }
+3. create_task: { "type":"create_task", "title":"...", "task_type":"todo", "due_date":"YYYY-MM-DD (opzionale)", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
+4. create_event: { "type":"create_event", "title":"...", "task_type":"meeting|deadline", "due_date":"YYYY-MM-DD", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
 5. create_homework: { "type":"create_homework", "subject":"...", "title":"...", "due_date":"YYYY-MM-DD (opzionale)", "difficulty":"quick|medium|heavy" }
 
 REGOLE:
@@ -307,6 +307,7 @@ const RESPONSE_SCHEMA = {
           activity_name: { type: 'string' },
           task_type: { type: 'string' },
           due_date: { type: 'string' },
+          due_time: { type: 'string' },
           notes: { type: 'string' },
           subject: { type: 'string' },
           items: {
@@ -491,6 +492,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           title: action.title,
           type: action.task_type || 'todo',
           due_date: action.due_date || undefined,
+          due_time: /^[0-2]\d:[0-5]\d$/.test(action.due_time || '') ? action.due_time : undefined,
           notes: action.notes || undefined,
           status: 'active',
         });
@@ -502,6 +504,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           title: action.title,
           type: action.task_type || 'meeting',
           due_date: action.due_date || undefined,
+          due_time: /^[0-2]\d:[0-5]\d$/.test(action.due_time || '') ? action.due_time : undefined,
           notes: action.notes || undefined,
           status: 'active',
         });

@@ -27,6 +27,8 @@ export default function TaskForm({ open, onClose, onSaved, task }) {
   const [linkedActivity, setLinkedActivity] = useState('');
   const [repeatable, setRepeatable] = useState(false);
   const [expectedEarnings, setExpectedEarnings] = useState('');
+  const [dueTime, setDueTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -41,7 +43,11 @@ export default function TaskForm({ open, onClose, onSaved, task }) {
     setLinkedActivity(task?.linked_activity_id || '');
     setRepeatable(task?.repeatable || false);
     setExpectedEarnings(task?.expected_earnings?.toString() || '');
+    setDueTime(task?.due_time || '');
+    setEndTime(task?.end_time || '');
   }, [open, task]);
+
+  const hasTime = type !== 'project';
 
   const toggleWeekday = (id) => {
     setWeekdays((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]));
@@ -55,6 +61,8 @@ export default function TaskForm({ open, onClose, onSaved, task }) {
       type,
       notes: notes.trim(),
       due_date: dueDate || null,
+      due_time: hasTime ? dueTime || null : null,
+      end_time: hasTime && dueTime ? endTime || null : null,
       expiry_date: type === 'project' ? expiryDate || null : null,
       recurrence_per_week: type === 'weekly' ? Number(recurrence) : null,
       weekdays: type === 'weekly' ? weekdays : [],
@@ -148,6 +156,19 @@ export default function TaskForm({ open, onClose, onSaved, task }) {
             <div className="space-y-1.5">
               <Label>{t('tf_quando')}</Label>
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="[color-scheme:dark]" />
+            </div>
+          )}
+
+          {hasTime && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('tf_ora_inizio')}</Label>
+                <Input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="[color-scheme:dark]" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('tf_ora_fine')}</Label>
+                <Input type="time" value={endTime} disabled={!dueTime} onChange={(e) => setEndTime(e.target.value)} className="[color-scheme:dark]" />
+              </div>
             </div>
           )}
 

@@ -9,12 +9,13 @@ import {
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
 import TutorialDialog from '@/components/TutorialDialog';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
-import { todayISO } from '@/lib/productivity';
+import { todayISO, computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
 import PullToRefresh from '@/components/PullToRefresh';
 import TaskForm from '@/components/TaskForm';
 import AgendaCalendarView from '@/components/AgendaCalendarView';
 import TaskRatingPrompt from '@/components/TaskRatingPrompt';
+import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
 import { GYM_IMAGE_URL } from '@/lib/constants';
 import { Image } from '@/components/ui/image';
@@ -54,6 +55,12 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState('all');
 
   const { data: tasks, isLoading: loadingTasks } = useTasks();
+  const { celebrate, celebrationElement } = useTaskCelebration();
+
+  const celebrateDone = (task, rating) => {
+    const day = task.completed_date || new Date().toISOString().split('T')[0];
+    celebrate({ title: task.title, rating: rating || 0, streak: computeTaskStreak(tasks, day) });
+  };
 
   const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const todayGymSession = settings?.gym_enabled
@@ -90,6 +97,12 @@ export default function Agenda() {
         console.error(e);
       }
     }
+    celebrateDone(rateTask, rating);
+    setRateTask(null);
+  };
+
+  const handleSkipRate = () => {
+    if (rateTask) celebrateDone(rateTask, 0);
     setRateTask(null);
   };
 
@@ -128,6 +141,7 @@ export default function Agenda() {
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
             <Icon size={11} /> {t(meta.key)}
             {task.due_date && <> · {fmtDate(task.due_date)}</>}
+            {task.due_time && <> · {task.due_time}{task.end_time ? `–${task.end_time}` : ''}</>}
             {task.expiry_date && <> · {t('ag_scad')} {fmtDate(task.expiry_date)}</>}
             {task.type === 'weekly' && task.weekdays?.length > 0 && <> · {task.weekdays.map((d) => weekdayShortByMonSun(locale, d)).join(' ')}</>}
             {task.rating != null && <> · {task.rating}/5</>}
@@ -297,7 +311,8 @@ export default function Agenda() {
 
         <TaskForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSaveTask} />
 
-        <TaskRatingPrompt task={rateTask} onClose={() => setRateTask(null)} onRate={handleRate} />
+        <TaskRatingPrompt task={rateTask} onClose={handleSkipRate} onRate={handleRate} />
+        {celebrationElement}
 
         <GymSessionDialog session={gymDialog} onClose={() => setGymDialog(null)} />
         <TutorialDialog pageId="agenda" />

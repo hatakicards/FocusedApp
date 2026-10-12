@@ -20,6 +20,8 @@ function toLocalDateStr(d) {
   return `${y}-${m}-${day}`;
 }
 
+const taskTime = (task) => (task.due_time ? `${task.due_time}${task.end_time ? '–' + task.end_time : ''}` : null);
+
 export default function AgendaCalendarView() {
   const t = useT();
   const { locale } = useI18n();
@@ -53,11 +55,11 @@ export default function AgendaCalendarView() {
     const d = task.due_date || task.expiry_date;
     if (!eventsByDate[d]) eventsByDate[d] = [];
     if (task.type === 'meeting') {
-      eventsByDate[d].push({ type: 'meeting', title: task.title, time: null, sub: t('ws_riunione') });
+      eventsByDate[d].push({ type: 'meeting', title: task.title, time: taskTime(task), sub: t('ws_riunione') });
     } else if (task.type === 'deadline') {
-      eventsByDate[d].push({ type: 'deadline', title: task.title, time: null, sub: t('ws_scadenza') });
+      eventsByDate[d].push({ type: 'deadline', title: task.title, time: taskTime(task), sub: t('ws_scadenza') });
     } else {
-      eventsByDate[d].push({ type: 'task', title: task.title, time: null, sub: t('ag_task') });
+      eventsByDate[d].push({ type: 'task', title: task.title, time: taskTime(task), sub: t('ag_task') });
     }
   }
 

@@ -8,11 +8,12 @@ import {
 } from '@/lib/useAppData';
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
-import { todayISO } from '@/lib/productivity';
+import { todayISO, computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
 import TaskForm from '@/components/TaskForm';
 import AgendaCalendarView from '@/components/AgendaCalendarView';
 import TaskRatingPrompt from '@/components/TaskRatingPrompt';
+import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
 import { GYM_IMAGE_URL } from '@/lib/constants';
 import { Image } from '@/components/ui/image';
@@ -61,6 +62,16 @@ export default function AgendaDesktop() {
   const now = new Date();
   const isExpired = (task) => task.type === 'project' && task.expiry_date && new Date(task.expiry_date) < now;
 
+  const { celebrate, celebrationElement } = useTaskCelebration();
+  const celebrateDone = (task, rating) => {
+    const day = task.completed_date || new Date().toISOString().split('T')[0];
+    celebrate({ title: task.title, rating: rating || 0, streak: computeTaskStreak(tasks, day) });
+  };
+  const handleSkipRate = () => {
+    if (rateTask) celebrateDone(rateTask, 0);
+    setRateTask(null);
+  };
+
   const handleToggle = async (task) => {
     const updated = await optimisticTaskToggle(task);
     if (updated.status === 'done') setRateTask(updated);
@@ -80,6 +91,7 @@ export default function AgendaDesktop() {
         invalidate();
       } catch (e) { console.error(e); }
     }
+    celebrateDone(rateTask, rating);
     setRateTask(null);
   };
   const handleArchive = (task) => optimisticTaskArchive(task).catch(console.error);
@@ -111,6 +123,7 @@ export default function AgendaDesktop() {
           <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
             <Icon size={10} /> {t(meta.key)}
             {task.due_date && <> · {fmtDate(task.due_date)}</>}
+            {task.due_time && <> · {task.due_time}{task.end_time ? `–${task.end_time}` : ''}</>}
             {task.expiry_date && <> · {t('ag_scad')} {fmtDate(task.expiry_date)}</>}
             {task.type === 'weekly' && task.weekdays?.length > 0 && <> · {task.weekdays.map((d) => weekdayShortByMonSun(locale, d)).join(' ')}</>}
             {task.rating != null && <> · {task.rating}/5</>}
@@ -263,7 +276,8 @@ export default function AgendaDesktop() {
       </div>
 
       <TaskForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSaveTask} />
-      <TaskRatingPrompt task={rateTask} onClose={() => setRateTask(null)} onRate={handleRate} />
+      <TaskRatingPrompt task={rateTask} onClose={handleSkipRate} onRate={handleRate} />
+      {celebrationElement}
       <GymSessionDialog session={gymDialog} onClose={() => setGymDialog(null)} />
     </div>
   );

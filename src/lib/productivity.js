@@ -64,6 +64,22 @@ export function formatMonthYear(year, month) {
   return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
 }
 
+// Giorni di fila con almeno un'attivita' completata (oggi conta se gia' completata,
+// altrimenti si parte da ieri). todayStr e' nello stesso formato di completed_date.
+export function computeTaskStreak(tasks, todayStr) {
+  const days = new Set((tasks || []).filter((t) => t.status === 'done' && t.completed_date).map((t) => t.completed_date));
+  if (todayStr) days.add(todayStr);
+  const cur = new Date((todayStr || new Date().toISOString().split('T')[0]) + 'T00:00:00Z');
+  let streak = 0;
+  for (let i = 0; i < 730; i++) {
+    const key = cur.toISOString().split('T')[0];
+    if (!days.has(key)) break;
+    streak++;
+    cur.setUTCDate(cur.getUTCDate() - 1);
+  }
+  return streak;
+}
+
 export function computeStreak(ratings) {
   if (!ratings || ratings.length === 0) return 0;
 
