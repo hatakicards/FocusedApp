@@ -23,6 +23,7 @@ import {
   useGradeGoals,
   useHomeworks,
   useCustomFoods,
+  useTimetable,
 } from '@/lib/useAppData';
 import { normalizeGrade } from '@/lib/grades';
 import { sortHomeworkByPriority, priorityTier, averageNormalizedGradeForSubject } from '@/lib/studyPriority';
@@ -31,6 +32,7 @@ import { FOODS, getFoodById, computeFoodLogTotals } from '@/lib/foodDatabase';
 import { todayISO } from '@/lib/productivity';
 import { createDictation, isDictationAvailable } from '@/lib/speech';
 import { buildSensedSummary } from '@/lib/healthSense';
+import { buildTimetableSummary } from '@/lib/timetable';
 
 const SUGGESTIONS = [
   { key: 'focusy_sugg_gym', text: 'Come posso migliorare la mia scheda di allenamento?' },
@@ -360,6 +362,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   const { data: gradeGoals } = useGradeGoals();
   const { data: homeworks } = useHomeworks();
   const { data: customFoods } = useCustomFoods();
+  const { data: timetable } = useTimetable();
   const { tier, isPremium } = useSubscription();
 
   const limit = LIMITS[tier] ?? LIMITS.free;
@@ -535,11 +538,15 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       const context = buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks });
       const conversationHistory = messages.slice(-6).map((m) => `${m.role === 'user' ? 'Utente' : 'Focusy'}: ${m.content}`).join('\n');
       const foodSection = buildFoodSection({ isPremium, bodyFuelEntries, customFoods });
+      const timetableSummary = buildTimetableSummary(timetable);
+      const timetableSection = timetableSummary
+        ? `=== ORARIO SCOLASTICO SETTIMANALE ===\n${timetableSummary}\nUsalo per sapere cosa ha l'utente oggi/domani, per proporre quando studiare e per i compiti: se dice "per la prossima lezione di X" usa la data indicata sopra come due_date.`
+        : '';
       const sensed = buildSensedSummary();
       const sensedSection = sensed
         ? `=== ATTIVITA' RILEVATE DA SALUTE/MOVIMENTO (ultimi 14 giorni, dal telefono dell'utente) ===\n${sensed}\nUsale per commentare la costanza (es. quante volte si e' allenato questa settimana) e per confrontarle con la scheda e con quello che l'utente dice: se afferma di aver fatto qualcosa che qui non risulta, faglielo notare con gentilezza e senza accusarlo.`
         : '';
-      const prompt = `${context}\n\n${foodSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
+      const prompt = `${context}\n\n${foodSection}\n\n${timetableSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -568,7 +575,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     } finally {
       setLoading(false);
     }
-  }, [loading, canSend, isPremium, customFoods, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
+  }, [loading, canSend, isPremium, customFoods, timetable, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
 
   useEffect(() => {
     if (initialPrompt && open && !sentInitialRef.current) {

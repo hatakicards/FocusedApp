@@ -3,9 +3,11 @@ import { Shield, AlertTriangle, Plus, X } from 'lucide-react';
 import { getDB } from '@/lib/guestDB';
 import { GRADE_SYSTEMS, normalizeGrade } from '@/lib/grades';
 import { useT } from '@/lib/i18n';
-import BottomSelect from '@/components/BottomSelect';
+import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
+import SubjectPicker from '@/components/lezioni/SubjectPicker';
+import { parseGradeNumber } from '@/lib/grades';
 
-export default function SubjectThresholds({ grades, settings, onSaved }) {
+export default function SubjectThresholds({ grades, settings, onSaved, onManageSubjects }) {
   const t = useT();
   const [adding, setAdding] = useState(false);
   const [newSubject, setNewSubject] = useState('');
@@ -41,7 +43,7 @@ export default function SubjectThresholds({ grades, settings, onSaved }) {
   const handleAdd = async () => {
     if (!newSubject.trim() || !newThreshold) return;
     const sys = GRADE_SYSTEMS[system] || GRADE_SYSTEMS.scale10;
-    const norm = normalizeGrade(parseFloat(newThreshold), system);
+    const norm = normalizeGrade(parseGradeNumber(newThreshold) ?? NaN, system);
     setSaving(true);
     try {
       const updated = { ...thresholds, [newSubject.trim()]: norm };
@@ -92,37 +94,16 @@ export default function SubjectThresholds({ grades, settings, onSaved }) {
 
         {adding && (
           <div className="space-y-2 mb-3">
+            <SubjectPicker subjects={subjectsWithGrades} value={newSubject} onChange={setNewSubject} onManage={onManageSubjects} />
+            <GradeSystemPicker value={system} onChange={(v) => { setSystem(v); setNewThreshold(''); }} />
             <input
               type="text"
-              value={newSubject}
-              onChange={(e) => setNewSubject(e.target.value)}
-              placeholder={t('ls_materia_ph')}
-              list="threshold-subjects"
+              inputMode="decimal"
+              value={newThreshold}
+              onChange={(e) => setNewThreshold(e.target.value)}
+              placeholder={t('threshold_min_ph')}
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
             />
-            <datalist id="threshold-subjects">
-              {subjectsWithGrades.map((s) => <option key={s} value={s} />)}
-            </datalist>
-            <div className="flex gap-2">
-              <div className="shrink-0 w-32">
-                <BottomSelect
-                  value={system}
-                  onValueChange={(v) => { setSystem(v); setNewThreshold(''); }}
-                  options={Object.entries(GRADE_SYSTEMS).map(([k, v]) => ({ value: k, label: v.label }))}
-                />
-              </div>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={newThreshold}
-                onChange={(e) => setNewThreshold(e.target.value)}
-                placeholder={t('threshold_min_ph')}
-                min={GRADE_SYSTEMS[system]?.min}
-                max={GRADE_SYSTEMS[system]?.max}
-                step={GRADE_SYSTEMS[system]?.step}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-              />
-            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}

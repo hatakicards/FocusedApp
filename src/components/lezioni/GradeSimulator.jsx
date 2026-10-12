@@ -2,9 +2,11 @@ import { useState, useMemo } from 'react';
 import { Calculator, Target, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { GRADE_SYSTEMS, normalizeGrade, formatGrade } from '@/lib/grades';
 import { useT } from '@/lib/i18n';
-import BottomSelect from '@/components/BottomSelect';
+import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
+import SubjectPicker from '@/components/lezioni/SubjectPicker';
+import { parseGradeNumber } from '@/lib/grades';
 
-export default function GradeSimulator({ grades }) {
+export default function GradeSimulator({ grades, onManageSubjects }) {
   const t = useT();
   const [subject, setSubject] = useState('');
   const [targetAvg, setTargetAvg] = useState('');
@@ -22,8 +24,8 @@ export default function GradeSimulator({ grades }) {
 
   const result = useMemo(() => {
     if (!subject || !targetAvg || subjectGrades.length === 0) return null;
-    const target = parseFloat(targetAvg);
-    if (isNaN(target)) return null;
+    const target = parseGradeNumber(targetAvg);
+    if (target == null || isNaN(target)) return null;
 
     const sys = GRADE_SYSTEMS[system] || GRADE_SYSTEMS.scale10;
     const targetNorm = normalizeGrade(target, system);
@@ -54,38 +56,16 @@ export default function GradeSimulator({ grades }) {
       <p className="text-xs text-muted-foreground mb-4">{t('sim_desc')}</p>
 
       <div className="space-y-3">
+        <SubjectPicker subjects={subjects} value={subject} onChange={setSubject} onManage={onManageSubjects} />
+        <GradeSystemPicker value={system} onChange={(v) => { setSystem(v); setTargetAvg(''); }} />
         <input
           type="text"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          placeholder={t('ls_materia_ph')}
-          list="sim-subjects"
+          inputMode="decimal"
+          value={targetAvg}
+          onChange={(e) => setTargetAvg(e.target.value)}
+          placeholder={t('sim_target_ph')}
           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
         />
-        <datalist id="sim-subjects">
-          {subjects.map((s) => <option key={s} value={s} />)}
-        </datalist>
-
-        <div className="flex gap-2">
-          <div className="shrink-0 w-32">
-            <BottomSelect
-              value={system}
-              onValueChange={(v) => { setSystem(v); setTargetAvg(''); }}
-              options={Object.entries(GRADE_SYSTEMS).map(([k, v]) => ({ value: k, label: v.label }))}
-            />
-          </div>
-          <input
-            type="number"
-            inputMode="numeric"
-            value={targetAvg}
-            onChange={(e) => setTargetAvg(e.target.value)}
-            placeholder={t('sim_target_ph')}
-            min={GRADE_SYSTEMS[system]?.min}
-            max={GRADE_SYSTEMS[system]?.max}
-            step={GRADE_SYSTEMS[system]?.step}
-            className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-          />
-        </div>
       </div>
 
       {result && (

@@ -43,5 +43,25 @@ export function normalizeGrade(grade, system) {
 
 export function formatGrade(grade, system) {
   if (system === 'letter') return formatLetterGrade(grade);
-  return grade;
+  return formatGradeNumber(grade);
+}
+// Legge un voto scritto come lo scrive una persona: "8", "8,5", "8.5", "8½",
+// "8 e mezzo", "8+" (= 8,25), "8-" (= 7,75). Ritorna un numero o null.
+export function parseGradeNumber(input) {
+  if (input == null) return null;
+  let s = String(input).trim().toLowerCase();
+  if (!s) return null;
+  s = s.replace(/\s+e\s+mezzo$/, '.5').replace(/\s*½$/, '.5').replace(/\s*1\/2$/, '.5').replace(',', '.');
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*([+-]?)$/);
+  if (!m) return null;
+  let n = parseFloat(m[1]);
+  if (m[2] === '+') n += 0.25;
+  if (m[2] === '-') n -= 0.25;
+  return Number.isFinite(n) ? n : null;
+}
+
+// Mostra un voto con la virgola italiana (8,5) invece del punto.
+export function formatGradeNumber(n) {
+  if (n == null || Number.isNaN(Number(n))) return '';
+  return String(Math.round(Number(n) * 100) / 100).replace('.', ',');
 }

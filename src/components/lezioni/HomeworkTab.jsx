@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { Plus, Trash2, Check, Calendar, Focus } from 'lucide-react';
-import { useHomeworks, useOptimisticHomeworkSave, useOptimisticHomeworkUpdate, useOptimisticHomeworkDelete } from '@/lib/useAppData';
+import { useHomeworks, useTimetable, useOptimisticHomeworkSave, useOptimisticHomeworkUpdate, useOptimisticHomeworkDelete } from '@/lib/useAppData';
 import { useT, useI18n } from '@/lib/i18n';
 import { todayISO } from '@/lib/productivity';
+import { nextLessons, hhmm } from '@/lib/timetable';
+import SubjectPicker from '@/components/lezioni/SubjectPicker';
 
 const DIFFICULTIES = ['quick', 'medium', 'heavy'];
 
-export default function HomeworkTab({ subjects, onOpenFocus }) {
+export default function HomeworkTab({ subjects, onManageSubjects, onOpenFocus }) {
   const t = useT();
   const { locale } = useI18n();
   const { data: homeworks } = useHomeworks();
+  const { data: timetable } = useTimetable();
   const optimisticSave = useOptimisticHomeworkSave();
   const optimisticUpdate = useOptimisticHomeworkUpdate();
   const optimisticDelete = useOptimisticHomeworkDelete();
@@ -21,6 +24,8 @@ export default function HomeworkTab({ subjects, onOpenFocus }) {
   const [difficulty, setDifficulty] = useState('medium');
 
   const all = homeworks || [];
+  // Prossime lezioni della materia scelta (dall'orario): toccandone una diventa la scadenza.
+  const lessonOptions = subject ? nextLessons(timetable, subject, 3) : [];
   const pending = [...all]
     .filter((h) => h.status !== 'done')
     .sort((a, b) => (a.due_date || '9999').localeCompare(b.due_date || '9999'));
@@ -62,14 +67,7 @@ export default function HomeworkTab({ subjects, onOpenFocus }) {
       <div className="rounded-2xl border border-border bg-card p-4 mb-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('hw_nuovo')}</p>
         <div className="space-y-2">
-          <input
-            type="text"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder={t('ls_materia_ph')}
-            list="subjects-list"
-            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-          />
+          <SubjectPicker subjects={subjects} value={subject} onChange={setSubject} onManage={onManageSubjects} />
           <input
             type="text"
             value={title}
@@ -77,6 +75,25 @@ export default function HomeworkTab({ subjects, onOpenFocus }) {
             placeholder={t('hw_titolo_ph')}
             className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
           />
+          {lessonOptions.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[11px] text-muted-foreground">{t('hw_prossima_lezione')}</p>
+              <div className="flex flex-wrap gap-2">
+                {lessonOptions.map(({ date, slot }) => (
+                  <button
+                    key={date + slot.id}
+                    type="button"
+                    onClick={() => setDueDate(date)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      dueDate === date ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    {new Date(date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })} · {hhmm(slot.start_time)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <input
             type="date"
             value={dueDate}

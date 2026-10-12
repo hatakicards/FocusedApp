@@ -5,9 +5,8 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'rec
 import { useLessonGrades, useVerifiche, useInvalidateAll, useUserSettings, useTasks, useSubjects, useOptimisticLessonGradeSave, useOptimisticLessonGradeDelete, useOptimisticVerificaSave, useOptimisticVerificaUpdate, useOptimisticVerificaDelete, useSubscription } from '@/lib/useAppData';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
-import { GRADE_SYSTEMS, formatGrade, normalizeGrade } from '@/lib/grades';
+import { GRADE_SYSTEMS, formatGrade, formatGradeNumber, normalizeGrade } from '@/lib/grades';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import BottomSelect from '@/components/BottomSelect';
 import TutorialDialog from '@/components/TutorialDialog';
 import GradeSimulator from '@/components/lezioni/GradeSimulator';
 import SubjectThresholds from '@/components/lezioni/SubjectThresholds';
@@ -18,6 +17,9 @@ import HomeworkTab from '@/components/lezioni/HomeworkTab';
 import GradeGoals from '@/components/lezioni/GradeGoals';
 import StudyOrganizer from '@/components/lezioni/StudyOrganizer';
 import { GradeInput, resolveGrade } from '@/components/lezioni/GradeInput';
+import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
+import SubjectPicker from '@/components/lezioni/SubjectPicker';
+import TimetableTab from '@/components/lezioni/TimetableTab';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import SubscriptionGate from '@/components/SubscriptionGate';
 
@@ -67,6 +69,11 @@ export default function Lezioni() {
     ...allGrades.map((g) => g.subject).filter(Boolean),
     ...allVerifiche.map((v) => v.subject).filter(Boolean),
   ])].sort();
+
+  // Materie selezionabili: solo quelle aggiunte con il pulsante "Materie" (piu', per non
+  // perdere i voti vecchi, quella gia' associata al voto che si sta modificando).
+  const pickSubjects = [...new Set((managedSubjects || []).map((s) => s.name).filter(Boolean))].sort();
+  const withCurrent = (current) => (current && !pickSubjects.includes(current) ? [...pickSubjects, current].sort() : pickSubjects);
 
   const sortedGrades = [...allGrades].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -177,7 +184,7 @@ export default function Lezioni() {
       </header>
 
       <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border overflow-x-auto scrollbar-hide">
-        {['voti', 'verifiche', 'compiti', 'obiettivi', 'organizza', 'simulatore'].map((tabKey) => (
+        {['voti', 'verifiche', 'compiti', 'orario', 'obiettivi', 'organizza', 'simulatore'].map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -187,10 +194,6 @@ export default function Lezioni() {
           </button>
         ))}
       </div>
-
-      <datalist id="subjects-list">
-        {subjects.map((s) => <option key={s} value={s} />)}
-      </datalist>
 
       {tab === 'voti' && (
         <>
@@ -202,50 +205,23 @@ export default function Lezioni() {
           )}
 
           {settings && (
-            <SubjectThresholds grades={allGrades} settings={settings} onSaved={invalidate} />
+            <SubjectThresholds grades={allGrades} settings={settings} onSaved={invalidate} onManageSubjects={() => setMaterieOpen(true)} />
           )}
 
           <RecoveryTasks grades={allGrades} tasks={tasks} onCreated={invalidate} />
 
-          {subjects.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {subjects.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSubject(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${subject === s ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground'}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div className="rounded-2xl border border-border bg-card p-4 mb-6">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('ls_oggi')}</p>
             <div className="space-y-2">
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder={t('ls_materia_ph')}
-                list="subjects-list"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-              />
+              <SubjectPicker subjects={pickSubjects} value={subject} onChange={setSubject} onManage={() => setMaterieOpen(true)} />
+              <GradeSystemPicker value={system} onChange={(v) => { setSystem(v); setGradeVal(''); }} />
               <div className="flex gap-2">
-                <div className="shrink-0 w-32">
-                  <BottomSelect
-                    value={system}
-                    onValueChange={(v) => { setSystem(v); setGradeVal(''); }}
-                    options={Object.entries(GRADE_SYSTEMS).map(([k, v]) => ({ value: k, label: v.label }))}
-                  />
-                </div>
                 <GradeInput system={system} value={gradeVal} onChange={setGradeVal} placeholder={t('ls_voto_ph')} />
               </div>
             </div>
             <button
               onClick={handleAddGrade}
-              disabled={!subject.trim() || !gradeVal}
+              disabled={!subject.trim() || resolveGrade(gradeVal, system) == null}
               className="mt-3 w-full rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
               <Plus size={16} /> {t('ls_aggiungi')}
@@ -304,24 +280,20 @@ export default function Lezioni() {
               </DialogHeader>
               {editGrade && (
                 <div className="space-y-3 py-2">
-                  <input
-                    type="text"
+                  <SubjectPicker
+                    subjects={withCurrent(editGrade.subject)}
                     value={editGrade.subject || ''}
-                    onChange={(e) => setEditGrade({ ...editGrade, subject: e.target.value })}
-                    placeholder={t('ls_materia_ph')}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+                    onChange={(v) => setEditGrade({ ...editGrade, subject: v })}
+                    onManage={() => setMaterieOpen(true)}
+                  />
+                  <GradeSystemPicker
+                    value={editGrade.grade_system || 'scale10'}
+                    onChange={(v) => setEditGrade({ ...editGrade, grade_system: v, grade: '' })}
                   />
                   <div className="flex gap-2">
-                    <div className="shrink-0 w-32">
-                      <BottomSelect
-                        value={editGrade.grade_system || 'scale10'}
-                        onValueChange={(v) => setEditGrade({ ...editGrade, grade_system: v, grade: '' })}
-                        options={Object.entries(GRADE_SYSTEMS).map(([k, v]) => ({ value: k, label: v.label }))}
-                      />
-                    </div>
                     <GradeInput
                       system={editGrade.grade_system || 'scale10'}
-                      value={editGrade.grade != null ? String(editGrade.grade) : ''}
+                      value={editGrade.grade != null ? formatGradeNumber(editGrade.grade) : ''}
                       onChange={(v) => setEditGrade({ ...editGrade, grade: v })}
                       placeholder={t('ls_voto_ph')}
                     />
@@ -350,14 +322,7 @@ export default function Lezioni() {
           <div className="rounded-2xl border border-border bg-card p-4 mb-6">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('ls_programma')}</p>
             <div className="space-y-2">
-              <input
-                type="text"
-                value={vSubject}
-                onChange={(e) => setVSubject(e.target.value)}
-                placeholder={t('ls_materia_ph')}
-                list="subjects-list"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-              />
+              <SubjectPicker subjects={pickSubjects} value={vSubject} onChange={setVSubject} onManage={() => setMaterieOpen(true)} />
               <input
                 type="date"
                 value={vDate}
@@ -463,14 +428,8 @@ export default function Lezioni() {
               {gradeVerifica && (
                 <div className="space-y-3 py-2">
                   <p className="text-sm text-muted-foreground">{gradeVerifica.subject}{gradeVerifica.topic ? ` — ${gradeVerifica.topic}` : ''}</p>
+                  <GradeSystemPicker value={vSystem} onChange={(v) => { setVSystem(v); setVGrade(''); }} />
                   <div className="flex gap-2">
-                    <div className="shrink-0 w-32">
-                      <BottomSelect
-                        value={vSystem}
-                        onValueChange={(v) => { setVSystem(v); setVGrade(''); }}
-                        options={Object.entries(GRADE_SYSTEMS).map(([k, val]) => ({ value: k, label: val.label }))}
-                      />
-                    </div>
                     <GradeInput system={vSystem} value={vGrade} onChange={setVGrade} placeholder={t('ls_voto_ph')} />
                   </div>
                 </div>
@@ -481,7 +440,7 @@ export default function Lezioni() {
                 </button>
                 <button
                   onClick={() => gradeVerifica && handleCompleteVerifica(gradeVerifica)}
-                  disabled={!vGrade}
+                  disabled={resolveGrade(vGrade, vSystem) == null}
                   className="rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background disabled:opacity-40 active:scale-95 transition-all"
                 >
                   {t('salva')}
@@ -493,11 +452,15 @@ export default function Lezioni() {
       )}
 
       {tab === 'compiti' && (
-        <HomeworkTab subjects={subjects} onOpenFocus={handleOpenFocus} />
+        <HomeworkTab subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} onOpenFocus={handleOpenFocus} />
+      )}
+
+      {tab === 'orario' && (
+        <TimetableTab subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} />
       )}
 
       {tab === 'obiettivi' && (
-        <GradeGoals subjects={subjects} grades={allGrades} verifiche={allVerifiche} />
+        <GradeGoals subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} grades={allGrades} verifiche={allVerifiche} />
       )}
 
       {tab === 'organizza' && (
@@ -510,7 +473,7 @@ export default function Lezioni() {
       )}
 
       {tab === 'simulatore' && (
-        <GradeSimulator grades={allGrades} />
+        <GradeSimulator grades={allGrades} onManageSubjects={() => setMaterieOpen(true)} />
       )}
 
       {askFocusy && (

@@ -179,6 +179,15 @@ export function useSubjects() {
   });
 }
 
+export function useTimetable() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['timetable', user?.id],
+    queryFn: async () => mergePending('TimetableSlot', await getDB().TimetableSlot.filter({ created_by_id: user.id }, 'start_time', 300)),
+    enabled: !!user,
+  });
+}
+
 export function useHomeworks() {
   const { user } = useAuth();
   return useQuery({
@@ -274,6 +283,7 @@ export function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ['customFoods'] });
     qc.invalidateQueries({ queryKey: ['subjects'] });
     qc.invalidateQueries({ queryKey: ['homeworks'] });
+    qc.invalidateQueries({ queryKey: ['timetable'] });
     qc.invalidateQueries({ queryKey: ['gradeGoals'] });
     qc.invalidateQueries({ queryKey: ['projects'] });
     qc.invalidateQueries({ queryKey: ['phoneTimeEntries'] });
@@ -302,6 +312,8 @@ export const useOptimisticLessonGradeDelete = () => useOptimisticRemove('LessonG
 export const useOptimisticVerificaSave = () => useOptimisticSave('Verifica', 'verifiche');
 export const useOptimisticVerificaUpdate = () => useOptimisticUpdate('Verifica', 'verifiche');
 export const useOptimisticVerificaDelete = () => useOptimisticRemove('Verifica', 'verifiche');
+export const useOptimisticTimetableSave = () => useOptimisticSave('TimetableSlot', 'timetable');
+export const useOptimisticTimetableDelete = () => useOptimisticRemove('TimetableSlot', 'timetable');
 export const useOptimisticHomeworkSave = () => useOptimisticSave('Homework', 'homeworks');
 export const useOptimisticHomeworkUpdate = () => useOptimisticUpdate('Homework', 'homeworks');
 export const useOptimisticHomeworkDelete = () => useOptimisticRemove('Homework', 'homeworks');
@@ -733,6 +745,7 @@ export function useSyncInit() {
           CustomFood: 'customFoods',
           Subject: 'subjects',
           Homework: 'homeworks',
+          TimetableSlot: 'timetable',
           GradeGoal: 'gradeGoals',
           Project: 'projects',
           UserSettings: 'userSettings',
