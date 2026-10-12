@@ -9,9 +9,12 @@ const MIN_PERSIST_MS = 60 * 1000;
 
 const fmt = (ms) => {
   const total = Math.max(0, Math.ceil(ms / 1000));
-  const m = Math.floor(total / 60);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
 export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode, onComplete, onClose }) {
@@ -153,7 +156,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-6xl font-bold tabular-nums">{fmt(remaining)}</span>
+            <span className={`font-bold tabular-nums ${remaining >= 3600000 ? 'text-5xl' : 'text-6xl'}`}>{fmt(remaining)}</span>
             {session?.title && <span className="text-xs text-muted-foreground mt-2">{session.title}</span>}
           </div>
         </div>

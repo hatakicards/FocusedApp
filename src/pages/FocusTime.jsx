@@ -14,6 +14,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import PullToRefresh from '@/components/PullToRefresh';
 import FocusTimer from '@/components/FocusTimer';
 import FocusScheduleForm from '@/components/FocusScheduleForm';
+import DurationPicker from '@/components/DurationPicker';
 import FocusStats from '@/components/FocusStats';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import GymStartCard from '@/components/gym/GymStartCard';
@@ -28,8 +29,6 @@ import {
   resolveBlockMode,
 } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
-
-const HINT_KEYS = { 15: 'ft_hint_short', 25: 'ft_hint_pomodoro', 50: 'ft_hint_deep', 90: 'ft_hint_flow' };
 
 export default function FocusTime() {
   const { data: sessions } = useFocusSessions();
@@ -47,6 +46,7 @@ export default function FocusTime() {
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [askFocusy, setAskFocusy] = useState(false);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
+  const [quickMinutes, setQuickMinutes] = useState(25);
   const prefillHandledRef = useRef(false);
 
   useEffect(() => {
@@ -279,18 +279,14 @@ export default function FocusTime() {
               </div>
             )}
             <h3 className="text-base font-semibold mb-4">{t('ft_quanto')}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[15, 25, 50, 90].map((mins) => (
-                <button
-                  key={mins}
-                  onClick={() => handleQuickStart(mins)}
-                  className="rounded-2xl border border-border bg-card p-5 text-left active:scale-[0.98] transition-transform"
-                >
-                  <span className="block text-2xl font-bold tabular-nums">{mins} min</span>
-                  <span className="text-xs text-muted-foreground">{t(HINT_KEYS[mins])}</span>
-                </button>
-              ))}
-            </div>
+            <DurationPicker value={quickMinutes} onChange={setQuickMinutes} />
+            <button
+              onClick={() => handleQuickStart(quickMinutes)}
+              disabled={quickMinutes < 1}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3.5 text-sm font-semibold text-background transition-transform active:scale-[0.98] disabled:opacity-40"
+            >
+              <Play size={16} /> {t('ft_avvia')}
+            </button>
           </div>
         </div>,
         document.body

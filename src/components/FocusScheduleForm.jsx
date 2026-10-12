@@ -5,15 +5,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import DurationPicker from '@/components/DurationPicker';
 import IphoneToggle from '@/components/IphoneToggle';
 import { useT } from '@/lib/i18n';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
 import { isScreenTimeSupported, getDefaultMode } from '@/lib/nativeScreenTime';
-
-const DURATIONS = [15, 25, 50, 90];
 
 export default function FocusScheduleForm({ open, onClose, onSaved }) {
   const t = useT();
@@ -63,13 +59,8 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
             <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="[color-scheme:dark]" />
           </div>
           <div className="space-y-1.5">
-            <Label>{t('ft_programma')}</Label>
-            <Select value={String(duration)} onValueChange={(v) => setDuration(Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DURATIONS.map((d) => <SelectItem key={d} value={String(d)}>{d} min</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <Label>{t('ft_quanto')}</Label>
+            <DurationPicker value={duration} onChange={setDuration} />
           </div>
           <div className="space-y-1.5">
             <Label>Spotify</Label>
@@ -88,7 +79,7 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>{t('annulla')}</Button>
-          <Button onClick={handleSave} disabled={saving || !title.trim() || !when}>
+          <Button onClick={handleSave} disabled={saving || !title.trim() || !when || duration < 1}>
             {saving ? t('salvataggio') : t('ft_programma')}
           </Button>
         </DialogFooter>
