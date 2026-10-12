@@ -23,6 +23,9 @@ public class FocusedSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    // Va tenuto vivo per tutta la durata dell'ascolto: se viene rilasciato il
+    // riconoscimento degrada o si interrompe.
+    private var recognizer: SFSpeechRecognizer?
 
     public override func load() {
         NotificationCenter.default.addObserver(
@@ -53,18 +56,28 @@ public class FocusedSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func start(_ call: CAPPluginCall) {
         finishListening(cancel: true)
-        let language = call.getString("language") ?? Locale.current.identifier
-        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language)), recognizer.isAvailable else {
+        // "it-IT" -> "it_IT": e' il formato che Locale/SFSpeechRecognizer riconoscono meglio.
+        let language = (call.getString("language") ?? Locale.current.identifier).replacingOccurrences(of: "-", with: "_")
+        let rec = SFSpeechRecognizer(locale: Locale(identifier: language)) ?? SFSpeechRecognizer()
+        guard let recognizer = rec, recognizer.isAvailable else {
             call.reject("unavailable")
             return
         }
+        self.recognizer = recognizer
         do {
+            // Niente modo .measurement: disattiva controllo del guadagno e riduzione del
+            // rumore e il parlato risulta molto piu' debole e mal riconosciuto.
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try session.setCategory(.playAndRecord, mode: .default, options: [.duckOthers, .allowBluetooth])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             let req = SFSpeechAudioBufferRecognitionRequest()
             req.shouldReportPartialResults = true
+            req.taskHint = .dictation
+            if #available(iOS 16.0, *) { req.addsPunctuation = true }
+            var hints = ["Focusy", "Focused", "Body Fuel"]
+            hints.append(contentsOf: call.getArray("contextualStrings", String.self) ?? [])
+            req.contextualStrings = hints
             request = req
 
             let input = audioEngine.inputNode
@@ -114,6 +127,7 @@ public class FocusedSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
         if cancel { task?.cancel() }
         request = nil
         task = nil
+        recognizer = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

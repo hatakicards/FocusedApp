@@ -25,10 +25,11 @@ export async function isDictationAvailable() {
 
 // onText riceve la trascrizione completa dell'ascolto in corso (non un delta);
 // onEnd viene chiamato quando l'ascolto finisce, per qualsiasi motivo.
-export function createDictation({ language, onText, onEnd }) {
+export function createDictation({ language, contextualStrings = [], onText, onEnd }) {
   let handles = [];
   let web = null;
   let active = false;
+  let stopRequested = false;
 
   const finish = () => {
     if (!active) return;
@@ -42,13 +43,16 @@ export function createDictation({ language, onText, onEnd }) {
   const start = async () => {
     if (active) return false;
     active = true;
+    stopRequested = false;
     try {
       if (isNative()) {
         const { granted } = await FocusedSpeech.askPermissions();
         if (!granted) { active = false; return false; }
         handles.push(await FocusedSpeech.addListener('partialResults', (e) => onText?.(e.text || '')));
         handles.push(await FocusedSpeech.addListener('ended', finish));
-        await FocusedSpeech.start({ language });
+        await FocusedSpeech.start({ language, contextualStrings });
+        // Rilasciato prima che il riconoscimento fosse partito (hold-to-talk).
+        if (stopRequested) await FocusedSpeech.stop();
       } else if (WebRecognition) {
         web = new WebRecognition();
         web.lang = language;
@@ -58,6 +62,7 @@ export function createDictation({ language, onText, onEnd }) {
         web.onend = finish;
         web.onerror = finish;
         web.start();
+        if (stopRequested) web.stop();
       } else {
         active = false;
         return false;
@@ -71,6 +76,7 @@ export function createDictation({ language, onText, onEnd }) {
 
   const stop = async () => {
     if (!active) return;
+    stopRequested = true;
     try {
       if (isNative()) await FocusedSpeech.stop();
       else web?.stop();

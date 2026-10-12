@@ -33,6 +33,9 @@ export default function AppLayout() {
   const [trialWelcome, setTrialWelcome] = useState(false);
   const [trialExpiredModal, setTrialExpiredModal] = useState(false);
   const [focusyOpen, setFocusyOpen] = useState(false);
+  const [holdToTalk, setHoldToTalk] = useState(false);
+  const holdTimerRef = useRef(null);
+  const heldRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
   const outlet = useOutlet();
@@ -177,13 +180,28 @@ export default function AppLayout() {
       </main>
       <BottomNav />
       <button
-        onClick={() => setFocusyOpen(true)}
+        onPointerDown={(e) => {
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+          heldRef.current = false;
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = setTimeout(() => {
+            heldRef.current = true;
+            setFocusyOpen(true);
+            setHoldToTalk(true);
+            try { navigator.vibrate?.(30); } catch { /* ignore */ }
+          }, 350);
+        }}
+        onPointerUp={() => { clearTimeout(holdTimerRef.current); setHoldToTalk(false); }}
+        onPointerCancel={() => { clearTimeout(holdTimerRef.current); setHoldToTalk(false); }}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={() => { if (heldRef.current) { heldRef.current = false; return; } setFocusyOpen(true); }}
         aria-label="Focusy"
-        className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg active:scale-95 transition-transform md:hidden"
+        style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
+        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg transition-transform md:hidden ${holdToTalk ? 'scale-125 animate-pulse' : 'active:scale-95'}`}
       >
         <Sparkles size={18} />
       </button>
-      <FocusyAssistant hideTrigger open={focusyOpen} onOpenChange={setFocusyOpen} />
+      <FocusyAssistant hideTrigger open={focusyOpen} onOpenChange={setFocusyOpen} holdToTalk={holdToTalk} />
       <PromotionModal promotion={promotion} onDismiss={dismissPromotion} />
       {statsFlow === 'baseline' && (
         <StatsSetupModal onClose={() => { statsDismissed.current = true; setStatsFlow(null); }} />

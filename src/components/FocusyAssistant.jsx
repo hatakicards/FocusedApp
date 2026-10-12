@@ -332,7 +332,7 @@ const RESPONSE_SCHEMA = {
   required: ['reply'],
 };
 
-export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false, inline = false }) {
+export default function FocusyAssistant({ defaultOpen = false, initialPrompt = null, open: openProp, onOpenChange, hideTrigger = false, inline = false, holdToTalk = false }) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -382,6 +382,10 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   const [listening, setListening] = useState(false);
   const dictationRef = useRef(null);
   const inputBaseRef = useRef('');
+  const latestTextRef = useRef('');
+  const autoSendRef = useRef(false); // hold-to-talk: al rilascio il testo viene inviato
+  const sendRef = useRef(null);
+  const [holdListening, setHoldListening] = useState(false);
 
   useEffect(() => {
     isDictationAvailable().then(setDictationAvailable);
@@ -390,14 +394,27 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   useEffect(() => {
     const d = createDictation({
       language: locale,
+      contextualStrings: (subjects || []).map((x) => x.name).filter(Boolean).slice(0, 40),
       onText: (text) => {
         const base = inputBaseRef.current;
-        setInput(base ? `${base} ${text}` : text);
+        const full = base ? `${base} ${text}` : text;
+        latestTextRef.current = full;
+        setInput(full);
       },
-      onEnd: () => setListening(false),
+      onEnd: () => {
+        setListening(false);
+        setHoldListening(false);
+        if (autoSendRef.current) {
+          autoSendRef.current = false;
+          const spoken = latestTextRef.current.trim();
+          latestTextRef.current = '';
+          if (spoken) sendRef.current?.(spoken);
+        }
+      },
     });
     dictationRef.current = d;
     return () => { d.stop(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale]);
 
   useEffect(() => {
@@ -410,9 +427,32 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       return;
     }
     inputBaseRef.current = input.trim();
+    latestTextRef.current = '';
     const started = await dictationRef.current?.start();
     setListening(!!started);
   };
+
+  // Tenendo premuto il tasto Focusy: ascolta finche' tieni premuto, poi invia a Focusy
+  // quello che hai detto (che lo registra: cibo, attivita', compiti...).
+  useEffect(() => {
+    const d = dictationRef.current;
+    if (!d) return;
+    if (holdToTalk) {
+      if (isGuest || !canSend) return;
+      autoSendRef.current = true;
+      inputBaseRef.current = '';
+      latestTextRef.current = '';
+      setInput('');
+      setHoldListening(true);
+      d.start().then((started) => {
+        if (!started) { autoSendRef.current = false; setHoldListening(false); }
+        else setListening(true);
+      });
+    } else if (autoSendRef.current) {
+      d.stop();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holdToTalk]);
 
   const executeAction = useCallback(async (action) => {
     try {
@@ -580,6 +620,8 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     }
   }, [loading, canSend, isPremium, customFoods, timetable, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
 
+  sendRef.current = sendMessage;
+
   useEffect(() => {
     if (initialPrompt && open && !sentInitialRef.current) {
       sentInitialRef.current = true;
@@ -740,6 +782,11 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const inputBar = (
     <div className="p-3 border-t border-border">
+      {holdListening && (
+        <p className="mb-2 flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground animate-pulse">
+          <Mic size={14} /> {t('focusy_hold_hint')}
+        </p>
+      )}
       <div className="flex items-center gap-2 rounded-2xl border border-border bg-background pr-2 pl-4">
         <input
           type="text"
