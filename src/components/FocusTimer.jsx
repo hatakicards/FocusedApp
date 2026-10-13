@@ -69,7 +69,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
   // notifica di fine sessione per quando Focused e' in secondo piano.
   useEffect(() => {
     if (!blockMode || blockMode === 'off') return undefined;
-    startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(true); });
+    startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(r.error || true); });
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     return () => {
       stopBlock();
@@ -167,7 +167,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
           </button>
         )}
 
-        {blockFailed && <p className="mt-6 max-w-xs text-center text-xs text-muted-foreground">{t('fb_err')}</p>}
+        {blockFailed && <p className="mt-6 max-w-xs text-center text-xs text-muted-foreground">{t('fb_err')}{typeof blockFailed === 'string' ? ` (${blockFailed})` : ''}</p>}
 
         <button onClick={handleStop} className="mt-8 text-sm font-semibold text-muted-foreground hover:text-foreground">
           {t('ftimer_termina')}

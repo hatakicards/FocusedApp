@@ -39,11 +39,23 @@ export const getSelectionCount = (kind = 'block') =>
 
 export async function startBlock(endAt, mode = 'selected') {
   if (!isScreenTimeSupported()) return { active: false };
-  try {
+  const attempt = async () => {
     const r = await FocusedScreenTime.startBlock({ endAt: endAt.toISOString(), mode });
     return { active: !!r.active };
+  };
+  try {
+    return await attempt();
   } catch (e) {
-    return { active: false, error: e?.code || e?.message || 'error' };
+    let code = e?.code || e?.message || 'error';
+    // L'autorizzazione puo' essere scaduta o mai confermata: la richiediamo e riproviamo una volta.
+    if (code === 'not_authorized') {
+      try {
+        if ((await FocusedScreenTime.requestAuthorization()).status === 'authorized') return await attempt();
+      } catch (e2) {
+        code = e2?.code || e2?.message || code;
+      }
+    }
+    return { active: false, error: String(code) };
   }
 }
 
