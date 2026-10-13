@@ -16,7 +16,10 @@ export default function GymStartCard({ className = '' }) {
   const [running, setRunning] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
 
-  if (!settings?.gym_enabled) return null;
+  // Basta l'interruttore OPPURE una scheda con esercizi: se le impostazioni risultano
+  // duplicate/non aggiornate, la scheda salvata deve comunque far comparire il pulsante.
+  const hasAnySession = (sessions || []).some((s) => (s?.exercises || []).some((e) => e?.name?.trim()));
+  if (!settings?.gym_enabled && !hasAnySession) return null;
 
   const todayId = WEEKDAY_IDS[new Date().getDay()];
   const session = (sessions || []).find((s) => s.day_of_week === todayId);
