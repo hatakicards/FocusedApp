@@ -547,9 +547,9 @@ private struct TodoEntryView: View {
                         HStack(spacing: 10) {
                             check(task)
                             Text(task.title)
+                                .strikethrough(done)
                                 .font(.system(size: 12.5))
                                 .lineLimit(1)
-                                .strikethrough(done)
                                 .foregroundStyle(done ? faint : Color.white)
                             Spacer()
                             if let time = task.dueTime, !time.isEmpty {
