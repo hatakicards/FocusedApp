@@ -72,7 +72,8 @@ class FocusedWidgetUpdateWorker(context: Context, params: WorkerParameters) : Co
         if (tasks != null) {
             var i = 0
             while (i < tasks.length() && lines.size < 2) {
-                lines.add("• " + tasks.getJSONObject(i).optString("title"))
+                val task = tasks.getJSONObject(i)
+                if (!task.optBoolean("done", false)) lines.add("• " + task.optString("title"))
                 i++
             }
         }

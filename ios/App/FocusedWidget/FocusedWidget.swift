@@ -1,5 +1,7 @@
 import WidgetKit
 import SwiftUI
+import UIKit
+import AppIntents
 
 // Stessa configurazione di FocusedWidgetSyncPlugin.swift (App Group) e di
 // src/lib/supabaseClient.js / capacitor.config.json (URL pubblici, non
@@ -16,6 +18,8 @@ struct WidgetTaskItem: Codable {
     let title: String
     let type: String
     let dueDate: String?
+    let dueTime: String?
+    let done: Bool?
 }
 
 struct WidgetGymInfo: Codable {
@@ -40,6 +44,8 @@ struct WidgetPayload: Codable {
     let streak: Int
     let ranks: [WidgetRankInfo]?
     let tasks: [WidgetTaskItem]
+    let tasksDone: Int?
+    let tasksTotal: Int?
     let gym: WidgetGymInfo?
     let date: String
 }
@@ -54,7 +60,7 @@ private let rankNames: [String: String] = [
     "bronzo": "Bronzo", "argento": "Argento", "oro": "Oro", "pro": "Pro", "elite": "Elite",
 ]
 private let categoryNames: [String: String] = [
-    "fitness": "Fitness", "mente": "Mente", "apprendimento": "Cultura",
+    "fitness": "Fitness", "mente": "Mente", "apprendimento": "Apprendimento e Cultura",
 ]
 private let categoryOrder = ["fitness", "mente", "apprendimento"]
 
@@ -115,12 +121,36 @@ enum WidgetAPI {
         return newAccessToken
     }
 
+    // Spunta / de-spunta un'attivita' direttamente dal widget (stessi campi che scrive l'app).
+    static func setTask(id: String, done: Bool) async {
+        guard var token = SharedSession.accessToken else { return }
+        if SharedSession.isExpired(), let refreshed = await refreshAccessToken() { token = refreshed }
+        guard let url = URL(string: "\(supabaseUrl)/rest/v1/task_item?id=eq.\(id)") else { return }
+
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = TimeZone(identifier: "UTC")
+        fmt.dateFormat = "yyyy-MM-dd"
+        let body: [String: Any] = done
+            ? ["status": "done", "completed_date": fmt.string(from: Date())]
+            : ["status": "active", "completed_date": NSNull(), "rating": NSNull()]
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: request)
+    }
+
     static func fetchData() async -> WidgetPayload? {
         guard var token = SharedSession.accessToken else { return nil }
         if SharedSession.isExpired(), let refreshed = await refreshAccessToken() {
             token = refreshed
         }
-        guard let url = URL(string: "\(apiBaseUrl)/api/widget-data") else { return nil }
+        guard let url = URL(string: "\(apiBaseUrl)/api/widget-data?v=2") else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -152,8 +182,11 @@ struct FocusedProvider: TimelineProvider {
         let history = (0..<7).map { WidgetScorePoint(date: "", score: Double(40 + $0 * 6)) }
         let ranks = categoryOrder.map { WidgetRankInfo(category: $0, rankId: "oro") }
         let gym = WidgetGymInfo(title: "Gym", exerciseCount: 6, imageUrl: nil)
-        let tasks = [WidgetTaskItem(id: "1", title: "Esempio attività", type: "todo", dueDate: nil)]
-        let payload = WidgetPayload(focusScore: 78, focusScoreHistory: history, streak: 5, ranks: ranks, tasks: tasks, gym: gym, date: "")
+        let tasks = [
+            WidgetTaskItem(id: "1", title: "Allenamento gambe", type: "todo", dueDate: nil, dueTime: nil, done: true),
+            WidgetTaskItem(id: "2", title: "Chiamare cliente", type: "todo", dueDate: nil, dueTime: "15:00", done: false),
+        ]
+        let payload = WidgetPayload(focusScore: 78, focusScoreHistory: history, streak: 5, ranks: ranks, tasks: tasks, tasksDone: 1, tasksTotal: 2, gym: gym, date: "")
         return FocusedEntry(date: Date(), payload: payload, loggedOut: false)
     }
 
@@ -174,7 +207,20 @@ struct FocusedProvider: TimelineProvider {
     }
 }
 
-// MARK: - Stile condiviso
+// MARK: - Stile condiviso (nero puro, solo bianco/nero — come "Focused Widgets" del designer)
+
+private let faint = Color(red: 0.34, green: 0.34, blue: 0.35)   // #57575a
+private let dim = Color(red: 0.60, green: 0.60, blue: 0.62)     // #9a9a9d
+private let rule = Color(red: 0.11, green: 0.11, blue: 0.12)    // #1c1c1e
+
+// Bebas Neue se e' inclusa nell'app (BebasNeue-Regular.ttf nel widget), altrimenti un
+// grassetto di sistema che ci si avvicina.
+private func display(_ size: CGFloat) -> Font {
+    if UIFont(name: "BebasNeue-Regular", size: size) != nil {
+        return .custom("BebasNeue-Regular", size: size)
+    }
+    return .system(size: size, weight: .heavy)
+}
 
 extension View {
     @ViewBuilder
@@ -198,22 +244,28 @@ private func messageView(icon: String, text: String) -> some View {
     .focusedWidgetBackground()
 }
 
-// MARK: - Focus Score (small: fiamma+numero — medium: + sparkline 7gg)
+// MARK: - Focus Score (small: fiamma+numero — medium: + andamento 7 giorni)
 
 private struct Sparkline: Shape {
     let values: [Double]
 
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        guard values.count > 1 else { return path }
+    func point(_ i: Int, in rect: CGRect) -> CGPoint {
         let minV = values.min() ?? 0
         let maxV = values.max() ?? 1
         let range = max(maxV - minV, 1)
-        let stepX = rect.width / CGFloat(values.count - 1)
-        for (i, v) in values.enumerated() {
-            let x = CGFloat(i) * stepX
-            let y = rect.height - (CGFloat((v - minV) / range) * rect.height)
-            if i == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
+        let stepX = rect.width / CGFloat(max(values.count - 1, 1))
+        let x = CGFloat(i) * stepX
+        let norm = CGFloat((values[i] - minV) / range)
+        let y = rect.height - (norm * rect.height * 0.85) - rect.height * 0.05
+        return CGPoint(x: x, y: y)
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard values.count > 1 else { return path }
+        for i in values.indices {
+            let pt = point(i, in: rect)
+            if i == 0 { path.move(to: pt) } else { path.addLine(to: pt) }
         }
         return path
     }
@@ -229,6 +281,33 @@ private struct SparklineFill: Shape {
         path.addLine(to: CGPoint(x: 0, y: rect.height))
         path.closeSubpath()
         return path
+    }
+}
+
+private struct SparklineChart: View {
+    let values: [Double]
+
+    var body: some View {
+        GeometryReader { geo in
+            let rect = CGRect(origin: .zero, size: geo.size)
+            ZStack {
+                ForEach([0.25, 0.5, 0.75], id: \.self) { f in
+                    Path { p in
+                        p.move(to: CGPoint(x: 0, y: rect.height * f))
+                        p.addLine(to: CGPoint(x: rect.width, y: rect.height * f))
+                    }
+                    .stroke(rule, lineWidth: 1)
+                }
+                SparklineFill(values: values)
+                    .fill(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
+                Sparkline(values: values)
+                    .stroke(Color.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                if values.count > 1 {
+                    let last = Sparkline(values: values).point(values.count - 1, in: rect)
+                    Circle().fill(Color.white).frame(width: 8, height: 8).position(x: last.x - 3, y: last.y)
+                }
+            }
+        }
     }
 }
 
@@ -252,40 +331,34 @@ private struct FocusScoreEntryView: View {
         }
     }
 
-    private func core(_ payload: WidgetPayload, flameSize: CGFloat, numberFont: Font) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: flameSize))
-                .foregroundStyle(.white)
-            Text(payload.focusScore != nil ? "\(Int(payload.focusScore!))" : "—")
-                .font(numberFont).bold()
-            Text("FOCUS SCORE").font(.system(size: 10, weight: .semibold)).tracking(1.5).foregroundStyle(.gray)
-        }
+    private func scoreText(_ payload: WidgetPayload) -> String {
+        if let score = payload.focusScore { return "\(Int(score))" }
+        return "—"
     }
 
     private func smallView(_ payload: WidgetPayload) -> some View {
-        core(payload, flameSize: 26, numberFont: .system(size: 42))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .foregroundStyle(.white)
-            .focusedWidgetBackground()
+        VStack(spacing: 8) {
+            Image(systemName: "flame.fill").font(.system(size: 30)).foregroundStyle(.white)
+            Text(scoreText(payload)).font(display(56)).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(.white)
+        .focusedWidgetBackground()
     }
 
     private func mediumView(_ payload: WidgetPayload) -> some View {
         HStack(spacing: 14) {
-            core(payload, flameSize: 22, numberFont: .system(size: 34))
-                .frame(width: 108)
+            VStack(spacing: 6) {
+                Image(systemName: "flame.fill").font(.system(size: 26)).foregroundStyle(.white)
+                Text(scoreText(payload)).font(display(48)).monospacedDigit()
+            }
+            .frame(width: 112)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("ULTIMI 7 GIORNI").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundStyle(.gray)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ULTIMI 7 GIORNI").font(display(11)).tracking(1).foregroundStyle(faint)
                 let values = (payload.focusScoreHistory ?? []).map { $0.score }
                 if values.count > 1 {
-                    ZStack {
-                        SparklineFill(values: values)
-                            .fill(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
-                        Sparkline(values: values)
-                            .stroke(Color.white, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
-                    }
-                    .frame(height: 44)
+                    SparklineChart(values: values).frame(height: 64)
                 } else {
                     Spacer()
                 }
@@ -332,36 +405,39 @@ private struct RankEntryView: View {
     private func content(_ payload: WidgetPayload) -> some View {
         let ranksByCategory = Dictionary(uniqueKeysWithValues: (payload.ranks ?? []).map { ($0.category, $0.rankId) })
 
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("I TUOI RANK").font(.system(size: 13, weight: .semibold)).tracking(0.5)
+                Text("I TUOI RANK").font(display(18)).tracking(0.7)
                 Spacer()
-                Text("LifeGame").font(.system(size: 10)).foregroundStyle(.gray)
+                Text("LifeGame").font(.system(size: 10)).foregroundStyle(faint)
             }
 
-            VStack(spacing: 12) {
+            Spacer(minLength: 0)
+            VStack(spacing: 14) {
                 ForEach(categoryOrder, id: \.self) { cat in
                     let rankId = ranksByCategory[cat] ?? nil
                     HStack(spacing: 14) {
                         ZStack {
-                            Circle().fill(Color(white: 0.06)).overlay(Circle().stroke(Color.white.opacity(0.12)))
+                            Circle().fill(Color(white: 0.05)).overlay(Circle().stroke(Color.white.opacity(0.12)))
                             if let url = rankImageURL(rankId) {
                                 AsyncImage(url: url) { image in
-                                    image.resizable().scaledToFit().padding(6)
+                                    image.resizable().scaledToFit().padding(5)
                                 } placeholder: { EmptyView() }
                             }
                         }
-                        .frame(width: 48, height: 48)
+                        .frame(width: 56, height: 56)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(categoryNames[cat] ?? cat).font(.system(size: 14, weight: .bold))
-                            Text(rankId.flatMap { rankNames[$0] } ?? "Nessun rank")
-                                .font(.system(size: 11, weight: .semibold)).tracking(0.5).foregroundStyle(.gray)
+                            Text(categoryNames[cat] ?? cat)
+                                .font(.system(size: 13.5, weight: .bold)).lineLimit(1)
+                            Text((rankId.flatMap { rankNames[$0] } ?? "Nessun rank").uppercased())
+                                .font(display(12)).tracking(0.7).foregroundStyle(dim)
                         }
                         Spacer()
                     }
                 }
             }
+            Spacer(minLength: 0)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -383,7 +459,28 @@ struct RankWidget: Widget {
     }
 }
 
-// MARK: - To-do (lista con check)
+// MARK: - Cose da fare (spuntabili dal widget su iOS 17+)
+
+@available(iOS 17.0, *)
+struct ToggleTaskIntent: AppIntent {
+    static let title: LocalizedStringResource = "Completa attività"
+
+    @Parameter(title: "Attività") var taskId: String
+    @Parameter(title: "Completata") var completed: Bool
+
+    init() {}
+
+    init(taskId: String, completed: Bool) {
+        self.taskId = taskId
+        self.completed = completed
+    }
+
+    func perform() async throws -> some IntentResult {
+        await WidgetAPI.setTask(id: taskId, done: completed)
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
 
 private struct TodoEntryView: View {
     var entry: FocusedEntry
@@ -401,37 +498,71 @@ private struct TodoEntryView: View {
         }
     }
 
-    private func content(_ payload: WidgetPayload) -> some View {
-        let limit = family == .systemLarge ? 6 : 3
-        let visible = Array(payload.tasks.prefix(limit))
+    private func checkCircle(_ done: Bool) -> some View {
+        ZStack {
+            if done {
+                Circle().fill(Color.white)
+                Image(systemName: "checkmark").font(.system(size: 10, weight: .black)).foregroundStyle(.black)
+            } else {
+                Circle().strokeBorder(Color(red: 0.29, green: 0.29, blue: 0.31), lineWidth: 1.6)
+            }
+        }
+        .frame(width: 19, height: 19)
+    }
 
-        return VStack(alignment: .leading, spacing: 10) {
+    @ViewBuilder
+    private func check(_ task: WidgetTaskItem) -> some View {
+        let done = task.done ?? false
+        if #available(iOS 17.0, *) {
+            Button(intent: ToggleTaskIntent(taskId: task.id, completed: !done)) { checkCircle(done) }
+                .buttonStyle(.plain)
+        } else {
+            checkCircle(done)
+        }
+    }
+
+    private func content(_ payload: WidgetPayload) -> some View {
+        let limit = family == .systemLarge ? 6 : 2
+        let visible = Array(payload.tasks.prefix(limit))
+        let total = payload.tasksTotal ?? payload.tasks.count
+        let doneCount = payload.tasksDone ?? payload.tasks.filter { $0.done ?? false }.count
+
+        return VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("DA FARE").font(.system(size: 13, weight: .semibold)).tracking(0.5)
+                Text("OGGI").font(display(17)).tracking(0.5)
                 Spacer()
-                Text("\(payload.tasks.count)").font(.system(size: 13, weight: .bold)).foregroundStyle(.gray)
+                Text("\(doneCount)/\(total)").font(display(13)).foregroundStyle(faint)
             }
 
             if visible.isEmpty {
                 Spacer()
-                Text("Nessuna attività in programma").font(.system(size: 12)).foregroundStyle(.gray)
+                Text("Nessuna attività per oggi").font(.system(size: 12)).foregroundStyle(dim)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
+                Spacer(minLength: 0)
                 VStack(spacing: 0) {
                     ForEach(Array(visible.enumerated()), id: \.element.id) { index, task in
+                        let done = task.done ?? false
                         HStack(spacing: 10) {
-                            Circle()
-                                .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.6)
-                                .frame(width: 17, height: 17)
-                            Text(task.title).font(.system(size: 12.5)).lineLimit(1)
+                            check(task)
+                            Text(task.title)
+                                .font(.system(size: 12.5))
+                                .lineLimit(1)
+                                .strikethrough(done)
+                                .foregroundStyle(done ? faint : Color.white)
                             Spacer()
+                            if let time = task.dueTime, !time.isEmpty {
+                                Text(time).font(.system(size: 10)).foregroundStyle(faint)
+                            }
                         }
                         .padding(.vertical, 8)
                         if index < visible.count - 1 {
-                            Divider().overlay(Color.white.opacity(0.08))
+                            Rectangle().fill(rule).frame(height: 1)
                         }
                     }
                 }
+                Spacer(minLength: 0)
             }
         }
         .padding()
@@ -448,13 +579,13 @@ struct TodoWidget: Widget {
         StaticConfiguration(kind: kind, provider: FocusedProvider()) { entry in
             TodoEntryView(entry: entry)
         }
-        .configurationDisplayName("Da fare")
-        .description("Le tue prossime attività, sempre sott'occhio.")
+        .configurationDisplayName("Cose da fare")
+        .description("L'agenda di oggi: spunta le attività direttamente dal widget.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
-// MARK: - Scheda palestra (foto + nome)
+// MARK: - La scheda (foto + nome + avvio rapido)
 
 private struct GymEntryView: View {
     var entry: FocusedEntry
@@ -489,27 +620,27 @@ private struct GymEntryView: View {
                 Color(white: 0.08)
             }
 
-            LinearGradient(colors: [.black.opacity(0.25), .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.black.opacity(0.35), .black.opacity(0.88)], startPoint: .top, endPoint: .bottom)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "dumbbell.fill").font(.system(size: 11))
-                    Text("SCHEDA DI OGGI").font(.system(size: 11, weight: .semibold)).tracking(1.2)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "dumbbell.fill").font(.system(size: 12))
+                    Text("SCHEDA DI OGGI").font(display(12)).tracking(1.4)
                 }
-                .foregroundStyle(.gray)
-                Spacer()
-                Text(gym.title).font(.system(size: 22, weight: .bold))
+                .foregroundStyle(dim)
+                Text(gym.title.uppercased()).font(display(26)).lineLimit(1).padding(.top, 6)
+                Spacer(minLength: 0)
                 HStack {
-                    Text("\(gym.exerciseCount) esercizi").font(.system(size: 12)).foregroundStyle(.gray)
+                    Text("\(gym.exerciseCount) esercizi").font(.system(size: 12)).foregroundStyle(dim)
                     Spacer()
                     ZStack {
                         Circle().fill(Color.white)
-                        Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold)).foregroundStyle(.black)
+                        Image(systemName: "play.fill").font(.system(size: 13)).foregroundStyle(.black).offset(x: 1)
                     }
-                    .frame(width: 30, height: 30)
+                    .frame(width: 32, height: 32)
                 }
             }
-            .padding()
+            .padding(14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.white)
@@ -524,8 +655,8 @@ struct GymWidget: Widget {
         StaticConfiguration(kind: kind, provider: FocusedProvider()) { entry in
             GymEntryView(entry: entry)
         }
-        .configurationDisplayName("Scheda palestra")
-        .description("La scheda di oggi, pronta da aprire.")
+        .configurationDisplayName("La scheda")
+        .description("L'allenamento di oggi, pronto da aprire.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }

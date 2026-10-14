@@ -20,16 +20,20 @@ export async function onRequestGet({ request, env }) {
     const user = await getUserFromRequest(request, supabaseAdmin);
     if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const [activitiesRes, ratingsRes, dayEntriesRes, goalsRes, tasksRes, gymSessionsRes, settingsRes] = await Promise.all([
+    const today = todayISO();
+    // v=2 (widget nuovi): include anche le attivita' gia' spuntate oggi; i widget vecchi vedono solo quelle aperte.
+    const wantsDone = new URL(request.url).searchParams.get('v') === '2';
+    const [activitiesRes, ratingsRes, dayEntriesRes, goalsRes, tasksRes, doneTasksRes, gymSessionsRes, settingsRes] = await Promise.all([
       supabaseAdmin.from('activity').select('id, category').eq('created_by_id', user.id),
       supabaseAdmin.from('daily_rating').select('activity_id, date, rating').eq('created_by_id', user.id),
       supabaseAdmin.from('day_entry').select('date, day_rating').eq('created_by_id', user.id),
       supabaseAdmin.from('goal').select('activity_id, difficulty, timeframe, completed, completed_periods').eq('created_by_id', user.id),
-      supabaseAdmin.from('task_item').select('id, title, type, due_date').eq('created_by_id', user.id).eq('status', 'active').order('due_date', { ascending: true, nullsFirst: false }).limit(10),
+      supabaseAdmin.from('task_item').select('id, title, type, due_date, due_time').eq('created_by_id', user.id).eq('status', 'active').or(`due_date.is.null,due_date.lte.${today}`).order('due_time', { ascending: true, nullsFirst: false }).limit(12),
+      supabaseAdmin.from('task_item').select('id, title, type, due_date, due_time').eq('created_by_id', user.id).eq('status', 'done').eq('completed_date', today).limit(12),
       supabaseAdmin.from('gym_session').select('day_of_week, title, exercises').eq('created_by_id', user.id),
       supabaseAdmin.from('user_settings').select('gym_enabled').eq('created_by_id', user.id).order('created_date', { ascending: false }).limit(1),
     ]);
-    for (const res of [activitiesRes, ratingsRes, dayEntriesRes, goalsRes, tasksRes, gymSessionsRes, settingsRes]) {
+    for (const res of [activitiesRes, ratingsRes, dayEntriesRes, goalsRes, tasksRes, doneTasksRes, gymSessionsRes, settingsRes]) {
       if (res.error) throw res.error;
     }
 
@@ -37,7 +41,8 @@ export async function onRequestGet({ request, env }) {
     const ratings = ratingsRes.data || [];
     const dayEntries = dayEntriesRes.data || [];
     const goals = goalsRes.data || [];
-    const tasks = tasksRes.data || [];
+    const pendingTasks = tasksRes.data || [];
+    const doneTasks = doneTasksRes.data || [];
     const gymSessions = gymSessionsRes.data || [];
     const settings = settingsRes.data?.[0] || null;
 
@@ -67,9 +72,15 @@ export async function onRequestGet({ request, env }) {
       focusScoreHistory,
       streak,
       ranks,
-      tasks: tasks.map((t) => ({ id: t.id, title: t.title, type: t.type, dueDate: t.due_date })),
+      // Da fare oggi: prima quelle ancora aperte (per orario), poi quelle gia' spuntate oggi.
+      tasks: [
+        ...pendingTasks.map((t) => ({ id: t.id, title: t.title, type: t.type, dueDate: t.due_date, dueTime: t.due_time, done: false })),
+        ...(wantsDone ? doneTasks : []).map((t) => ({ id: t.id, title: t.title, type: t.type, dueDate: t.due_date, dueTime: t.due_time, done: true })),
+      ],
+      tasksDone: wantsDone ? doneTasks.length : null,
+      tasksTotal: wantsDone ? pendingTasks.length + doneTasks.length : null,
       gym: todayGym ? { title: todayGym.title, exerciseCount: (todayGym.exercises || []).length, imageUrl: GYM_IMAGE_URL } : null,
-      date: todayISO(),
+      date: today,
     });
   } catch (error) {
     console.error('widget-data error', error);
