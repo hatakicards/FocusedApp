@@ -164,7 +164,7 @@ function AnalyticsTab({ analytics }) {
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Users size={16} className="text-muted-foreground" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Login attivi (7gg)</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Attivi (7gg)</span>
           </div>
           <p className="text-2xl font-black">{analytics.activeLast7d}</p>
         </div>
@@ -178,7 +178,7 @@ function AnalyticsTab({ analytics }) {
               <span className="truncate">{u.email}</span>
               <div className="flex items-center gap-2 shrink-0 ml-2 text-muted-foreground">
                 <span>{fmtDate(u.createdAt)}</span>
-                {u.lastSignInAt && <span className="text-[9px] opacity-60">ultimo login {fmtDate(u.lastSignInAt)}</span>}
+                {u.lastSignInAt && <span className="text-[9px] opacity-60">ultimo accesso {fmtDate(u.lastSignInAt)}</span>}
               </div>
             </div>
           ))}

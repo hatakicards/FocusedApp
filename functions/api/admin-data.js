@@ -15,10 +15,11 @@ export async function onRequestPost({ request, env }) {
       return jsonResponse({ error: 'Forbidden' }, 403);
     }
 
-    const [promoRes, settingsRes, authUsersRes] = await Promise.all([
+    const [promoRes, settingsRes, authUsersRes, activityRes] = await Promise.all([
       supabaseAdmin.from('promo_code_usage').select('*').order('created_date', { ascending: false }).limit(500),
       supabaseAdmin.from('user_settings').select('created_by_id, created_date, subscription_tier, stripe_subscription_id, ads_removed, promo_until, trial_start'),
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      supabaseAdmin.from('user_activity').select('user_id, last_seen_at'),
     ]);
     if (promoRes.error) throw promoRes.error;
     if (settingsRes.error) throw settingsRes.error;
@@ -32,11 +33,19 @@ export async function onRequestPost({ request, env }) {
     const sevenDaysAgo = now - 7 * 86400000;
     const totalUsers = authUsers.length;
     const newLast7d = authUsers.filter((u) => new Date(u.created_at).getTime() >= sevenDaysAgo).length;
-    const activeLast7d = authUsers.filter((u) => u.last_sign_in_at && new Date(u.last_sign_in_at).getTime() >= sevenDaysAgo).length;
+    // last_sign_in_at cambia solo con un login vero (password/Google/Apple), non quando
+    // l'app riusa la sessione salvata: per l'attivita' reale conta l'ultima apertura
+    // registrata in user_activity (se manca la tabella si ricade sul solo last_sign_in_at).
+    const seenById = new Map((activityRes.error ? [] : activityRes.data || []).map((a) => [a.user_id, a.last_seen_at]));
+    const lastActive = (u) => {
+      const times = [u.last_sign_in_at, seenById.get(u.id)].filter(Boolean).map((d) => new Date(d).getTime());
+      return times.length ? new Date(Math.max(...times)).toISOString() : null;
+    };
+    const activeLast7d = authUsers.filter((u) => { const a = lastActive(u); return a && new Date(a).getTime() >= sevenDaysAgo; }).length;
     const recentSignups = [...authUsers]
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .slice(0, 20)
-      .map((u) => ({ email: u.email, createdAt: u.created_at, lastSignInAt: u.last_sign_in_at || null }));
+      .map((u) => ({ email: u.email, createdAt: u.created_at, lastSignInAt: lastActive(u) }));
 
     // --- Acquisti: chi ha premium/pro adesso (settings piu' recente per utente) ---
     const latestSettingsByUser = new Map();

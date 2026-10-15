@@ -20,6 +20,7 @@ import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
 import { useDailyReminder, useGymNudges } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
+import { pingActivity } from '@/lib/activityPing';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
 
@@ -53,6 +54,16 @@ export default function AppLayout() {
     if (user && !user.isGuest) {
       base44.analytics.track({ eventName: 'app_session_start' });
     }
+  }, [user]);
+
+  // Ultima apertura reale dell'app (serve al pannello admin): all'avvio e ogni volta che
+  // l'app torna in primo piano, con un limite di una scrittura ogni 15 minuti.
+  useEffect(() => {
+    if (!user || user.isGuest || !user.id) return undefined;
+    pingActivity(user.id);
+    const onVisible = () => { if (document.visibilityState === 'visible') pingActivity(user.id); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [user]);
 
   // Prompt one-time upsell right after a promo trial (e.g. NEWICEPROMO!) expires.
