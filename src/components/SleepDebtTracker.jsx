@@ -4,6 +4,7 @@ import { useT } from '@/lib/i18n';
 import { calculateAge } from '@/lib/ageCheck';
 import { computeCumulativeSleepDebt, isGymDay } from '@/lib/sleepData';
 import { todayISO } from '@/lib/productivity';
+import { ExternalLink } from 'lucide-react';
 
 export default function SleepDebtTracker() {
   const t = useT();
@@ -111,6 +112,15 @@ export default function SleepDebtTracker() {
           </p>
         </div>
       )}
+
+      <a
+        href="https://doi.org/10.1016/j.sleh.2014.12.010"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground underline-offset-2 hover:underline"
+      >
+        <ExternalLink size={10} className="shrink-0" /> National Sleep Foundation · Hirshkowitz et al., Sleep Health 2015
+      </a>
 
       {/* Status message */}
       <div className={`flex items-center gap-2 mt-3 rounded-xl p-2.5 ${debt.isRested ? 'bg-emerald-500/15' : 'bg-amber-500/15'}`}>

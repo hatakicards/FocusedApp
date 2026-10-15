@@ -12,6 +12,7 @@ import FoodTracker from '@/components/bodyfuel/FoodTracker';
 import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
+import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import SubscriptionGate from '@/components/SubscriptionGate';
 
@@ -603,6 +604,7 @@ export default function BodyFuel() {
         data={chartDialog ? macroChartData(chartDialog.key) : []}
         color={chartDialog?.color || '#ef4444'}
       />
+      <HealthSources className="mb-4" />
       <CalorieCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
       <TutorialDialog pageId="bodyfuel" />
     </div>

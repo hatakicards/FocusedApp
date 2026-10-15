@@ -10,7 +10,6 @@ import {
   wasSenseAsked,
   isSenseEnabled,
   enableSense,
-  declineSense,
   useSensedEvents,
   markEvent,
 } from '@/lib/healthSense';
@@ -49,10 +48,6 @@ export default function SensedActivityPrompt() {
       setAsked(true);
       setEnabled(true);
     };
-    const handleNotNow = () => {
-      declineSense();
-      setAsked(true);
-    };
     return (
       <div className="fixed inset-x-4 bottom-[calc(7.5rem+env(safe-area-inset-bottom))] z-[75] mx-auto max-w-md rounded-2xl border border-border bg-card p-4 shadow-xl">
         <div className="flex items-center gap-2 mb-1">
@@ -60,14 +55,9 @@ export default function SensedActivityPrompt() {
           <span className="text-sm font-semibold">{t('sense_optin_title')}</span>
         </div>
         <p className="text-xs text-muted-foreground mb-3">{t('sense_optin_desc')}</p>
-        <div className="flex gap-2">
-          <button onClick={handleEnable} className="flex-1 rounded-xl bg-foreground py-2 text-xs font-semibold text-background">
-            {t('sense_enable')}
-          </button>
-          <button onClick={handleNotNow} className="flex-1 rounded-xl border border-border py-2 text-xs font-semibold">
-            {t('sense_not_now')}
-          </button>
-        </div>
+        <button onClick={handleEnable} className="w-full rounded-xl bg-foreground py-2.5 text-xs font-semibold text-background">
+          {t('sense_enable')}
+        </button>
       </div>
     );
   }

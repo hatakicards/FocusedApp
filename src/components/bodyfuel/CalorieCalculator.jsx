@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Calculator, AlertTriangle, User, Activity, Target, TrendingDown, TrendingUp, Scale, Heart, Sparkles, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useT } from '@/lib/i18n';
+import HealthSources from '@/components/HealthSources';
 import { useUserSettings, useOptimisticSettingsUpdate, useBodyFuelEntries, useGymSessions } from '@/lib/useAppData';
 import { calculateNutritionPlan, getAgeFromBirthDate, LIFESTYLE_LEVELS } from '@/lib/nutritionCalc';
 import { base44 } from '@/api/base44Client';
@@ -384,6 +385,7 @@ Ogni utente descrive i propri esercizi con terminologia libera (abbreviazioni, g
               <AlertTriangle size={14} className="text-yellow-400 shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground">{t('nc_medical_disclaimer')}</p>
             </div>
+            <HealthSources topics={['nutrition']} />
 
             <button
               type="button"
