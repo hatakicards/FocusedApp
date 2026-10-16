@@ -25,7 +25,9 @@ public class FocusedWidgetSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         defaults.set(call.getString("accessToken"), forKey: "access_token")
-        defaults.set(call.getString("refreshToken"), forKey: "refresh_token")
+        // Il refresh token non va mai condiviso con il widget (e' monouso): se un'app
+        // piu' vecchia ne avesse salvato uno, lo togliamo.
+        defaults.removeObject(forKey: "refresh_token")
         defaults.set(call.getString("expiresAt"), forKey: "expires_at")
         call.resolve()
     }
@@ -38,6 +40,7 @@ public class FocusedWidgetSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         defaults.removeObject(forKey: "access_token")
         defaults.removeObject(forKey: "refresh_token")
         defaults.removeObject(forKey: "expires_at")
+        defaults.removeObject(forKey: "widget_payload_cache")
         call.resolve()
     }
 

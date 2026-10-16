@@ -75,7 +75,6 @@ enum SharedSession {
     static var defaults: UserDefaults? { UserDefaults(suiteName: appGroupId) }
 
     static var accessToken: String? { defaults?.string(forKey: "access_token") }
-    static var refreshToken: String? { defaults?.string(forKey: "refresh_token") }
     static var expiresAt: Double? {
         guard let raw = defaults?.string(forKey: "expires_at") else { return nil }
         return Double(raw)
@@ -86,45 +85,26 @@ enum SharedSession {
         return Date().timeIntervalSince1970 >= exp - 30
     }
 
-    static func save(accessToken: String, refreshToken: String, expiresAt: Double) {
-        defaults?.set(accessToken, forKey: "access_token")
-        defaults?.set(refreshToken, forKey: "refresh_token")
-        defaults?.set(String(expiresAt), forKey: "expires_at")
+    // Ultimi dati scaricati: si mostrano quando il token e' scaduto o la rete non c'e'.
+    static var cachedPayload: WidgetPayload? {
+        guard let data = defaults?.data(forKey: "widget_payload_cache") else { return nil }
+        return try? JSONDecoder().decode(WidgetPayload.self, from: data)
+    }
+
+    static func cache(_ data: Data) {
+        defaults?.set(data, forKey: "widget_payload_cache")
     }
 }
 
-// MARK: - Rete: legge /api/widget-data, rinnovando il token Supabase se serve.
-// Il widget gira in un processo separato dalla WebView e non puo' leggere
-// nulla dalla sessione dell'app: deve autenticarsi da solo con i token
-// condivisi via App Group.
+// MARK: - Rete: legge /api/widget-data con l'access token che l'app condivide via App Group.
+// Il widget NON rinnova mai il token: i refresh token Supabase sono monouso e, se il
+// widget ne consumava uno, la sessione dell'app diventava invalida e l'utente doveva
+// rifare il login. Quando il token scade il widget mostra gli ultimi dati salvati.
 
 enum WidgetAPI {
-    static func refreshAccessToken() async -> String? {
-        guard let refreshToken = SharedSession.refreshToken,
-              let url = URL(string: "\(supabaseUrl)/auth/v1/token?grant_type=refresh_token") else { return nil }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
-
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let newAccessToken = json["access_token"] as? String,
-              let newRefreshToken = json["refresh_token"] as? String,
-              let expiresIn = json["expires_in"] as? Double
-        else { return nil }
-
-        SharedSession.save(accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt: Date().timeIntervalSince1970 + expiresIn)
-        return newAccessToken
-    }
-
     // Spunta / de-spunta un'attivita' direttamente dal widget (stessi campi che scrive l'app).
     static func setTask(id: String, done: Bool) async {
-        guard var token = SharedSession.accessToken else { return }
-        if SharedSession.isExpired(), let refreshed = await refreshAccessToken() { token = refreshed }
+        guard let token = SharedSession.accessToken, !SharedSession.isExpired() else { return }
         guard let url = URL(string: "\(supabaseUrl)/rest/v1/task_item?id=eq.\(id)") else { return }
 
         let fmt = DateFormatter()
@@ -146,26 +126,17 @@ enum WidgetAPI {
     }
 
     static func fetchData() async -> WidgetPayload? {
-        guard var token = SharedSession.accessToken else { return nil }
-        if SharedSession.isExpired(), let refreshed = await refreshAccessToken() {
-            token = refreshed
-        }
-        guard let url = URL(string: "\(apiBaseUrl)/api/widget-data?v=2") else { return nil }
+        guard let token = SharedSession.accessToken, !SharedSession.isExpired(),
+              let url = URL(string: "\(apiBaseUrl)/api/widget-data?v=2") else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
-
-        if let http = response as? HTTPURLResponse, http.statusCode == 401,
-           let refreshed = await refreshAccessToken() {
-            var retry = URLRequest(url: url)
-            retry.setValue("Bearer \(refreshed)", forHTTPHeaderField: "Authorization")
-            guard let (retryData, _) = try? await URLSession.shared.data(for: retry) else { return nil }
-            return try? JSONDecoder().decode(WidgetPayload.self, from: retryData)
-        }
-
-        return try? JSONDecoder().decode(WidgetPayload.self, from: data)
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, http.statusCode == 200,
+              let payload = try? JSONDecoder().decode(WidgetPayload.self, from: data) else { return nil }
+        SharedSession.cache(data)
+        return payload
     }
 }
 
@@ -201,7 +172,7 @@ struct FocusedProvider: TimelineProvider {
                 completion(Timeline(entries: [FocusedEntry(date: Date(), payload: nil, loggedOut: true)], policy: .after(nextUpdate)))
                 return
             }
-            let payload = await WidgetAPI.fetchData()
+            let payload = await WidgetAPI.fetchData() ?? SharedSession.cachedPayload
             completion(Timeline(entries: [FocusedEntry(date: Date(), payload: payload, loggedOut: false)], policy: .after(nextUpdate)))
         }
     }

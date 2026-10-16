@@ -13,7 +13,12 @@ export async function syncWidgetSession(session) {
   try {
     await FocusedWidgetSync.syncSession({
       accessToken: session.access_token,
-      refreshToken: session.refresh_token || null,
+      // Il refresh token NON va condiviso con il widget: i refresh token Supabase sono
+      // monouso, quindi se il widget ne rinnova uno la sessione dell'app resta con un
+      // token gia' usato e l'utente si ritrova disconnesso (login da rifare a ogni
+      // apertura). Senza refresh token il widget usa solo l'access token che l'app
+      // gli passa e, quando scade, mostra gli ultimi dati.
+      refreshToken: null,
       expiresAt: session.expires_at != null ? String(session.expires_at) : null,
     });
   } catch (e) {
