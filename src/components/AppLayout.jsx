@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+﻿import { useRef, useState, useEffect } from 'react';
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { differenceInCalendarDays } from 'date-fns';
@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useDailyReminder, useGymNudges } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
+import { loadActiveFocus } from '@/lib/activeFocus';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
 
@@ -49,7 +50,7 @@ export default function AppLayout() {
   useDailyReminder(settings, ratings);
   useGymNudges(ratings);
 
-  // Track unique app usage — 1 event per person per session
+  // Track unique app usage â€” 1 event per person per session
   useEffect(() => {
     if (user && !user.isGuest) {
       base44.analytics.track({ eventName: 'app_session_start' });
@@ -65,6 +66,12 @@ export default function AppLayout() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [user]);
+
+  // Sessione Focus Time in corso: se l'app si riapre su un'altra pagina, riporta al timer.
+  useEffect(() => {
+    if (loadActiveFocus() && location.pathname !== '/focus') navigate('/focus', { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Prompt one-time upsell right after a promo trial (e.g. NEWICEPROMO!) expires.
   useEffect(() => {
@@ -94,7 +101,7 @@ export default function AppLayout() {
     setTrialWelcome(false);
   };
   // Nota: TutorialDialog.jsx interroga direttamente settings?.trial_start +
-  // il flag 'trial_welcome_seen' per decidere se aspettare — nessun altro
+  // il flag 'trial_welcome_seen' per decidere se aspettare â€” nessun altro
   // stato da coordinare qui oltre a questi due.
 
   // Prompt one-time a fine prova gratuita di 7 giorni, con sconto 40%.

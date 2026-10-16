@@ -17,12 +17,13 @@ const fmt = (ms) => {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode, onComplete, onClose }) {
+export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, blockMode, onComplete, onClose }) {
   const t = useT();
   const totalMs = durationMin * 60 * 1000;
-  const [remaining, setRemaining] = useState(totalMs);
-  const [done, setDone] = useState(false);
-  const endAtRef = useRef(Date.now() + totalMs);
+  // endAt (ms) c'e' quando la sessione viene ripristinata dopo che l'app e' stata in secondo piano.
+  const endAtRef = useRef(endAt || Date.now() + totalMs);
+  const [remaining, setRemaining] = useState(Math.max(0, endAtRef.current - Date.now()));
+  const [done, setDone] = useState(endAtRef.current <= Date.now());
   const wakeRef = useRef(null);
   const pushedRef = useRef(false);
   const [blockFailed, setBlockFailed] = useState(false);
@@ -69,6 +70,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
   // notifica di fine sessione per quando Focused e' in secondo piano.
   useEffect(() => {
     if (!blockMode || blockMode === 'off') return undefined;
+    if (endAtRef.current <= Date.now()) return undefined;
     startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(r.error || true); });
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     return () => {
@@ -85,6 +87,13 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
       } catch { /* ignore */ }
     };
     acquire();
+    // Al ritorno nell'app: ripiglia lo schermo acceso e aggiorna subito il tempo rimasto.
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      acquire();
+      setRemaining(Math.max(0, endAtRef.current - Date.now()));
+    };
+    document.addEventListener('visibilitychange', onVisible);
     const id = setInterval(() => {
       const rem = endAtRef.current - Date.now();
       if (rem <= 0) {
@@ -104,6 +113,7 @@ export default function FocusTimer({ durationMin, spotifyUrl, session, blockMode
     }, 250);
     return () => {
       clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
       try { wakeRef.current?.release?.(); } catch { /* ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

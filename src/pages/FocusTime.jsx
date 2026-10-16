@@ -15,6 +15,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import FocusTimer from '@/components/FocusTimer';
 import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
+import { saveActiveFocus, loadActiveFocus, clearActiveFocus } from '@/lib/activeFocus';
 import FocusStats from '@/components/FocusStats';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import GymStartCard from '@/components/gym/GymStartCard';
@@ -108,16 +109,26 @@ export default function FocusTime() {
   const handleStart = async (session, modeOverride) => {
     const wanted = modeOverride ?? (session?.id ? getSessionMode(session.id) : getDefaultMode());
     const blockMode = await resolveBlockMode(wanted);
-    setTimer({
+    const durationMin = session?.duration_minutes || 25;
+    const active = {
       blockMode,
-      durationMin: session?.duration_minutes || 25,
+      durationMin,
+      endAt: Date.now() + durationMin * 60 * 1000,
       spotifyUrl: session?.spotify_url || null,
       session: session || null,
-    });
+    };
+    saveActiveFocus(active);
+    setTimer(active);
     if (session?.spotify_url) {
       try { window.open(session.spotify_url, '_blank'); } catch { /* ignore */ }
     }
   };
+
+  // Sessione ancora in corso (o finita mentre eri in un'altra app): si riprende da dove era.
+  useEffect(() => {
+    const active = loadActiveFocus();
+    if (active) setTimer(active);
+  }, []);
 
   const handleComplete = async (result) => {
     if (!timer?.session?.id || !result?.actualMinutes) return;
@@ -295,11 +306,12 @@ export default function FocusTime() {
       {timer && (
         <FocusTimer
           durationMin={timer.durationMin}
+          endAt={timer.endAt}
           spotifyUrl={timer.spotifyUrl}
           session={timer.session}
           blockMode={timer.blockMode}
           onComplete={handleComplete}
-          onClose={() => setTimer(null)}
+          onClose={() => { clearActiveFocus(); setTimer(null); }}
         />
       )}
 
