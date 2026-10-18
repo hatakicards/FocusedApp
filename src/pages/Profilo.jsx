@@ -89,6 +89,16 @@ export default function Profilo() {
       }
       return;
     }
+    // 20% di sconto su tutti i piani: si ricorda il codice e si apre la scelta del piano,
+    // il checkout Stripe lo applica da solo. (Sull'app iOS questo campo non c'e': li' lo
+    // sconto passa dagli Offer Code di Apple.)
+    if (code.toUpperCase() === 'FOCUSEDORIGINAL!') {
+      try { localStorage.setItem('promo_discount', 'FOCUSEDORIGINAL!'); } catch { /* ignore */ }
+      setPromoStatus('discount');
+      setPromoCode('');
+      setShowPremium(true);
+      return;
+    }
     if (code.toUpperCase() === 'BMINDSETPROMO') {
       try {
         setPromoStatus('redirecting');
@@ -314,6 +324,11 @@ export default function Profilo() {
           {promoStatus === 'success' && (
             <p className="mt-2 flex items-center gap-1.5 text-xs text-green-500">
               <Sparkles size={12} /> {t('profilo_codice_success')}
+            </p>
+          )}
+          {promoStatus === 'discount' && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-green-500">
+              <Sparkles size={12} /> {t('profilo_codice_discount')}
             </p>
           )}
           {promoStatus === 'invalid' && (

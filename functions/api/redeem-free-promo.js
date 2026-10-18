@@ -7,7 +7,9 @@ import { getSupabaseAdmin, getUserFromRequest, updateUserSettings, jsonResponse 
 // scrittura di subscription_tier/promo_until solo qui lato server, il
 // binario dell'app non porta piu' con se' nulla che aggiri l'IAP.
 const FREE_CODES = { StartFocusing: 30, 'FIRSTFOCUSED!': 30, '7DAYSFRE3': 7, 'NEWICEPROMO!': 7 };
-const LIFETIME_CODE = 'S3CR3TC0D3L1FEFR33';
+// Premium a vita (amici stretti). Il vecchio codice resta valido.
+const LIFETIME_CODES = ['S3CR3TL1FEFREE!', 'S3CR3TC0D3L1FEFR33'];
+const LIFETIME_UNTIL = '2099-12-31T23:59:59Z';
 const BLOCKED_TOGETHER = ['7DAYSFRE3', 'NEWICEPROMO!', '3MONTHS1EUR0'];
 
 export async function onRequestPost({ request, env }) {
@@ -36,8 +38,10 @@ export async function onRequestPost({ request, env }) {
       until.setDate(until.getDate() + FREE_CODES[code]);
       await updateUserSettings(supabaseAdmin, user.id, { promo_until: until.toISOString() });
       rewardType = 'promo_month';
-    } else if (code === LIFETIME_CODE) {
-      await updateUserSettings(supabaseAdmin, user.id, { subscription_tier: 'premium' });
+    } else if (LIFETIME_CODES.includes(code)) {
+      // promo_until lontano oltre al tier: cosi' un evento di scadenza di un pagamento
+      // non puo' togliere il Premium a vita.
+      await updateUserSettings(supabaseAdmin, user.id, { subscription_tier: 'premium', ads_removed: true, promo_until: LIFETIME_UNTIL });
       rewardType = 'lifetime_premium';
     } else {
       return jsonResponse({ status: 'invalid' });

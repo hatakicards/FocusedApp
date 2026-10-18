@@ -119,6 +119,13 @@ export async function purchaseSubscription(tier, period) {
   return customerInfo;
 }
 
+// Schermata di Apple per riscattare un Offer Code (iOS 14+): e' l'unico modo ammesso
+// da Apple per dare accesso con un codice, e passa comunque dall'App Store.
+export async function presentOfferCodeSheet() {
+  await ensureConfigured();
+  await Purchases.presentCodeRedemptionSheet();
+}
+
 export async function restorePurchases() {
   await ensureConfigured();
   const { customerInfo } = await Purchases.restorePurchases();

@@ -15,6 +15,22 @@ const PRICE_IDS = {
 };
 
 const BMINDSET_COUPON_ID = 'bmindset_30off';
+const FOCUSEDORIGINAL_COUPON_ID = 'focusedoriginal_20off_12m';
+
+// 20% di sconto per 12 mesi (per un abbonamento annuale: tutto il primo anno).
+async function ensureFocusedOriginalCoupon(stripe) {
+  try {
+    return await stripe.coupons.retrieve(FOCUSEDORIGINAL_COUPON_ID);
+  } catch {
+    return await stripe.coupons.create({
+      id: FOCUSEDORIGINAL_COUPON_ID,
+      percent_off: 20,
+      duration: 'repeating',
+      duration_in_months: 12,
+      name: 'FOCUSEDORIGINAL 20%',
+    });
+  }
+}
 
 async function ensureBmindsetCoupon(stripe) {
   try {
@@ -64,6 +80,12 @@ export async function onRequestPost({ request, env }) {
 
     if ((promoCode || '').trim().toUpperCase() === 'BMINDSETPROMO') {
       const coupon = await ensureBmindsetCoupon(stripe);
+      sessionParams.discounts = [{ coupon: coupon.id }];
+      delete sessionParams.allow_promotion_codes;
+    }
+
+    if ((promoCode || '').trim().toUpperCase() === 'FOCUSEDORIGINAL!') {
+      const coupon = await ensureFocusedOriginalCoupon(stripe);
       sessionParams.discounts = [{ coupon: coupon.id }];
       delete sessionParams.allow_promotion_codes;
     }

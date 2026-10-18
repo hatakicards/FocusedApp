@@ -1,29 +1,6 @@
 import { getSupabaseAdmin, updateUserSettings as updateSettings, jsonResponse } from './_shared/supabaseAdmin.js';
 import { getStripe } from './_shared/stripeClient.js';
-
-// Converte crediti accumulati in mesi premium (50 crediti = 1 mese),
-// esattamente come nella logica originale.
-function applyCreditsToPremium(referrer, creditsToAdd) {
-  let credits = (referrer.credits || 0) + creditsToAdd;
-  let promoUntil = referrer.promo_until;
-  let premiumMonths = referrer.referral_premium_months || 0;
-
-  while (credits >= 50) {
-    credits -= 50;
-    premiumMonths += 1;
-    const base =
-      promoUntil && new Date(promoUntil).getTime() > Date.now() ? new Date(promoUntil) : new Date();
-    base.setMonth(base.getMonth() + 1);
-    promoUntil = base.toISOString();
-  }
-
-  const patch = { credits, referral_premium_months: premiumMonths };
-  if (promoUntil !== referrer.promo_until) {
-    patch.promo_until = promoUntil;
-    patch.subscription_tier = 'premium';
-  }
-  return patch;
-}
+import { awardPurchaseBonus } from './_shared/referral.js';
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -61,49 +38,9 @@ export async function onRequestPost({ request, env }) {
           if (error) console.error('PromoCodeUsage create error:', error);
         }
 
-        // Premia il referrer con 20 crediti per euro speso dall'invitato.
-        const amountEuros = (session.amount_total || 0) / 100;
-        if (amountEuros > 0) {
-          const { data: referrals, error: refErr } = await supabaseAdmin
-            .from('referral')
-            .select('*')
-            .eq('invitee_id', userId)
-            .order('created_date', { ascending: false })
-            .limit(1);
-          if (refErr) throw refErr;
-
-          if (referrals?.length) {
-            const ref = referrals[0];
-            const creditsToAward = Math.floor(amountEuros * 20);
-
-            const { data: referrerSettingsList, error: rsErr } = await supabaseAdmin
-              .from('user_settings')
-              .select('*')
-              .eq('created_by_id', ref.referrer_id)
-              .order('created_date', { ascending: false })
-              .limit(1);
-            if (rsErr) throw rsErr;
-
-            if (referrerSettingsList?.length) {
-              const referrerSettings = referrerSettingsList[0];
-              const patch = applyCreditsToPremium(referrerSettings, creditsToAward);
-
-              const { error: updErr } = await supabaseAdmin
-                .from('user_settings')
-                .update(patch)
-                .eq('id', referrerSettings.id);
-              if (updErr) throw updErr;
-
-              const { error: refUpdErr } = await supabaseAdmin
-                .from('referral')
-                .update({
-                  credits_earned: (ref.credits_earned || 0) + creditsToAward,
-                  spent_euros: (ref.spent_euros || 0) + amountEuros,
-                })
-                .eq('id', ref.id);
-              if (refUpdErr) throw refUpdErr;
-            }
-          }
+        // Un amico invitato ha pagato un abbonamento: 40 punti al referrer (una volta sola).
+        if ((session.amount_total || 0) > 0) {
+          await awardPurchaseBonus(supabaseAdmin, userId);
         }
       }
     } else if (event.type === 'customer.subscription.deleted') {

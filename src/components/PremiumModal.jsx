@@ -8,7 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
-import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, tierFromProductId } from '@/lib/revenueCat';
+import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, presentOfferCodeSheet, tierFromProductId } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
 const FEATURES = [
@@ -20,6 +20,12 @@ const FEATURES = [
   { key: 'pm_life_stats', label: 'Life Stats Page', tier: 'pro' },
   { key: 'pm_rankings', label: 'Real-time Rankings', tier: 'pro' },
 ];
+
+// Sconto attivato dal codice FOCUSEDORIGINAL! (solo web: sull'app iOS lo sconto passa dagli Offer Code di Apple).
+const DISCOUNT_KEY = 'promo_discount';
+const readDiscount = () => {
+  try { return localStorage.getItem(DISCOUNT_KEY) === 'FOCUSEDORIGINAL!' ? 'FOCUSEDORIGINAL!' : null; } catch { return null; }
+};
 
 const PERIODS = [
   { id: 'monthly', labelKey: 'pm_monthly' },
@@ -106,6 +112,7 @@ export default function PremiumModal({ open, onClose }) {
         tier,
         period,
         user_id: user?.id,
+        promoCode: readDiscount() || undefined,
       });
       const checkoutUrl = res?.data?.url || res?.url;
       if (checkoutUrl) {
@@ -116,6 +123,17 @@ export default function PremiumModal({ open, onClose }) {
       alert(e.message || 'Errore durante il checkout');
     } finally {
       setBuying(null);
+    }
+  };
+
+  const handleRedeemCode = async () => {
+    setRestoreMessage(null);
+    try {
+      await presentOfferCodeSheet();
+      invalidate();
+      setRestoreMessage(t('pm_redeem_done'));
+    } catch (e) {
+      setRestoreMessage(e.message || t('pm_restore_error'));
     }
   };
 
@@ -218,6 +236,12 @@ export default function PremiumModal({ open, onClose }) {
               </div>
             ) : (
               <>
+            {!isRevenueCatAvailable() && readDiscount() && (
+              <div className="mb-3 rounded-xl border border-foreground/30 bg-foreground/5 p-2.5 text-center text-xs font-semibold">
+                {t('pm_discount_active')}
+              </div>
+            )}
+
             <div className="space-y-2.5 mb-4">
               {FEATURES.map((f) => {
                 const Icon = f.tier === 'premium' ? Crown : Star;
@@ -297,6 +321,12 @@ export default function PremiumModal({ open, onClose }) {
                   className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
                   {restoring ? '...' : t('pm_restore')}
+                </button>
+                <button
+                  onClick={handleRedeemCode}
+                  className="mt-2 w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t('pm_redeem_code')}
                 </button>
                 {restoreMessage && (
                   <p className="mt-1.5 text-center text-[11px] text-muted-foreground">{restoreMessage}</p>

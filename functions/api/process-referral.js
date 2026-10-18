@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, jsonResponse } from './_shared/supabaseAdmin.js';
+import { applyPoints, signupPointsFor } from './_shared/referral.js';
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -39,43 +40,30 @@ export async function onRequestPost({ request, env }) {
       return jsonResponse({ error: 'Already referred', status: 'exists' }, 200);
     }
 
+    // Quanti amici ha gia' invitato: il primo vale 10 punti, ognuno dopo 20
+    // (1 amico = 10, 2 = 30, 3 = 50 in totale, poi +20 per ogni amico in piu').
+    const { count, error: cntErr } = await supabaseAdmin
+      .from('referral')
+      .select('id', { count: 'exact', head: true })
+      .eq('referrer_id', referrer.created_by_id);
+    if (cntErr) throw cntErr;
+    const points = signupPointsFor((count || 0) + 1);
+
     const { error: insErr } = await supabaseAdmin.from('referral').insert({
       created_by_id: invitee_id,
       referrer_id: referrer.created_by_id,
       invitee_id,
       invitee_email: invitee_email || '',
-      credits_earned: 10,
+      credits_earned: points,
       spent_euros: 0,
     });
     if (insErr) throw insErr;
 
-    // Premia il referrer con 10 crediti e converte in mesi premium (50 crediti = 1 mese).
-    let credits = (referrer.credits || 0) + 10;
-    let promoUntil = referrer.promo_until;
-    let premiumMonths = referrer.referral_premium_months || 0;
-
-    while (credits >= 50) {
-      credits -= 50;
-      premiumMonths += 1;
-      const base =
-        promoUntil && new Date(promoUntil).getTime() > Date.now() ? new Date(promoUntil) : new Date();
-      base.setMonth(base.getMonth() + 1);
-      promoUntil = base.toISOString();
-    }
-
-    const updateData = { credits, referral_premium_months: premiumMonths };
-    if (promoUntil !== referrer.promo_until) {
-      updateData.promo_until = promoUntil;
-      updateData.subscription_tier = 'premium';
-    }
-
-    const { error: updErr } = await supabaseAdmin
-      .from('user_settings')
-      .update(updateData)
-      .eq('id', referrer.id);
+    const patch = applyPoints(referrer, points);
+    const { error: updErr } = await supabaseAdmin.from('user_settings').update(patch).eq('id', referrer.id);
     if (updErr) throw updErr;
 
-    return jsonResponse({ success: true, credits, premium_months: premiumMonths });
+    return jsonResponse({ success: true, points, credits: patch.credits, premium_months: patch.referral_premium_months });
   } catch (error) {
     console.error('process-referral error', error);
     return jsonResponse({ error: error.message }, 500);

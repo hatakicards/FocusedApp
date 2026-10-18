@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, updateUserSettings, jsonResponse } from './_shared/supabaseAdmin.js';
+import { awardPurchaseBonus } from './_shared/referral.js';
 
 // app_user_id nell'evento RevenueCat = user.id di Supabase, perche'
 // src/lib/revenueCat.js configura l'SDK con Purchases.configure({ appUserID:
@@ -55,6 +56,11 @@ export async function onRequestPost({ request, env }) {
         ads_removed: true,
         subscription_tier: tier,
       });
+      // Bonus inviti: solo se ha davvero pagato (non per prove gratuite o codici a 0 euro).
+      const paid = Number(event.price_in_purchased_currency ?? event.price ?? 0) > 0 && event.period_type !== 'TRIAL';
+      if (paid && (event.type === 'INITIAL_PURCHASE' || event.type === 'RENEWAL')) {
+        await awardPurchaseBonus(supabaseAdmin, userId);
+      }
     } else if (userId && REVOKE_EVENTS.has(event.type)) {
       const supabaseAdmin = getSupabaseAdmin(env);
       await updateUserSettings(supabaseAdmin, userId, {

@@ -203,14 +203,13 @@ export default function InviteFriends() {
               <div>
                 <p className="text-sm font-medium">{r.invitee_email || t('invite_anon')}</p>
                 <p className="text-xs text-muted-foreground">
-                  {r.spent_euros > 0 ? `${r.spent_euros.toFixed(0)}€ · ` : ''}
                   {r.credits_earned || 0} {t('invite_credits')}
                 </p>
               </div>
               <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
-                r.spent_euros > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'
+                r.purchase_bonus_paid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'
               }`}>
-                {r.spent_euros > 0 ? t('invite_status_paying') : t('invite_status_signup')}
+                {r.purchase_bonus_paid ? t('invite_status_paying') : t('invite_status_signup')}
               </span>
             </div>
           ))}
