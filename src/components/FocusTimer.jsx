@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Play, Check } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { startBlock, stopBlock } from '@/lib/nativeScreenTime';
+import { startBlock, stopBlock, setShieldContent } from '@/lib/nativeScreenTime';
+import { useUserSettings } from '@/lib/useAppData';
 import { scheduleSessionEnd, cancelSessionEnd } from '@/lib/dailyReminder';
 
 const MIN_PERSIST_MS = 60 * 1000;
@@ -19,6 +20,7 @@ const fmt = (ms) => {
 
 export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, blockMode, onComplete, onClose }) {
   const t = useT();
+  const { data: settings } = useUserSettings();
   const totalMs = durationMin * 60 * 1000;
   // endAt (ms) c'e' quando la sessione viene ripristinata dopo che l'app e' stata in secondo piano.
   const endAtRef = useRef(endAt || Date.now() + totalMs);
@@ -71,7 +73,9 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
   useEffect(() => {
     if (!blockMode || blockMode === 'off') return undefined;
     if (endAtRef.current <= Date.now()) return undefined;
-    startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(r.error || true); });
+    setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
+      .then(() => startBlock(new Date(endAtRef.current), blockMode))
+      .then((r) => { if (!r.active) setBlockFailed(r.error || true); });
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     return () => {
       stopBlock();

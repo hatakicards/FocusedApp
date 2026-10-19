@@ -33,6 +33,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "startBlock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopBlock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getBlockState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setShieldContent", returnType: CAPPluginReturnPromise),
     ]
 
     static let appGroupId = "group.org.focusedapp.app"
@@ -117,6 +118,19 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     private func selectionCount(_ selection: FamilyActivitySelection?) -> Int {
         guard let s = selection else { return 0 }
         return s.applicationTokens.count + s.categoryTokens.count + s.webDomainTokens.count
+    }
+
+    // MARK: - Schermata di blocco
+
+    // Testo della schermata mostrata quando si apre un'app bloccata (estensione
+    // FocusedShield): sogno dell'utente, sottotitolo e bottone, gia' nella sua lingua.
+    // L'estensione li legge dall'App Group; se mancano usa dei default inglesi.
+    @objc func setShieldContent(_ call: CAPPluginCall) {
+        let defaults = sharedDefaults
+        defaults?.set(call.getString("dream") ?? "", forKey: "shield_dream")
+        defaults?.set(call.getString("subtitle") ?? "", forKey: "shield_subtitle")
+        defaults?.set(call.getString("button") ?? "", forKey: "shield_button")
+        call.resolve()
     }
 
     // MARK: - Blocco

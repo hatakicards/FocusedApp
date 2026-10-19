@@ -91,6 +91,10 @@ workflows:
           # Quello del widget arriva dal repo (il fetch non funziona per il widget).
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
           cp ios/certs/FocusedWidget.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedWidget.mobileprovision
+          # Estensioni della schermata di blocco (org.focusedapp.app.shield / .shieldaction):
+          # i profili vanno creati nel portale Apple e messi in ios/certs/.
+          cp ios/certs/FocusedShield.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedShield.mobileprovision
+          cp ios/certs/FocusedShieldAction.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedShieldAction.mobileprovision
           echo "=== Profili installati ==="
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
           xcode-project use-profiles
