@@ -10,7 +10,7 @@ import { useGoals, useTasks } from '@/lib/useAppData';
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    reply: { type: 'string', description: "Risposta testuale in italiano, concreta e pratica per far avanzare il progetto" },
+    reply: { type: 'string', description: "Risposta testuale nella stessa lingua dell'ultimo messaggio dell'utente, concreta e pratica per far avanzare il progetto" },
     actions: {
       type: 'array',
       items: {
@@ -48,7 +48,7 @@ function buildProjectContext(project, goals, tasks) {
     ? projectTasks.map((t) => `  - ${t.title}${t.due_date ? ` (scadenza ${t.due_date})` : ''}`).join('\n')
     : '  nessun task pendente';
 
-  return `Sei Focusy, l'assistente IA dell'app Focused, dedicato in questo momento SOLO al progetto "${project.title}". Rispondi sempre in italiano, in modo pratico, concreto e diretto — massimo 4-5 righe. Il tuo scopo è aiutare l'utente a portare avanti e completare questo specifico progetto: suggerisci prossimi passi concreti, aiutalo a sbloccarsi se è fermo, discuti idee, scomponi il lavoro in step piccoli e fattibili.
+  return `Sei Focusy, l'assistente IA dell'app Focused, dedicato in questo momento SOLO al progetto "${project.title}". Rispondi sempre nella stessa lingua dell'ultimo messaggio dell'utente (ignora la lingua di queste istruzioni), in modo pratico, concreto e diretto — massimo 4-5 righe. Il tuo scopo è aiutare l'utente a portare avanti e completare questo specifico progetto: suggerisci prossimi passi concreti, aiutalo a sbloccarsi se è fermo, discuti idee, scomponi il lavoro in step piccoli e fattibili.
 
 === PROGETTO ===
 Titolo: ${project.title}

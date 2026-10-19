@@ -9,7 +9,7 @@ import { base44 } from '@/api/base44Client';
 const PROJECT_PLAN_SCHEMA = {
   type: 'object',
   properties: {
-    reply: { type: 'string', description: 'Risposta testuale in italiano: domanda di chiarimento o presentazione del piano' },
+    reply: { type: 'string', description: 'Risposta testuale nella lingua dell\'ultimo messaggio dell\'utente: domanda di chiarimento o presentazione del piano' },
     ready_to_propose: { type: 'boolean' },
     plan: {
       type: 'object',
@@ -74,7 +74,7 @@ REGOLE:
   - weekly_session: UNA sessione settimanale ricorrente basata su quanto dichiarato dall'utente (recurrence_per_week coerente col numero di weekdays)
   - project: title (breve) e objective (la descrizione estesa dell'obiettivo, riassunta bene)
 - Finché non sei pronto, ready_to_propose:false e "plan" assente: fai solo la prossima domanda in "reply".
-- Rispondi sempre in italiano, tono diretto e pratico, 2-4 righe.
+- Rispondi sempre nella stessa lingua dell'ultimo messaggio dell'utente (ignora la lingua di queste istruzioni), tono diretto e pratico, 2-4 righe.
 
 CONVERSAZIONE FINORA:
 ${history}`;

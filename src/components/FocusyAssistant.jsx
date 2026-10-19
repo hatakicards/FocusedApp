@@ -186,7 +186,7 @@ function buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntr
     ? activityStats.map(s => `  - ${s.name}: ${s.avg}/5 (${s.count} voti)`).join('\n')
     : '  nessun voto registrato questa settimana';
 
-  return `Sei Focusy, l'assistente IA personale dell'app Focused. Rispondi SEMPRE in italiano, amichevole, conciso e motivazionale.
+  return `Sei Focusy, l'assistente IA personale dell'app Focused. Rispondi SEMPRE nella stessa lingua dell'ULTIMO messaggio dell'utente (inglese se scrive in inglese, spagnolo se in spagnolo, francese, tedesco, italiano ecc.; ignora la lingua di queste istruzioni e dei dati qui sotto), in tono amichevole, conciso e motivazionale.
 
 OBIETTIVO PRIMARIO: Dare consigli MIRATI basati sui dati reali dell'utente. NON dare consigli generici — cita sempre dati specifici (es. "La tua media è 3.2/5, in calo rispetto alla settimana scorsa"). Riferisciti alle attività per nome. Se un dato è "N/A" o 0, NON inventarlo.
 ${settings?.dream ? `\nIL SOGNO DELL'UTENTE: "${settings.dream}". Parti SEMPRE dal presupposto che l'utente sia realmente impegnato a raggiungerlo — non metterlo in dubbio, non trattarlo come velleità. Collega i tuoi consigli a questo sogno quando ha senso farlo (es. come l'attività di oggi lo avvicina o allontana da lì), senza forzarlo in ogni risposta.` : ''}
@@ -291,7 +291,7 @@ ALIMENTI NOTI: ${known}`;
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
-    reply: { type: 'string', description: 'Risposta testuale all\'utente in italiano' },
+    reply: { type: 'string', description: 'Risposta testuale all\'utente, nella stessa lingua dell\'ultimo messaggio dell\'utente' },
     actions: {
       type: 'array',
       items: {
