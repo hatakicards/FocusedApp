@@ -42,6 +42,15 @@ export const getSelectionCount = (kind = 'block') =>
 export const setShieldContent = ({ dream, subtitle, button }) =>
   call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button }), null);
 
+// Tiene lo schermo acceso durante una sessione (UIApplication.isIdleTimerDisabled).
+export const setKeepAwake = (enabled) =>
+  call(() => FocusedScreenTime.setKeepAwake({ enabled: !!enabled }), null);
+
+// Programmi ricorrenti: l'estensione iOS li fa partire da soli anche ad app chiusa.
+// schedules: [{ id, days: [1..7, 1 = domenica], startHour, startMinute, endHour, endMinute, mode }]
+export const syncSchedules = (schedules) =>
+  call(() => FocusedScreenTime.syncSchedules({ schedules }), null);
+
 export async function startBlock(endAt, mode = 'selected') {
   if (!isScreenTimeSupported()) return { active: false };
   const attempt = async () => {

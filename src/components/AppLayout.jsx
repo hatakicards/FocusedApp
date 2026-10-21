@@ -22,6 +22,7 @@ import { useDailyReminder, useGymNudges } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
 import { loadActiveFocus } from '@/lib/activeFocus';
+import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
 
@@ -49,6 +50,7 @@ export default function AppLayout() {
   const { data: ratings } = useRatings();
   useDailyReminder(settings, ratings);
   useGymNudges(ratings);
+  useFocusScheduler();
 
   // Track unique app usage â€” 1 event per person per session
   useEffect(() => {
