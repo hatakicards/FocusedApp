@@ -4,6 +4,7 @@ import SwiftUI
 import UIKit
 import FamilyControls
 import ManagedSettings
+import DeviceActivity
 
 // Blocco app durante le sessioni Focus Time. Gira tutto nell'app principale:
 // autorizzazione Family Controls, selezione app (FamilyActivityPicker nativo:
@@ -33,6 +34,9 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "startBlock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopBlock", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getBlockState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setShieldContent", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncSchedules", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setKeepAwake", returnType: CAPPluginReturnPromise),
     ]
 
     static let appGroupId = "group.org.focusedapp.app"
@@ -117,6 +121,70 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     private func selectionCount(_ selection: FamilyActivitySelection?) -> Int {
         guard let s = selection else { return 0 }
         return s.applicationTokens.count + s.categoryTokens.count + s.webDomainTokens.count
+    }
+
+    // MARK: - Schermata di blocco
+
+    // Testo della schermata mostrata quando si apre un'app bloccata (estensione
+    // FocusedShield): sogno dell'utente, sottotitolo e bottone, gia' nella sua lingua.
+    // L'estensione li legge dall'App Group; se mancano usa dei default inglesi.
+    @objc func setShieldContent(_ call: CAPPluginCall) {
+        let defaults = sharedDefaults
+        defaults?.set(call.getString("dream") ?? "", forKey: "shield_dream")
+        defaults?.set(call.getString("subtitle") ?? "", forKey: "shield_subtitle")
+        defaults?.set(call.getString("button") ?? "", forKey: "shield_button")
+        call.resolve()
+    }
+
+    // MARK: - Schermo sempre acceso
+
+    @objc func setKeepAwake(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled") ?? false
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = enabled
+            call.resolve()
+        }
+    }
+
+    // MARK: - Programmi ricorrenti
+
+    // Registra i programmi di Focus Time in DeviceActivity: l'estensione FocusedMonitor
+    // applica e toglie lo shield all'ora giusta anche con l'app chiusa. Ogni programma
+    // genera un intervallo per giorno (weekday 1 = domenica, come Calendar).
+    @objc func syncSchedules(_ call: CAPPluginCall) {
+        guard AuthorizationCenter.shared.authorizationStatus == .approved else {
+            call.resolve(["registered": 0])
+            return
+        }
+        let center = DeviceActivityCenter()
+        center.stopMonitoring()
+        var modes: [String: String] = [:]
+        var registered = 0
+        for item in call.getArray("schedules", JSObject.self) ?? [] {
+            guard let id = item["id"] as? String,
+                  let rawDays = item["days"] as? [Any],
+                  let sh = item["startHour"] as? Int, let sm = item["startMinute"] as? Int,
+                  let eh = item["endHour"] as? Int, let em = item["endMinute"] as? Int else { continue }
+            let mode = (item["mode"] as? String) ?? "selected"
+            let days = rawDays.compactMap { ($0 as? NSNumber)?.intValue }
+            for day in days {
+                let name = DeviceActivityName("focus.\(id).\(day)")
+                let schedule = DeviceActivitySchedule(
+                    intervalStart: DateComponents(hour: sh, minute: sm, weekday: day),
+                    intervalEnd: DateComponents(hour: eh, minute: em, weekday: day),
+                    repeats: true
+                )
+                do {
+                    try center.startMonitoring(name, during: schedule)
+                    modes[name.rawValue] = mode
+                    registered += 1
+                } catch {
+                    // Intervallo non valido (es. meno di 15 minuti): si salta quel giorno.
+                }
+            }
+        }
+        sharedDefaults?.set(modes, forKey: "schedule_modes")
+        call.resolve(["registered": registered])
     }
 
     // MARK: - Blocco
