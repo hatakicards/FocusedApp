@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Play, Check } from 'lucide-react';
+import { X, Play, Check, Lock } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { startBlock, stopBlock } from '@/lib/nativeScreenTime';
+import { startBlock, stopBlock, setShieldContent, setKeepAwake } from '@/lib/nativeScreenTime';
+import { useUserSettings } from '@/lib/useAppData';
 import { scheduleSessionEnd, cancelSessionEnd } from '@/lib/dailyReminder';
 
 const MIN_PERSIST_MS = 60 * 1000;
@@ -19,6 +20,7 @@ const fmt = (ms) => {
 
 export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, blockMode, onComplete, onClose }) {
   const t = useT();
+  const { data: settings } = useUserSettings();
   const totalMs = durationMin * 60 * 1000;
   // endAt (ms) c'e' quando la sessione viene ripristinata dopo che l'app e' stata in secondo piano.
   const endAtRef = useRef(endAt || Date.now() + totalMs);
@@ -71,7 +73,9 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
   useEffect(() => {
     if (!blockMode || blockMode === 'off') return undefined;
     if (endAtRef.current <= Date.now()) return undefined;
-    startBlock(new Date(endAtRef.current), blockMode).then((r) => { if (!r.active) setBlockFailed(r.error || true); });
+    setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
+      .then(() => startBlock(new Date(endAtRef.current), blockMode))
+      .then((r) => { if (!r.active) setBlockFailed(r.error || true); });
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     return () => {
       stopBlock();
@@ -81,10 +85,13 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
   }, []);
 
   useEffect(() => {
+    // Lo schermo non si spegne per tutta la sessione: wake lock del browser e, sull'app iOS,
+    // isIdleTimerDisabled (il wake lock della WebView non e' affidabile).
     const acquire = async () => {
       try {
         if ('wakeLock' in navigator) wakeRef.current = await navigator.wakeLock.request('screen');
       } catch { /* ignore */ }
+      setKeepAwake(true);
     };
     acquire();
     // Al ritorno nell'app: ripiglia lo schermo acceso e aggiorna subito il tempo rimasto.
@@ -102,6 +109,7 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
         setDone(true);
         if (blockMode && blockMode !== 'off') stopBlock();
         try { wakeRef.current?.release?.(); } catch { /* ignore */ }
+        setKeepAwake(false);
         try {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             new Notification(t('ftimer_notif_title'), { body: t('ftimer_notif_body') });
@@ -115,6 +123,7 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
       try { wakeRef.current?.release?.(); } catch { /* ignore */ }
+      setKeepAwake(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -170,6 +179,13 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
             {session?.title && <span className="text-xs text-muted-foreground mt-2">{session.title}</span>}
           </div>
         </div>
+
+        {blockMode && blockMode !== 'off' && (
+          <div className="mt-8 flex flex-col items-center gap-2 text-muted-foreground">
+            <Lock size={56} strokeWidth={1.5} className="text-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wider">{t('ft_blocco_attivo')}</span>
+          </div>
+        )}
 
         {spotifyUrl && (
           <button onClick={openSpotify} className="mt-10 flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold">

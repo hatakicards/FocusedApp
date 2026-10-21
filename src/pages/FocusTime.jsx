@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles } from 'lucide-react';
+import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles, Repeat, Lock } from 'lucide-react';
 import {
   useFocusSessions,
   useHomeworks,
@@ -30,6 +30,9 @@ import {
   resolveBlockMode,
 } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
+import IphoneToggle from '@/components/IphoneToggle';
+import { dismissScheduleToday } from '@/lib/useFocusScheduler';
+import { recurringSchedules, describeDays } from '@/lib/focusSchedule';
 
 export default function FocusTime() {
   const { data: sessions } = useFocusSessions();
@@ -70,15 +73,16 @@ export default function FocusTime() {
   }, [location.state, homeworks]);
 
   const now = Date.now();
+  const schedules = useMemo(() => recurringSchedules(sessions), [sessions]);
   const upcoming = useMemo(
     () => (sessions || [])
-      .filter((s) => s.status === 'scheduled' && new Date(s.scheduled_at).getTime() >= now - 60 * 60 * 1000)
+      .filter((s) => !s.is_recurring && s.status === 'scheduled' && new Date(s.scheduled_at).getTime() >= now - 60 * 60 * 1000)
       .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)),
     [sessions, now]
   );
   const past = useMemo(
     () => (sessions || [])
-      .filter((s) => s.status !== 'scheduled')
+      .filter((s) => !s.is_recurring && s.status !== 'scheduled')
       .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
     [sessions]
   );
@@ -125,13 +129,38 @@ export default function FocusTime() {
   };
 
   // Sessione ancora in corso (o finita mentre eri in un'altra app): si riprende da dove era.
+  // Anche i programmi ricorrenti che partono da soli arrivano da qui (evento dal scheduler).
   useEffect(() => {
-    const active = loadActiveFocus();
-    if (active) setTimer(active);
+    const restore = () => {
+      const active = loadActiveFocus();
+      if (active) setTimer(active);
+    };
+    restore();
+    window.addEventListener('focus-active-changed', restore);
+    return () => window.removeEventListener('focus-active-changed', restore);
   }, []);
 
+  // Ripete una sessione passata con la stessa durata, titolo e blocco.
+  const handleRepeat = async (s) => {
+    const mins = s.duration_minutes || 25;
+    const created = await optimisticFocusTimeSave(null, {
+      title: s.title,
+      scheduled_at: new Date().toISOString(),
+      duration_minutes: mins,
+      status: 'scheduled',
+      linked_homework_id: s.linked_homework_id || null,
+    });
+    const mode = created?.id ? getSessionMode(s.id) : getDefaultMode();
+    if (created?.id) setSessionMode(created.id, mode);
+    handleStart(created, mode);
+  };
+
+  const handleToggleSchedule = async (s, on) => {
+    await optimisticFocusTimeUpdate(s.id, { schedule_active: on });
+  };
+
   const handleComplete = async (result) => {
-    if (!timer?.session?.id || !result?.actualMinutes) return;
+    if (!timer?.session?.id || timer.session.is_recurring || !result?.actualMinutes) return;
     await optimisticFocusTimeUpdate(timer.session.id, {
       status: 'done',
       completed_at: new Date().toISOString().split('T')[0],
@@ -143,9 +172,8 @@ export default function FocusTime() {
     await optimisticFocusTimeDelete(id);
   };
 
-  const handleSchedule = async (payload, blockMode) => {
-    const created = await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
-    if (created?.id && blockMode) setSessionMode(created.id, blockMode);
+  const handleSchedule = async (payload) => {
+    await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
   };
 
   const handleQuickStart = async (mins) => {
@@ -205,6 +233,47 @@ export default function FocusTime() {
             </div>
           </button>
 
+          <section className="mb-6">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ft_programmi')}</h2>
+            </div>
+            {schedules.length === 0 ? (
+              <button
+                onClick={() => setFormOpen(true)}
+                className="w-full rounded-2xl border border-dashed border-border p-4 text-left text-xs text-muted-foreground"
+              >
+                {t('ft_prog_vuoto')}
+              </button>
+            ) : (
+              <div className="space-y-2">
+                {schedules.map((s) => (
+                  <div key={s.id} className={`rounded-2xl border border-border bg-card p-4 ${s.schedule_active === false ? 'opacity-60' : ''}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{s.title}</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Clock size={11} />
+                          {describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}
+                          {s.block_mode && s.block_mode !== 'off' && <Lock size={11} />}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="rounded-lg p-2 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-2 text-[11px] text-muted-foreground">{t('ft_programmi_sub')}</p>
+          </section>
+
           {upcoming.length > 0 && (
             <section className="mb-6">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ft_prossime')}</h2>
@@ -250,21 +319,21 @@ export default function FocusTime() {
                       <span className="text-sm font-medium truncate block">{s.title}</span>
                       <span className="text-[10px] text-muted-foreground">{fmtWhen(s.scheduled_at)} · {s.actual_minutes ?? s.duration_minutes} min</span>
                     </div>
+                    <button
+                      onClick={() => handleRepeat(s)}
+                      className="shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold"
+                    >
+                      <Repeat size={12} /> {t('ft_ripeti')}
+                    </button>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {upcoming.length === 0 && past.length === 0 && (
+          {upcoming.length === 0 && past.length === 0 && schedules.length === 0 && (
             <div className="rounded-2xl border border-border bg-card p-8 text-center">
               <p className="text-sm text-muted-foreground mb-4">{t('ft_nessuna')}</p>
-              <button
-                onClick={() => setFormOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background"
-              >
-                <Plus size={16} /> {t('ft_programma')}
-              </button>
             </div>
           )}
 
@@ -311,7 +380,12 @@ export default function FocusTime() {
           session={timer.session}
           blockMode={timer.blockMode}
           onComplete={handleComplete}
-          onClose={() => { clearActiveFocus(); setTimer(null); }}
+          onClose={() => {
+            // Programma chiuso prima della fine: per oggi non riparte da solo.
+            if (timer.session?.is_recurring) dismissScheduleToday(timer.session.id);
+            clearActiveFocus();
+            setTimer(null);
+          }}
         />
       )}
 

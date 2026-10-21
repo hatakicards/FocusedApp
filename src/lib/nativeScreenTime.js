@@ -37,6 +37,20 @@ export const pickApps = ({ kind = 'block', title, done }) =>
 export const getSelectionCount = (kind = 'block') =>
   call(async () => (await FocusedScreenTime.getSelectionSummary({ kind })).count, 0);
 
+// Testo della schermata di blocco (estensione iOS FocusedShield): sogno tra virgolette,
+// sottotitolo e bottone. Va scritto prima di far partire il blocco.
+export const setShieldContent = ({ dream, subtitle, button }) =>
+  call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button }), null);
+
+// Tiene lo schermo acceso durante una sessione (UIApplication.isIdleTimerDisabled).
+export const setKeepAwake = (enabled) =>
+  call(() => FocusedScreenTime.setKeepAwake({ enabled: !!enabled }), null);
+
+// Programmi ricorrenti: l'estensione iOS li fa partire da soli anche ad app chiusa.
+// schedules: [{ id, days: [1..7, 1 = domenica], startHour, startMinute, endHour, endMinute, mode }]
+export const syncSchedules = (schedules) =>
+  call(() => FocusedScreenTime.syncSchedules({ schedules }), null);
+
 export async function startBlock(endAt, mode = 'selected') {
   if (!isScreenTimeSupported()) return { active: false };
   const attempt = async () => {
