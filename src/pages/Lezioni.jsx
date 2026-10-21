@@ -9,18 +9,13 @@ import { GRADE_SYSTEMS, formatGrade, formatGradeNumber, normalizeGrade } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import TutorialDialog from '@/components/TutorialDialog';
 import GradeSimulator from '@/components/lezioni/GradeSimulator';
-import SubjectThresholds from '@/components/lezioni/SubjectThresholds';
 import TestTimeline from '@/components/lezioni/TestTimeline';
-import RecoveryTasks from '@/components/lezioni/RecoveryTasks';
 import SubjectManagement from '@/components/lezioni/SubjectManagement';
-import HomeworkTab from '@/components/lezioni/HomeworkTab';
-import GradeGoals from '@/components/lezioni/GradeGoals';
-import StudyOrganizer from '@/components/lezioni/StudyOrganizer';
 import { GradeInput, resolveGrade } from '@/components/lezioni/GradeInput';
 import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
 import SubjectPicker from '@/components/lezioni/SubjectPicker';
 import TimetableTab from '@/components/lezioni/TimetableTab';
-import FocusyAssistant from '@/components/FocusyAssistant';
+import ReadingSection from '@/components/ReadingSection';
 import SubscriptionGate from '@/components/SubscriptionGate';
 
 export default function Lezioni() {
@@ -55,7 +50,6 @@ export default function Lezioni() {
   const [vGrade, setVGrade] = useState('');
   const [vSystem, setVSystem] = useState('scale10');
   const [materieOpen, setMaterieOpen] = useState(false);
-  const [askFocusy, setAskFocusy] = useState(false);
 
   if (!sub.canUseProfiles) {
     return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={GraduationCap} />;
@@ -173,7 +167,7 @@ export default function Lezioni() {
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Monitor size={22} className="text-blue-500" />
-          <h1 className="text-2xl font-bold tracking-tight">{t('msd_title')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t('personal_study')}</h1>
         </div>
         <button
           onClick={() => setMaterieOpen(true)}
@@ -184,7 +178,7 @@ export default function Lezioni() {
       </header>
 
       <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border overflow-x-auto scrollbar-hide">
-        {['voti', 'verifiche', 'compiti', 'orario', 'obiettivi', 'organizza', 'simulatore'].map((tabKey) => (
+        {['voti', 'verifiche', 'orario', 'libri', 'simulatore'].map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -204,11 +198,6 @@ export default function Lezioni() {
             </div>
           )}
 
-          {settings && (
-            <SubjectThresholds grades={allGrades} settings={settings} onSaved={invalidate} onManageSubjects={() => setMaterieOpen(true)} />
-          )}
-
-          <RecoveryTasks grades={allGrades} tasks={tasks} onCreated={invalidate} />
 
           <div className="rounded-2xl border border-border bg-card p-4 mb-6">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('ls_oggi')}</p>
@@ -451,33 +440,14 @@ export default function Lezioni() {
         </>
       )}
 
-      {tab === 'compiti' && (
-        <HomeworkTab subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} onOpenFocus={handleOpenFocus} />
-      )}
-
       {tab === 'orario' && (
         <TimetableTab subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} />
       )}
 
-      {tab === 'obiettivi' && (
-        <GradeGoals subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} grades={allGrades} verifiche={allVerifiche} />
-      )}
-
-      {tab === 'organizza' && (
-        <StudyOrganizer
-          grades={allGrades}
-          verifiche={allVerifiche}
-          onOpenFocus={handleOpenFocus}
-          onAskFocusy={() => setAskFocusy(true)}
-        />
-      )}
+      {tab === 'libri' && <ReadingSection />}
 
       {tab === 'simulatore' && (
         <GradeSimulator grades={allGrades} onManageSubjects={() => setMaterieOpen(true)} />
-      )}
-
-      {askFocusy && (
-        <FocusyAssistant defaultOpen initialPrompt={t('so_focusy_prompt')} />
       )}
 
       <SubjectManagement open={materieOpen} onClose={() => setMaterieOpen(false)} />

@@ -12,6 +12,7 @@ import FoodTracker from '@/components/bodyfuel/FoodTracker';
 import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
+import GymToday from '@/components/gym/GymToday';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import SubscriptionGate from '@/components/SubscriptionGate';
@@ -266,8 +267,10 @@ export default function BodyFuel() {
     <div className="px-5 safe-top pb-4">
       <header className="mb-6 flex items-center gap-2">
         <Flame size={22} className="text-red-500" />
-        <h1 className="text-2xl font-bold tracking-tight">{t('bf_titolo')}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t('personal_athlete')}</h1>
       </header>
+
+      <GymToday className="mb-6" />
 
       {/* Calorie plan (BMR/TDEE calculator) */}
       <button
