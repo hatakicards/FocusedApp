@@ -9,12 +9,11 @@ import {
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
 import TutorialDialog from '@/components/TutorialDialog';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
-import { todayISO, computeTaskStreak } from '@/lib/productivity';
+import { computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
 import PullToRefresh from '@/components/PullToRefresh';
 import TaskForm from '@/components/TaskForm';
-import AgendaCalendarView from '@/components/AgendaCalendarView';
-import AgendaDayView from '@/components/AgendaDayView';
+import OrganizeCalendar from '@/components/organize/OrganizeCalendar';
 import TaskRatingPrompt from '@/components/TaskRatingPrompt';
 import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
@@ -47,13 +46,11 @@ export default function Agenda() {
   const optimisticTaskArchive = useOptimisticTaskArchive();
   const { locale } = useI18n();
   const t = useT();
-  const today = todayISO();
   const isMobile = useIsMobile();
 
   const [formOpen, setFormOpen] = useState(false);
   const [rateTask, setRateTask] = useState(null);
   const [gymDialog, setGymDialog] = useState(null);
-  const [viewMode, setViewMode] = useState('giornata');
 
   const { data: tasks, isLoading: loadingTasks } = useTasks();
   const { celebrate, celebrationElement } = useTaskCelebration();
@@ -184,16 +181,12 @@ export default function Agenda() {
           </button>
         </header>
 
-        <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border">
-          <button onClick={() => setViewMode('giornata')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'giornata' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_giornata')}</button>
-          <button onClick={() => setViewMode('all')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'all' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_all')}</button>
-          <button onClick={() => setViewMode('calendario')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'calendario' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_calendario')}</button>
-        </div>
-
-        {viewMode === 'giornata' ? (
-          <AgendaDayView onAdd={() => setFormOpen(true)} onToggle={handleToggle} />
-        ) : viewMode === 'all' ? (
-          <>
+        <OrganizeCalendar
+          onToggle={handleToggle}
+          onArchive={handleArchive}
+          onSaveTask={handleSaveTask}
+          listView={(
+            <div>
         {todayGymSession && (
           <section className="mb-6">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -310,10 +303,9 @@ export default function Agenda() {
           </div>
         )}
 
-        </>
-      ) : (
-        <AgendaCalendarView />
-      )}
+            </div>
+          )}
+        />
 
         <TaskForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSaveTask} />
 

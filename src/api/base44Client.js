@@ -469,8 +469,8 @@ async function SendEmail({ to, subject, body }) {
   return data;
 }
 
-async function InvokeLLM({ prompt, model, response_json_schema }) {
-  const { data } = await invoke('invoke-llm', { prompt, model, response_json_schema });
+async function InvokeLLM({ prompt, model, response_json_schema, max_output_tokens }) {
+  const { data } = await invoke('invoke-llm', { prompt, model, response_json_schema, max_output_tokens });
   return data;
 }
 

@@ -589,7 +589,10 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       const sensedSection = sensed
         ? `=== ATTIVITA' RILEVATE DA SALUTE/MOVIMENTO (ultimi 14 giorni, dal telefono dell'utente) ===\n${sensed}\nUsale per commentare la costanza (es. quante volte si e' allenato questa settimana) e per confrontarle con la scheda e con quello che l'utente dice: se afferma di aver fatto qualcosa che qui non risulta, faglielo notare con gentilezza e senza accusarlo.`
         : '';
-      const prompt = `${context}\n\n${foodSection}\n\n${timetableSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
+      const memorySection = settings?.focusy_memory
+        ? `=== COSA RICORDI DELL'UTENTE (detto da lui in precedenza) ===\n${settings.focusy_memory}\nTienilo presente nei consigli senza ripeterlo a ogni risposta.`
+        : '';
+      const prompt = `${context}\n\n${memorySection}\n\n${foodSection}\n\n${timetableSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
