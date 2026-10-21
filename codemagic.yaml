@@ -97,6 +97,8 @@ workflows:
           cp ios/certs/FocusedShieldAction.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedShieldAction.mobileprovision
           # Estensione che fa partire i programmi ricorrenti (org.focusedapp.app.monitor).
           cp ios/certs/FocusedMonitor.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedMonitor.mobileprovision
+          # Estensione che mostra il tempo di utilizzo (org.focusedapp.app.report).
+          cp ios/certs/FocusedReport.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedReport.mobileprovision
           echo "=== Profili installati ==="
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
           xcode-project use-profiles

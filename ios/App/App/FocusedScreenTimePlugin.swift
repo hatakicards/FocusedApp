@@ -37,6 +37,8 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setShieldContent", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "syncSchedules", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setKeepAwake", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "hasUsageReport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "showUsageReport", returnType: CAPPluginReturnPromise),
     ]
 
     static let appGroupId = "group.org.focusedapp.app"
@@ -134,6 +136,26 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         defaults?.set(call.getString("subtitle") ?? "", forKey: "shield_subtitle")
         defaults?.set(call.getString("button") ?? "", forKey: "shield_button")
         call.resolve()
+    }
+
+    // MARK: - Tempo di utilizzo (estensione FocusedReport)
+
+    @objc func hasUsageReport(_ call: CAPPluginCall) {
+        call.resolve(["available": true])
+    }
+
+    // Apre a schermo la vista di sistema con il tempo di utilizzo di oggi: iOS non passa il
+    // numero all'app, lo mostra solo l'estensione.
+    @objc func showUsageReport(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let top = self.bridge?.viewController else {
+                call.reject("no_view_controller")
+                return
+            }
+            let host = UIHostingController(rootView: UsageReportSheet())
+            top.present(host, animated: true)
+            call.resolve()
+        }
     }
 
     // MARK: - Schermo sempre acceso
@@ -317,5 +339,25 @@ private struct FamilyActivityPickerHost: View {
                 })
                 .onDisappear { onDone(nil) }
         }
+    }
+}
+
+@available(iOS 16.0, *)
+extension DeviceActivityReport.Context {
+    static let totalActivity = Self("Total Activity")
+}
+
+@available(iOS 16.0, *)
+private struct UsageReportSheet: View {
+    var body: some View {
+        let start = Calendar.current.startOfDay(for: Date())
+        DeviceActivityReport(
+            .totalActivity,
+            filter: DeviceActivityFilter(
+                segment: .daily(during: DateInterval(start: start, end: Date())),
+                users: .all,
+                devices: .init([.iPhone, .iPad])
+            )
+        )
     }
 }
