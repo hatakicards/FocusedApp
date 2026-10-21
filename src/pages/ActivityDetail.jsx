@@ -112,7 +112,7 @@ export default function ActivityDetail() {
   const handleDeleteActivity = () => {
     setDeleteConfirmOpen(false);
     optimisticDeleteActivity(activity.id).catch(console.error);
-    navigate('/abitudini');
+    navigate('/home');
   };
 
   return (

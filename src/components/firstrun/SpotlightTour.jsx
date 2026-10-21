@@ -20,7 +20,6 @@ export default function SpotlightTour({ onDone }) {
   useEffect(() => {
     const defs = [
       { id: 'oggi', locked: false },
-      { id: 'abitudini', locked: false },
       { id: 'agenda', locked: false },
       { id: 'focus', locked: false },
       { id: 'obiettivi', locked: !sub.canUseRankings },

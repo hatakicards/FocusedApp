@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import AppLayout from '@/components/AppLayout';
 import Oggi from '@/pages/Oggi';
-import Abitudini from '@/pages/Abitudini';
 import ActivityDetail from '@/pages/ActivityDetail';
 import ObiettiviRanking from '@/pages/ObiettiviRanking';
 import Agenda from '@/pages/Agenda';
@@ -74,10 +73,10 @@ const AuthenticatedApp = () => {
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
       <Route element={<AppLayout />}>
         <Route path="/home" element={<Oggi />} />
-        <Route path="/abitudini" element={<Abitudini />} />
+        <Route path="/abitudini" element={<Navigate to="/home" replace />} />
         <Route path="/attivita/:id" element={<ActivityDetail />} />
-        <Route path="/attivita" element={<Navigate to="/abitudini" replace />} />
-        <Route path="/riepilogo" element={<Navigate to="/abitudini" replace />} />
+        <Route path="/attivita" element={<Navigate to="/home" replace />} />
+        <Route path="/riepilogo" element={<Navigate to="/home" replace />} />
         <Route path="/obiettivi" element={<ObiettiviRanking />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/focus" element={<FocusTime />} />

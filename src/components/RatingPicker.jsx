@@ -3,15 +3,16 @@ import { RATING_COLORS } from '@/lib/constants';
 import { useT } from '@/lib/i18n';
 
 const SIZES = {
+  xs: 'h-8 w-8 text-xs',
   sm: 'h-9 w-9 text-sm',
   md: 'h-11 w-11 text-base',
   lg: 'h-12 w-12 text-lg',
 };
 
-export default function RatingPicker({ value, onChange, size = 'md', disabled = false }) {
+export default function RatingPicker({ value, onChange, size = 'md', disabled = false, fill = false }) {
   const t = useT();
   return (
-    <div className="flex gap-2.5">
+    <div className={fill ? 'flex w-full justify-between' : 'flex gap-2.5'}>
       {[1, 2, 3, 4, 5].map((n) => {
         const isSelected = value === n;
         const color = RATING_COLORS[n];

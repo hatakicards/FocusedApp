@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, BarChart3, Target, ListTodo, Flame, GraduationCap, Briefcase, Lock, Clock } from 'lucide-react';
+import { Home, Target, ListTodo, Flame, GraduationCap, Briefcase, Lock, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { useUserSettings, useSubscription } from '@/lib/useAppData';
@@ -29,7 +29,6 @@ export default function BottomNav() {
 
   const tabs = [
     { to: '/home', key: 'oggi', icon: Home, end: true },
-    { to: '/abitudini', key: 'abitudini', icon: BarChart3, end: false },
     { to: '/agenda', key: 'agenda', icon: ListTodo, end: false },
     { to: '/focus', key: 'focus', icon: Clock, end: false },
     { to: '/obiettivi', key: 'obiettivi', icon: Target, end: false, locked: !sub.canUseRankings },
