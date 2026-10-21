@@ -95,6 +95,8 @@ workflows:
           # i profili vanno creati nel portale Apple e messi in ios/certs/.
           cp ios/certs/FocusedShield.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedShield.mobileprovision
           cp ios/certs/FocusedShieldAction.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedShieldAction.mobileprovision
+          # Estensione che fa partire i programmi ricorrenti (org.focusedapp.app.monitor).
+          cp ios/certs/FocusedMonitor.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/FocusedMonitor.mobileprovision
           echo "=== Profili installati ==="
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
           xcode-project use-profiles

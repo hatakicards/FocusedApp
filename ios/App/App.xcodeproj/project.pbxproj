@@ -28,6 +28,8 @@
 		FCCC00000000000000000012 /* ShieldLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = FCCC00000000000000000011 /* ShieldLogo.png */; };
 		FCDD00000000000000000005 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDD00000000000000000004 /* ShieldActionExtension.swift */; };
 		FCDD00000000000000000010 /* FocusedShieldAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FCDD00000000000000000001 /* FocusedShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FCEE00000000000000000005 /* FocusedMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCEE00000000000000000004 /* FocusedMonitorExtension.swift */; };
+		FCEE00000000000000000010 /* FocusedMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FCEE00000000000000000001 /* FocusedMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +54,13 @@
 			remoteGlobalIDString = FCDD00000000000000000003;
 			remoteInfo = FocusedShieldAction;
 		};
+		FCEE0000000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FCEE00000000000000000003;
+			remoteInfo = FocusedMonitor;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -62,6 +71,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				FCAA00000000000000000011 /* FocusedWidget.appex in Embed Foundation Extensions */,
+				FCEE00000000000000000010 /* FocusedMonitor.appex in Embed Foundation Extensions */,
 				FCDD00000000000000000010 /* FocusedShieldAction.appex in Embed Foundation Extensions */,
 				FCCC00000000000000000010 /* FocusedShield.appex in Embed Foundation Extensions */,
 			);
@@ -100,6 +110,10 @@
 		FCDD00000000000000000004 /* ShieldActionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldActionExtension.swift; sourceTree = "<group>"; };
 		FCDD00000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCDD00000000000000000007 /* FocusedShieldAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedShieldAction.entitlements; sourceTree = "<group>"; };
+		FCEE00000000000000000001 /* FocusedMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FocusedMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCEE00000000000000000004 /* FocusedMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedMonitorExtension.swift; sourceTree = "<group>"; };
+		FCEE00000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FCEE00000000000000000007 /* FocusedMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedMonitor.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +146,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCEE00000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -143,6 +164,7 @@
 				FCAA00000000000000000002 /* FocusedWidget */,
 				FCCC00000000000000000002 /* FocusedShield */,
 				FCDD00000000000000000002 /* FocusedShieldAction */,
+				FCEE00000000000000000002 /* FocusedMonitor */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -154,6 +176,7 @@
 				FCAA00000000000000000001 /* FocusedWidget.appex */,
 				FCCC00000000000000000001 /* FocusedShield.appex */,
 				FCDD00000000000000000001 /* FocusedShieldAction.appex */,
+				FCEE00000000000000000001 /* FocusedMonitor.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -210,6 +233,16 @@
 			path = FocusedShieldAction;
 			sourceTree = "<group>";
 		};
+		FCEE00000000000000000002 /* FocusedMonitor */ = {
+			isa = PBXGroup;
+			children = (
+				FCEE00000000000000000004 /* FocusedMonitorExtension.swift */,
+				FCEE00000000000000000006 /* Info.plist */,
+				FCEE00000000000000000007 /* FocusedMonitor.entitlements */,
+			);
+			path = FocusedMonitor;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -226,6 +259,7 @@
 			);
 			dependencies = (
 				FCAA0000000000000000000E /* PBXTargetDependency */,
+				FCEE0000000000000000000E /* PBXTargetDependency */,
 				FCDD0000000000000000000E /* PBXTargetDependency */,
 				FCCC0000000000000000000E /* PBXTargetDependency */,
 			);
@@ -288,6 +322,23 @@
 			productReference = FCDD00000000000000000001 /* FocusedShieldAction.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		FCEE00000000000000000003 /* FocusedMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FCEE0000000000000000000D /* Build configuration list for PBXNativeTarget "FocusedMonitor" */;
+			buildPhases = (
+				FCEE0000000000000000000A /* Sources */,
+				FCEE00000000000000000008 /* Frameworks */,
+				FCEE00000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FocusedMonitor;
+			productName = FocusedMonitor;
+			productReference = FCEE00000000000000000001 /* FocusedMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -303,6 +354,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					FCAA00000000000000000003 = {
+						CreatedOnToolsVersion = 15.0;
+						ProvisioningStyle = Automatic;
+					};
+					FCEE00000000000000000003 = {
 						CreatedOnToolsVersion = 15.0;
 						ProvisioningStyle = Automatic;
 					};
@@ -336,6 +391,7 @@
 				FCAA00000000000000000003 /* FocusedWidget */,
 				FCCC00000000000000000003 /* FocusedShield */,
 				FCDD00000000000000000003 /* FocusedShieldAction */,
+				FCEE00000000000000000003 /* FocusedMonitor */,
 			);
 		};
 /* End PBXProject section */
@@ -371,6 +427,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		FCDD00000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCEE00000000000000000009 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -417,6 +480,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCEE0000000000000000000A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCEE00000000000000000005 /* FocusedMonitorExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -434,6 +505,11 @@
 			isa = PBXTargetDependency;
 			target = FCDD00000000000000000003 /* FocusedShieldAction */;
 			targetProxy = FCDD0000000000000000000F /* PBXContainerItemProxy */;
+		};
+		FCEE0000000000000000000E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FCEE00000000000000000003 /* FocusedMonitor */;
+			targetProxy = FCEE0000000000000000000F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -789,6 +865,65 @@
 			};
 			name = Release;
 		};
+		FCEE0000000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_ENTITLEMENTS = FocusedMonitor/FocusedMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FocusedMonitor/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = org.focusedapp.app.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		FCEE0000000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_ENTITLEMENTS = FocusedMonitor/FocusedMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FocusedMonitor/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1;
+				PRODUCT_BUNDLE_IDENTIFIER = org.focusedapp.app.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -833,6 +968,15 @@
 			buildConfigurations = (
 				FCDD0000000000000000000B /* Debug */,
 				FCDD0000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FCEE0000000000000000000D /* Build configuration list for PBXNativeTarget "FocusedMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FCEE0000000000000000000B /* Debug */,
+				FCEE0000000000000000000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
