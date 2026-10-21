@@ -19,6 +19,7 @@ import PremiumModal from '@/components/PremiumModal';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import PullToRefresh from '@/components/PullToRefresh';
 import TutorialDialog from '@/components/TutorialDialog';
+import StreakCard from '@/components/StreakCard';
 
 export default function Oggi() {
   const isMobile = useIsMobile();
@@ -139,6 +140,8 @@ export default function Oggi() {
           <FocusyAssistant inline />
         </div>
       )}
+
+      <StreakCard className="mb-4" />
 
       {/* === Selezione profilo === */}
       <div className="mb-4">

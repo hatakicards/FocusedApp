@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
 import { useActivities, useGymSessions, useSubscription } from '@/lib/useAppData';
 import { getRecentEvents, typicalHour } from '@/lib/healthSense';
+import { useAppStreak } from '@/lib/appStreak';
 
 // Promemoria serale: una notifica locale all'orario scelto dall'utente. iOS non
 // permette di condizionare una notifica ripetuta, quindi se ne programmano le
@@ -37,7 +38,24 @@ async function cancelAll(LN) {
   });
 }
 
-export async function syncDailyReminder({ enabled, time, ratedToday, title, body }) {
+// Permesso notifiche: sul telefono tramite il plugin nativo, sul web con l'API del browser.
+// Restituisce true se concesso. Si chiama dopo aver spiegato all'utente a cosa servono.
+export async function requestNotificationPermission() {
+  const LN = await loadPlugin();
+  if (LN) {
+    try { return await ensurePermission(LN); } catch { return false; }
+  }
+  if (typeof Notification === 'undefined') return false;
+  try {
+    if (Notification.permission === 'default') await Notification.requestPermission();
+    return Notification.permission === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+// messages: elenco di { title, body } che ruotano un giorno dopo l'altro; se manca, si usa title/body.
+export async function syncDailyReminder({ enabled, time, ratedToday, title, body, messages }) {
   const LN = await loadPlugin();
   if (!LN) return;
   try {
@@ -56,10 +74,11 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
       at.setHours(hour, minute, 0, 0);
       if (at.getTime() <= now + 5000) continue;
       if (i === 0 && ratedToday) continue;
+      const m = messages?.length ? messages[(at.getDate() + at.getMonth()) % messages.length] : { title, body };
       notifications.push({
         id: BASE_ID + i,
-        title,
-        body,
+        title: m.title,
+        body: m.body,
         schedule: { at, allowWhileIdle: true },
       });
     }
@@ -78,11 +97,21 @@ export function useDailyReminder(settings, ratings) {
   const ready = !!settings && ratings !== undefined;
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const ratedToday = (ratings || []).some((r) => r.date === todayKey);
+  const { streak, doneToday } = useAppStreak();
+  const dream = (settings?.dream || '').trim();
+
+  // Messaggi che cambiano di giorno in giorno e parlano di te (serie, sogno, Focus Time):
+  // una notifica sempre uguale smette di essere letta dopo tre giorni.
+  const nudgeStreak = streak > 0 && !doneToday ? t('nudge_streak').replace('{n}', String(streak)) : '';
+  const nudgeDream = dream ? t('nudge_dream').replace('{dream}', dream.length > 60 ? `${dream.slice(0, 57)}...` : dream) : '';
+  const nudgeFocus = t('nudge_focus');
+  const messagesKey = [title, body, nudgeStreak, nudgeDream, nudgeFocus].join('|');
 
   useEffect(() => {
     if (!ready) return;
-    syncDailyReminder({ enabled, time, ratedToday, title, body });
-  }, [ready, enabled, time, ratedToday, title, body]);
+    const messages = [body, nudgeStreak, nudgeDream, nudgeFocus].filter(Boolean).map((b) => ({ title, body: b }));
+    syncDailyReminder({ enabled, time, ratedToday, title, body, messages });
+  }, [ready, enabled, time, ratedToday, messagesKey]);
 }
 
 // Notifica di fine sessione Focus Time: serve quando l'utente esce da Focused per

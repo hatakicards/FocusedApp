@@ -192,6 +192,15 @@ export default function FocusTime() {
     handleStart(created, quickMode);
   };
 
+  // Primo Focus Time guidato (dal primo avvio): parte subito con la durata scelta.
+  const autoStartRef = useRef(false);
+  useEffect(() => {
+    const mins = location.state?.autoStartMinutes;
+    if (!mins || autoStartRef.current) return;
+    autoStartRef.current = true;
+    handleQuickStart(mins);
+  }, []);
+
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>

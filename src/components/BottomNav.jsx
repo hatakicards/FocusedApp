@@ -68,6 +68,7 @@ export default function BottomNav() {
           return (
             <button
               key={to}
+              data-tour={key}
               onClick={() => handleClick(tab)}
               className={cn(
                 'relative flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1 transition-colors min-w-0',
