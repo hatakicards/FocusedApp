@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, Clock, Plus } from 'lucide-react';
 import { useOptimisticTaskSave, useInvalidateAll } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-export default function WorkspaceAddItem({ open, onClose }) {
+export default function WorkspaceAddItem({ open, onClose, defaultType = 'riunione' }) {
   const t = useT();
   const optimisticSave = useOptimisticTaskSave();
   const invalidate = useInvalidateAll();
@@ -14,6 +14,9 @@ export default function WorkspaceAddItem({ open, onClose }) {
   const [date, setDate] = useState('');
   const [earnings, setEarnings] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Dai due pulsanti di Businesses il tipo arriva gia' scelto (riunione o scadenza).
+  useEffect(() => { if (open) setItemType(defaultType); }, [open, defaultType]);
 
   const reset = () => {
     setItemType('riunione');

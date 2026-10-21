@@ -162,10 +162,11 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         var registered = 0
         for item in call.getArray("schedules", JSObject.self) ?? [] {
             guard let id = item["id"] as? String,
-                  let days = item["days"] as? [Int],
+                  let rawDays = item["days"] as? [Any],
                   let sh = item["startHour"] as? Int, let sm = item["startMinute"] as? Int,
                   let eh = item["endHour"] as? Int, let em = item["endMinute"] as? Int else { continue }
             let mode = (item["mode"] as? String) ?? "selected"
+            let days = rawDays.compactMap { ($0 as? NSNumber)?.intValue }
             for day in days {
                 let name = DeviceActivityName("focus.\(id).\(day)")
                 let schedule = DeviceActivitySchedule(

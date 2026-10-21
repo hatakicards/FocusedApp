@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2, Focus, Check, Clock, Bell, Sparkles, Repeat, Lock } from 'lucide-react';
+import { Plus, Play, Trash2, Check, Clock, Bell, Repeat, Lock } from 'lucide-react';
 import {
   useFocusSessions,
   useHomeworks,
@@ -17,8 +17,8 @@ import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
 import { saveActiveFocus, loadActiveFocus, clearActiveFocus } from '@/lib/activeFocus';
 import FocusStats from '@/components/FocusStats';
-import FocusyAssistant from '@/components/FocusyAssistant';
-import GymStartCard from '@/components/gym/GymStartCard';
+import PhoneTimeSection from '@/components/PhoneTimeSection';
+import UsageReportCard from '@/components/UsageReportCard';
 import FocusBlockCard from '@/components/FocusBlockCard';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
 import {
@@ -45,10 +45,10 @@ export default function FocusTime() {
   const t = useT();
   const location = useLocation();
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [quickPick, setQuickPick] = useState(false);
   const [timer, setTimer] = useState(null);
   const [prefillHomework, setPrefillHomework] = useState(null);
-  const [askFocusy, setAskFocusy] = useState(false);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
   const [quickMinutes, setQuickMinutes] = useState(25);
   const prefillHandledRef = useRef(false);
@@ -173,7 +173,8 @@ export default function FocusTime() {
   };
 
   const handleSchedule = async (payload) => {
-    await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
+    if (editing?.id) await optimisticFocusTimeUpdate(editing.id, payload);
+    else await optimisticFocusTimeSave(null, { ...payload, status: 'scheduled' });
   };
 
   const handleQuickStart = async (mins) => {
@@ -192,46 +193,46 @@ export default function FocusTime() {
     handleStart(created, quickMode);
   };
 
+  // Primo Focus Time guidato (dal primo avvio): parte subito con la durata scelta.
+  const autoStartRef = useRef(false);
+  useEffect(() => {
+    const mins = location.state?.autoStartMinutes;
+    if (!mins || autoStartRef.current) return;
+    autoStartRef.current = true;
+    handleQuickStart(mins);
+  }, []);
+
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>
         <div className="px-5 safe-top pb-4">
-          <header className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight">{t('oggi_focus')}</h1>
-            <button
-              onClick={() => setFormOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background"
-            >
-              <Plus size={16} /> {t('ft_programma')}
-            </button>
+          <header className="mb-5">
+            <h1 className="text-2xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>
+
+          <UsageReportCard className="mb-3" />
+          <PhoneTimeSection />
+
+          <div className="mb-3 grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => setQuickPick(true)}
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-foreground px-3 py-4 text-center text-background active:scale-[0.98] transition-transform"
+            >
+              <Play size={20} />
+              <span className="text-xs font-semibold leading-tight">{t('ft_avvia')}</span>
+            </button>
+            <button
+              onClick={() => { setEditing(null); setFormOpen(true); }}
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-4 text-center active:scale-[0.98] transition-transform"
+            >
+              <Plus size={20} />
+              <span className="text-xs font-semibold leading-tight">{t('opt_program_session')}</span>
+            </button>
+          </div>
 
           <FocusStats sessions={sessions} />
 
-          <button
-            onClick={() => setQuickPick(true)}
-            className="w-full rounded-2xl border border-border bg-card p-4 flex items-center justify-between mb-3 active:scale-[0.98] transition-transform"
-          >
-            <div className="flex items-center gap-2">
-              <Focus size={18} />
-              <span className="text-sm font-semibold">{t('ft_avvia')}</span>
-            </div>
-            <Play size={18} className="text-muted-foreground" />
-          </button>
-
-          <GymStartCard className="mb-3" />
-
-          <FocusBlockCard className="mb-3" />
-
-          <button
-            onClick={() => setAskFocusy(true)}
-            className="w-full rounded-2xl border border-border bg-card p-4 flex items-center justify-between mb-6 active:scale-[0.98] transition-transform"
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles size={18} />
-              <span className="text-sm font-semibold">{t('ft_chiedi_focusy')}</span>
-            </div>
-          </button>
+          <FocusBlockCard className="mb-6" />
 
           <section className="mb-6">
             <div className="mb-2 flex items-center justify-between">
@@ -239,7 +240,7 @@ export default function FocusTime() {
             </div>
             {schedules.length === 0 ? (
               <button
-                onClick={() => setFormOpen(true)}
+                onClick={() => { setEditing(null); setFormOpen(true); }}
                 className="w-full rounded-2xl border border-dashed border-border p-4 text-left text-xs text-muted-foreground"
               >
                 {t('ft_prog_vuoto')}
@@ -249,14 +250,14 @@ export default function FocusTime() {
                 {schedules.map((s) => (
                   <div key={s.id} className={`rounded-2xl border border-border bg-card p-4 ${s.schedule_active === false ? 'opacity-60' : ''}`}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
+                      <button onClick={() => { setEditing(s); setFormOpen(true); }} className="min-w-0 text-left">
                         <span className="block truncate text-sm font-semibold">{s.title}</span>
                         <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <Clock size={11} />
                           {describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}
                           {s.block_mode && s.block_mode !== 'off' && <Lock size={11} />}
                         </span>
-                      </div>
+                      </button>
                       <div className="flex shrink-0 items-center gap-2">
                         <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
                         <button
@@ -337,7 +338,7 @@ export default function FocusTime() {
             </div>
           )}
 
-          <FocusScheduleForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSchedule} />
+          <FocusScheduleForm open={formOpen} schedule={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSaved={handleSchedule} />
         </div>
       </PullToRefresh>
 
@@ -387,10 +388,6 @@ export default function FocusTime() {
             setTimer(null);
           }}
         />
-      )}
-
-      {askFocusy && (
-        <FocusyAssistant defaultOpen initialPrompt={t('ft_focusy_prompt')} />
       )}
 
       <TutorialDialog pageId="focus" />

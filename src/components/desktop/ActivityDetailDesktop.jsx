@@ -88,7 +88,7 @@ export default function ActivityDetailDesktop() {
   const handleDeleteActivity = () => {
     setDeleteConfirmOpen(false);
     optimisticDeleteActivity(activity.id).catch(console.error);
-    navigate('/abitudini');
+    navigate('/home');
   };
 
   return (

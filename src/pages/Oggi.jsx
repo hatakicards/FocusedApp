@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ListChecks, CalendarClock, Gift, Lightbulb, Megaphone, Settings, ChevronRight } from 'lucide-react';
+import { Check, Gift, Lightbulb, Megaphone, Settings, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { isRevenueCatAvailable } from '@/lib/revenueCat';
 import {
@@ -19,6 +19,10 @@ import PremiumModal from '@/components/PremiumModal';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import PullToRefresh from '@/components/PullToRefresh';
 import TutorialDialog from '@/components/TutorialDialog';
+import StreakCard from '@/components/StreakCard';
+import TodayActivities from '@/components/today/TodayActivities';
+import GreatDayCelebration from '@/components/GreatDayCelebration';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function Oggi() {
   const isMobile = useIsMobile();
@@ -29,6 +33,9 @@ export default function Oggi() {
   const { data: settings } = useUserSettings();
   const sub = useSubscription();
   const optimisticDayEntry = useOptimisticDayEntry();
+  const { user } = useAuth();
+  const firstName = (user?.full_name || '').trim().split(' ')[0];
+  const [celebrate, setCelebrate] = useState(0);
 
   const [showPremium, setShowPremium] = useState(false);
   const [rating, setRating] = useState(0);
@@ -37,8 +44,6 @@ export default function Oggi() {
 
   const today = todayISO();
   const todayEntry = (dayEntries || []).find((e) => e.date === today);
-  const profileType = settings?.profile_type || 'base';
-  const questionKey = `oggi_q_${profileType}`;
 
   useEffect(() => {
     if (todayEntry) setRating(todayEntry.day_rating || 0);
@@ -49,6 +54,7 @@ export default function Oggi() {
     setSaving(true);
     try {
       await optimisticDayEntry(todayEntry, today, rating, '');
+      if (rating >= 4) setCelebrate(rating);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
@@ -83,7 +89,7 @@ export default function Oggi() {
         </div>
         <div className="absolute inset-0 flex flex-col px-4 pt-10 pb-4">
           <h1 className="text-xl font-bold tracking-tight text-center text-white leading-tight px-2">
-            {t(questionKey)}
+            {firstName ? t('today_hello').replace('{name}', firstName) : t('today_hello_anon')}
           </h1>
 
           <div className="flex-1" />
@@ -106,30 +112,18 @@ export default function Oggi() {
               )}
             </button>
           </div>
-
-          {/* === Azioni rapide, ai piedi della statua === */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => navigate('/abitudini')}
-              className="rounded-2xl bg-black/50 backdrop-blur-md border border-white/10 py-4 px-2 flex flex-col items-center gap-2 text-center text-white hover:bg-black/60 transition-colors"
-            >
-              <ListChecks size={20} />
-              <span className="text-xs font-semibold">{t('home_valuta_abitudini')}</span>
-            </button>
-            <button
-              onClick={() => navigate('/agenda')}
-              className="rounded-2xl bg-black/50 backdrop-blur-md border border-white/10 py-4 px-2 flex flex-col items-center gap-2 text-center text-white hover:bg-black/60 transition-colors"
-            >
-              <CalendarClock size={20} />
-              <span className="text-xs font-semibold">{t('home_organizza_giornata')}</span>
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* === Attivita' (ex Abitudini), compatte === */}
+      <div className="relative z-10 mt-2 mb-6 space-y-4">
+        <StreakCard />
+        <TodayActivities />
       </div>
 
       {/* === Chat con Focusy: sale a coprire la base della statua, niente taglio netto === */}
       {isMobile ? (
-        <div className="relative z-10 -mt-10 mb-6" style={{ width: '100vw', marginLeft: '-20px' }}>
+        <div className="relative z-10 mb-6" style={{ width: '100vw', marginLeft: '-20px' }}>
           <div className="rounded-t-3xl border border-border bg-card overflow-hidden h-[380px]">
             <FocusyAssistant inline />
           </div>
@@ -193,6 +187,7 @@ export default function Oggi() {
         <ChevronRight size={18} className="text-muted-foreground" />
       </button>
     </div>
+    <GreatDayCelebration rating={celebrate} onClose={() => setCelebrate(0)} />
     <TutorialDialog pageId="oggi" />
     </PullToRefresh>
   );

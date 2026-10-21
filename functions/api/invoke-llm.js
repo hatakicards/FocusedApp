@@ -12,10 +12,10 @@ export async function onRequestPost({ request, env }) {
     const user = await getUserFromRequest(request, supabaseAdmin);
     if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const { prompt, response_json_schema } = await request.json();
+    const { prompt, response_json_schema, max_output_tokens } = await request.json();
     if (!prompt) return jsonResponse({ error: 'missing prompt' }, 400);
 
-    const result = await callGroq({ env, prompt, responseJsonSchema: response_json_schema });
+    const result = await callGroq({ env, prompt, responseJsonSchema: response_json_schema, maxOutputTokens: Math.min(Number(max_output_tokens) || 900, 2500) });
 
     if (!result.ok) {
       if (result.status === 500) return jsonResponse({ error: result.errText }, 500);

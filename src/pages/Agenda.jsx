@@ -9,11 +9,11 @@ import {
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
 import TutorialDialog from '@/components/TutorialDialog';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
-import { todayISO, computeTaskStreak } from '@/lib/productivity';
+import { computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
 import PullToRefresh from '@/components/PullToRefresh';
 import TaskForm from '@/components/TaskForm';
-import AgendaCalendarView from '@/components/AgendaCalendarView';
+import OrganizeCalendar from '@/components/organize/OrganizeCalendar';
 import TaskRatingPrompt from '@/components/TaskRatingPrompt';
 import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
@@ -46,13 +46,11 @@ export default function Agenda() {
   const optimisticTaskArchive = useOptimisticTaskArchive();
   const { locale } = useI18n();
   const t = useT();
-  const today = todayISO();
   const isMobile = useIsMobile();
 
   const [formOpen, setFormOpen] = useState(false);
   const [rateTask, setRateTask] = useState(null);
   const [gymDialog, setGymDialog] = useState(null);
-  const [viewMode, setViewMode] = useState('all');
 
   const { data: tasks, isLoading: loadingTasks } = useTasks();
   const { celebrate, celebrationElement } = useTaskCelebration();
@@ -157,7 +155,9 @@ export default function Agenda() {
     );
   };
 
-  const byType = (type) => activeTasks.filter((task) => task.type === type);
+  // Dentro ogni gruppo: prima per data, poi per orario (le cose senza data in fondo).
+  const byWhen = (a, b) => `${a.due_date || '9999'} ${a.due_time || '99:99'}`.localeCompare(`${b.due_date || '9999'} ${b.due_time || '99:99'}`);
+  const byType = (type) => activeTasks.filter((task) => task.type === type).sort(byWhen);
 
   if (!isMobile) {
     return (
@@ -181,13 +181,12 @@ export default function Agenda() {
           </button>
         </header>
 
-        <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border">
-          <button onClick={() => setViewMode('all')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'all' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_all')}</button>
-          <button onClick={() => setViewMode('calendario')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'calendario' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_calendario')}</button>
-        </div>
-
-        {viewMode === 'all' ? (
-          <>
+        <OrganizeCalendar
+          onToggle={handleToggle}
+          onArchive={handleArchive}
+          onSaveTask={handleSaveTask}
+          listView={(
+            <div>
         {todayGymSession && (
           <section className="mb-6">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -304,10 +303,9 @@ export default function Agenda() {
           </div>
         )}
 
-        </>
-      ) : (
-        <AgendaCalendarView />
-      )}
+            </div>
+          )}
+        />
 
         <TaskForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSaveTask} />
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -15,7 +15,7 @@ const WORKDAYS = [1, 2, 3, 4, 5];
 
 // Programma ricorrente: "ogni giovedi' dalle 15:00 alle 18:00". Nel periodo scelto il
 // blocco parte da solo, senza dover aprire l'app.
-export default function FocusScheduleForm({ open, onClose, onSaved }) {
+export default function FocusScheduleForm({ open, onClose, onSaved, schedule }) {
   const t = useT();
   const { locale } = useI18n();
   const [title, setTitle] = useState('');
@@ -31,6 +31,21 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
 
   const windowOk = isValidWindow(start, end);
   const daysOk = days.length > 0;
+
+  // Modifica di un programma esistente: i campi partono dai suoi valori.
+  useEffect(() => {
+    if (!open) return;
+    if (schedule) {
+      setTitle(schedule.title || '');
+      setDays(schedule.repeat_days || WORKDAYS);
+      setStart(schedule.start_time || '09:00');
+      setEnd(schedule.end_time || '12:00');
+      setBlockMode(schedule.block_mode && schedule.block_mode !== 'off' ? schedule.block_mode : 'selected');
+    } else {
+      setTitle(''); setDays(WORKDAYS); setStart('09:00'); setEnd('12:00');
+    }
+    setTouched(false);
+  }, [open, schedule]);
 
   const reset = () => {
     setTitle(''); setDays(WORKDAYS); setStart('09:00'); setEnd('12:00'); setTouched(false);
@@ -63,7 +78,7 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('ft_progr_nuovo')}</DialogTitle>
+          <DialogTitle>{schedule ? t('opt_modifica_programma') : t('ft_progr_nuovo')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
@@ -121,7 +136,7 @@ export default function FocusScheduleForm({ open, onClose, onSaved }) {
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>{t('annulla')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? t('salvataggio') : t('ft_programma')}
+            {saving ? t('salvataggio') : schedule ? t('opt_salva') : t('ft_programma')}
           </Button>
         </DialogFooter>
       </DialogContent>

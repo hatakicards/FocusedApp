@@ -114,6 +114,8 @@ export default function Welcome() {
       console.error('Error setting onboarded:', e);
     }
     localStorage.removeItem(STORAGE_KEY);
+    // Il primo avvio guidato parte appena si entra nell'app (AppLayout -> FirstRunFlow).
+    try { localStorage.setItem('first_run_pending', '1'); } catch { /* ignore */ }
 
     if (choice === 'free') {
       navigate(safeReturnTo(), { replace: true });

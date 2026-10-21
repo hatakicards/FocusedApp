@@ -23,6 +23,8 @@ import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
 import { loadActiveFocus } from '@/lib/activeFocus';
 import { useFocusScheduler } from '@/lib/useFocusScheduler';
+import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
+import { TUTORIALS } from '@/lib/tutorials';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
 
@@ -37,6 +39,15 @@ export default function AppLayout() {
   const [trialExpiredModal, setTrialExpiredModal] = useState(false);
   const [focusyOpen, setFocusyOpen] = useState(false);
   const [holdToTalk, setHoldToTalk] = useState(false);
+  // Primo avvio dopo il login: arrivo, permessi, giro dell'app e prima attivita' guidata.
+  const [firstRun, setFirstRun] = useState(() => {
+    try {
+      const on = localStorage.getItem(FIRST_RUN_KEY) === '1' || new URLSearchParams(window.location.search).get('firstrun') === '1';
+      // I tutorial a comparsa per pagina non devono aprirsi sopra il primo avvio guidato.
+      if (on) Object.keys(TUTORIALS).forEach((id) => localStorage.setItem('tutorial_seen_' + id, '1'));
+      return on;
+    } catch { return false; }
+  });
   const holdTimerRef = useRef(null);
   const heldRef = useRef(false);
   const location = useLocation();
@@ -216,6 +227,7 @@ export default function AppLayout() {
         onContextMenu={(e) => e.preventDefault()}
         onClick={() => { if (heldRef.current) { heldRef.current = false; return; } setFocusyOpen(true); }}
         aria-label="Focusy"
+        data-tour="focusy"
         style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg transition-transform md:hidden ${holdToTalk ? 'scale-125 animate-pulse' : 'active:scale-95'}`}
       >
@@ -232,10 +244,11 @@ export default function AppLayout() {
       <MilestoneChecker />
       <MorningCheckIn />
       <SensedActivityPrompt />
-      <FullScreenAd enabled={!sub.adsRemoved} onCTA={() => navigate('/work-with-us')} />
+      <FullScreenAd enabled={!sub.adsRemoved && !firstRun} onCTA={() => navigate('/work-with-us')} />
       <PromoExpiredModal open={promoExpired} onClose={() => setPromoExpired(false)} />
-      <TrialWelcomeModal open={trialWelcome} onClose={closeTrialWelcome} />
+      <TrialWelcomeModal open={trialWelcome && !firstRun} onClose={closeTrialWelcome} />
       <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />
+      {firstRun && <FirstRunFlow onDone={() => setFirstRun(false)} />}
     </div>
   );
 }
