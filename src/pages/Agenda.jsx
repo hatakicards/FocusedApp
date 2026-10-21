@@ -14,6 +14,7 @@ import { getDB } from '@/lib/guestDB';
 import PullToRefresh from '@/components/PullToRefresh';
 import TaskForm from '@/components/TaskForm';
 import AgendaCalendarView from '@/components/AgendaCalendarView';
+import AgendaDayView from '@/components/AgendaDayView';
 import TaskRatingPrompt from '@/components/TaskRatingPrompt';
 import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
@@ -52,7 +53,7 @@ export default function Agenda() {
   const [formOpen, setFormOpen] = useState(false);
   const [rateTask, setRateTask] = useState(null);
   const [gymDialog, setGymDialog] = useState(null);
-  const [viewMode, setViewMode] = useState('all');
+  const [viewMode, setViewMode] = useState('giornata');
 
   const { data: tasks, isLoading: loadingTasks } = useTasks();
   const { celebrate, celebrationElement } = useTaskCelebration();
@@ -157,7 +158,9 @@ export default function Agenda() {
     );
   };
 
-  const byType = (type) => activeTasks.filter((task) => task.type === type);
+  // Dentro ogni gruppo: prima per data, poi per orario (le cose senza data in fondo).
+  const byWhen = (a, b) => `${a.due_date || '9999'} ${a.due_time || '99:99'}`.localeCompare(`${b.due_date || '9999'} ${b.due_time || '99:99'}`);
+  const byType = (type) => activeTasks.filter((task) => task.type === type).sort(byWhen);
 
   if (!isMobile) {
     return (
@@ -182,11 +185,14 @@ export default function Agenda() {
         </header>
 
         <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border">
+          <button onClick={() => setViewMode('giornata')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'giornata' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_giornata')}</button>
           <button onClick={() => setViewMode('all')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'all' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_all')}</button>
           <button onClick={() => setViewMode('calendario')} className={`flex-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${viewMode === 'calendario' ? 'bg-foreground text-background' : 'text-muted-foreground'}`}>{t('ag_calendario')}</button>
         </div>
 
-        {viewMode === 'all' ? (
+        {viewMode === 'giornata' ? (
+          <AgendaDayView onAdd={() => setFormOpen(true)} onToggle={handleToggle} />
+        ) : viewMode === 'all' ? (
           <>
         {todayGymSession && (
           <section className="mb-6">
