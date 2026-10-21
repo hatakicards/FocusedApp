@@ -42,6 +42,12 @@ export const getSelectionCount = (kind = 'block') =>
 export const setShieldContent = ({ dream, subtitle, button }) =>
   call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button }), null);
 
+// Tempo di utilizzo reale: iOS non lo passa alle app come numero, lo si puo' solo mostrare
+// con una vista di sistema (DeviceActivityReport, estensione FocusedReport). hasUsageReport
+// dice se questa build la contiene; showUsageReport la apre a schermo.
+export const hasUsageReport = () => call(async () => !!(await FocusedScreenTime.hasUsageReport()).available, false);
+export const showUsageReport = () => call(() => FocusedScreenTime.showUsageReport(), null);
+
 // Tiene lo schermo acceso durante una sessione (UIApplication.isIdleTimerDisabled).
 export const setKeepAwake = (enabled) =>
   call(() => FocusedScreenTime.setKeepAwake({ enabled: !!enabled }), null);

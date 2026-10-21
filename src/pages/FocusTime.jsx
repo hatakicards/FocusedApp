@@ -18,6 +18,7 @@ import DurationPicker from '@/components/DurationPicker';
 import { saveActiveFocus, loadActiveFocus, clearActiveFocus } from '@/lib/activeFocus';
 import FocusStats from '@/components/FocusStats';
 import PhoneTimeSection from '@/components/PhoneTimeSection';
+import UsageReportCard from '@/components/UsageReportCard';
 import FocusBlockCard from '@/components/FocusBlockCard';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
 import {
@@ -209,6 +210,7 @@ export default function FocusTime() {
             <h1 className="text-2xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>
 
+          <UsageReportCard className="mb-3" />
           <PhoneTimeSection />
 
           <div className="mb-3 grid grid-cols-2 gap-2.5">
