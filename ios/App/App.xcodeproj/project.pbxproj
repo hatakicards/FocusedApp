@@ -80,12 +80,22 @@
 			dstSubfolderSpec = 13;
 			files = (
 				FCAA00000000000000000011 /* FocusedWidget.appex in Embed Foundation Extensions */,
-				FCFF00000000000000000010 /* FocusedReport.appex in Embed Foundation Extensions */,
 				FCEE00000000000000000010 /* FocusedMonitor.appex in Embed Foundation Extensions */,
 				FCDD00000000000000000010 /* FocusedShieldAction.appex in Embed Foundation Extensions */,
 				FCCC00000000000000000010 /* FocusedShield.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FCFF00000000000000000019 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				FCFF00000000000000000010 /* FocusedReport.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -124,7 +134,7 @@
 		FCEE00000000000000000004 /* FocusedMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedMonitorExtension.swift; sourceTree = "<group>"; };
 		FCEE00000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCEE00000000000000000007 /* FocusedMonitor.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedMonitor.entitlements; sourceTree = "<group>"; };
-		FCFF00000000000000000001 /* FocusedReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FocusedReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCFF00000000000000000001 /* FocusedReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = FocusedReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCFF00000000000000000004 /* FocusedReportExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedReportExtension.swift; sourceTree = "<group>"; };
 		FCFF00000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FCFF00000000000000000007 /* FocusedReport.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FocusedReport.entitlements; sourceTree = "<group>"; };
@@ -287,6 +297,7 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				FCAA00000000000000000010 /* Embed Foundation Extensions */,
+				FCFF00000000000000000019 /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
@@ -388,7 +399,7 @@
 			name = FocusedReport;
 			productName = FocusedReport;
 			productReference = FCFF00000000000000000001 /* FocusedReport.appex */;
-			productType = "com.apple.product-type.app-extension";
+			productType = "com.apple.product-type.extensionkit-extension";
 		};
 /* End PBXNativeTarget section */
 
