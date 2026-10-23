@@ -16,7 +16,6 @@ import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
 import { saveActiveFocus } from '@/lib/activeFocus';
 import FocusStats from '@/components/FocusStats';
-import PhoneTimeSection from '@/components/PhoneTimeSection';
 import UsageReportCard from '@/components/UsageReportCard';
 import FocusBlockCard from '@/components/FocusBlockCard';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
@@ -44,8 +43,6 @@ export default function FocusTime() {
   const location = useLocation();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  // null = non ancora saputo; true = tempo di utilizzo reale da Screen Time (iOS), niente inserimento a mano.
-  const [nativeUsage, setNativeUsage] = useState(null);
   const [quickPick, setQuickPick] = useState(false);
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
@@ -188,8 +185,7 @@ export default function FocusTime() {
             <h1 className="text-2xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>
 
-          <UsageReportCard className="mb-3" onAvailability={setNativeUsage} />
-          {nativeUsage === false && <PhoneTimeSection />}
+          <UsageReportCard className="mb-3" />
 
           <div className="mb-3 grid grid-cols-2 gap-2.5">
             <button
