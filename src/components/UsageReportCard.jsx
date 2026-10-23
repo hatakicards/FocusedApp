@@ -36,10 +36,15 @@ export default function UsageReportCard({ className = '' }) {
   const place = useCallback(() => {
     const el = boxRef.current;
     if (!el) return;
-    const overlay = document.querySelector('[role="dialog"], .fixed.inset-0');
+    // Il fondale dell'app e' un fixed inset-0 sempre presente (pointer-events-none): conta solo
+    // un pannello vero sopra la pagina.
+    const overlay = document.querySelector('[role="dialog"], .fixed.inset-0:not(.pointer-events-none)');
     if (overlay) { hideUsageEmbed(); return; }
     const r = el.getBoundingClientRect();
-    showUsageEmbed({ x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height });
+    // Scheda in parte fuori dallo schermo o sotto la barra in basso: la vista nativa starebbe sopra.
+    const navTop = document.getElementById('bottom-nav')?.getBoundingClientRect().top ?? window.innerHeight;
+    if (r.top < 0 || r.bottom > navTop) { hideUsageEmbed(); return; }
+    showUsageEmbed({ x: r.left, y: r.top, width: r.width, height: r.height });
   }, []);
 
   useEffect(() => {
@@ -57,11 +62,14 @@ export default function UsageReportCard({ className = '' }) {
     const mo = new MutationObserver(place);
     mo.observe(document.body, { childList: true });
     window.addEventListener('resize', place);
+    // La pagina scorre dentro un contenitore: scroll in capture per seguirlo.
+    window.addEventListener('scroll', place, true);
     return () => {
       timers.forEach(clearTimeout);
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
       hideUsageEmbed();
     };
   }, [available, authorized, place, t]);

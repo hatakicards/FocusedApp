@@ -158,8 +158,8 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve()
     }
 
-    // Incolla la vista del report sopra la pagina web, nel rettangolo (coordinate del documento) della
-    // scheda in Optimize. Sta dentro lo scrollView della WebView, cosi' scorre insieme al contenuto.
+    // Incolla la vista del report sopra la pagina web, nel rettangolo (coordinate della finestra) della
+    // scheda in Optimize. La pagina la riposiziona a ogni scroll e la nasconde se la scheda esce dallo schermo.
     @objc func showUsageEmbed(_ call: CAPPluginCall) {
         let frame = CGRect(
             x: call.getDouble("x") ?? 0, y: call.getDouble("y") ?? 0,
@@ -178,7 +178,15 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             host.view.frame = frame
             host.view.layer.cornerRadius = 20
             host.view.clipsToBounds = true
-            web.scrollView.addSubview(host.view)
+            // Figlio del view controller dell'app: la vista di sistema (DeviceActivityReport) vive in un
+            // processo remoto e ha bisogno del ciclo di vita completo per mostrarsi.
+            if let parent = self.bridge?.viewController {
+                parent.addChild(host)
+                web.addSubview(host.view)
+                host.didMove(toParent: parent)
+            } else {
+                web.addSubview(host.view)
+            }
             self.usageHost = host
             call.resolve()
         }

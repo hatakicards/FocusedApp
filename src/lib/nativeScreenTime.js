@@ -5,9 +5,10 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 // permette di sapere QUALI app l'utente ha scelto, solo quante.
 const FocusedScreenTime = registerPlugin('FocusedScreenTime');
 
-const MODE_KEY = 'focus_block_mode';
-const LEGACY_KEY = 'focus_block_enabled';
-const SESSION_MODES_KEY = 'focus_block_session_modes';
+// v2: i valori salvati dalle versioni 1.1/1.2 iniziali (quasi sempre 'selected' con poche app) facevano
+// bloccare solo una parte delle app; si riparte dal default 'blocca tutto tranne quelle che scegli'.
+const MODE_KEY = 'focus_block_mode_v2';
+const SESSION_MODES_KEY = 'focus_block_session_modes_v2';
 
 // off = non blocca; selected = blocca solo le app scelte; all_except = blocca tutto
 // tranne le app scelte da lasciare attive (Focused resta sempre apribile).
@@ -93,7 +94,6 @@ export function getDefaultMode() {
   try {
     const m = localStorage.getItem(MODE_KEY);
     if (BLOCK_MODES.includes(m)) return m;
-    if (localStorage.getItem(LEGACY_KEY) === '1') return 'selected';
   } catch { /* ignore */ }
   // Una sessione di Focus Time blocca da sola le app (tutto tranne quelle che scegli di lasciare
   // attive): chi non vuole il blocco lo spegne esplicitamente.
@@ -120,6 +120,7 @@ export function setSessionMode(sessionId, mode) {
 // La modalita' effettiva per una sessione: 'off' se manca la lista necessaria.
 export async function resolveBlockMode(mode) {
   if (!isScreenTimeSupported() || mode === 'off') return 'off';
-  if (mode === 'selected') return (await getSelectionCount('block')) > 0 ? 'selected' : 'off';
+  // Nessuna app scelta da bloccare: meglio bloccare tutto tranne quelle da lasciare che non bloccare niente.
+  if (mode === 'selected') return (await getSelectionCount('block')) > 0 ? 'selected' : 'all_except';
   return mode;
 }
