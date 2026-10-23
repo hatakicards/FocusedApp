@@ -1,9 +1,10 @@
 import DeviceActivity
 import SwiftUI
 
-// Il tempo di utilizzo di oggi, letto da Screen Time. iOS non lascia che l'app riceva il
-// numero (resta nell'estensione): lo si puo' solo mostrare con questa vista, che l'app
-// apre a schermo con DeviceActivityReport (plugin: showUsageReport).
+// Il tempo di utilizzo di oggi, letto da Screen Time, con sotto "continuando cosi' userai il
+// telefono per X anni". iOS non lascia che l'app riceva il numero (resta in questa
+// estensione): l'app incolla questa vista dentro la scheda di Optimize (plugin: showUsageEmbed).
+// I testi arrivano dall'app tramite App Group (setUsageStrings), gia' nella lingua dell'utente.
 extension DeviceActivityReport.Context {
     static let totalActivity = Self("Total Activity")
 }
@@ -18,8 +19,8 @@ struct FocusedReportExtension: DeviceActivityReportExtension {
 }
 
 struct UsageSummary {
-    var total: TimeInterval
-    var apps: [(name: String, duration: TimeInterval)]
+    var today: TimeInterval
+    var average: TimeInterval
 }
 
 struct TotalActivityScene: DeviceActivityReportScene {
@@ -27,52 +28,69 @@ struct TotalActivityScene: DeviceActivityReportScene {
     let content: (UsageSummary) -> TotalActivityView
 
     func makeConfiguration(representing data: DeviceActivityResults<DeviceActivityData>) async -> UsageSummary {
-        var total: TimeInterval = 0
-        var perApp: [String: TimeInterval] = [:]
+        var perDay: [(interval: DateInterval, total: TimeInterval)] = []
         for await activity in data {
             for await segment in activity.activitySegments {
-                total += segment.totalActivityDuration
-                for await category in segment.categories {
-                    for await app in category.applications {
-                        let name = app.application.localizedDisplayName ?? app.application.bundleIdentifier ?? "App"
-                        perApp[name, default: 0] += app.totalActivityDuration
-                    }
-                }
+                perDay.append((segment.dateInterval, segment.totalActivityDuration))
             }
         }
-        let top = perApp.sorted { $0.value > $1.value }.prefix(8).map { (name: $0.key, duration: $0.value) }
-        return UsageSummary(total: total, apps: Array(top))
+        let now = Date()
+        let today = perDay.first(where: { $0.interval.contains(now) })?.total ?? 0
+        let withData = perDay.filter { $0.total > 60 }
+        let average = withData.isEmpty ? today : withData.map { $0.total }.reduce(0, +) / Double(withData.count)
+        return UsageSummary(today: today, average: average)
     }
 }
 
 struct TotalActivityView: View {
     let summary: UsageSummary
+    private let defaults = UserDefaults(suiteName: "group.org.focusedapp.app")
+
+    private func text(_ key: String, _ fallback: String) -> String {
+        defaults?.string(forKey: key) ?? fallback
+    }
 
     private func format(_ t: TimeInterval) -> String {
         let minutes = Int(t / 60)
         let h = minutes / 60
         let m = minutes % 60
-        return h > 0 ? "\(h) h \(m) min" : "\(m) min"
+        return h > 0 ? "\(h) h \(String(format: "%02d", m))" : "\(m) min"
+    }
+
+    // Ore al giorno x 80 anni di vita / 24: gli anni passati davanti al telefono.
+    private var years: Int {
+        let hours = (summary.average > 0 ? summary.average : summary.today) / 3600
+        return Int((hours * 80 / 24).rounded(.up))
+    }
+
+    private func impact(_ size: CGFloat) -> Font {
+        .custom("AvenirNextCondensed-Heavy", size: size)
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text(format(summary.total))
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .padding(.top, 24)
-            VStack(spacing: 10) {
-                ForEach(Array(summary.apps.enumerated()), id: \.offset) { _, app in
-                    HStack {
-                        Text(app.name).lineLimit(1)
-                        Spacer()
-                        Text(format(app.duration)).foregroundColor(.secondary)
-                    }
-                    .font(.subheadline)
-                }
+        VStack(spacing: 14) {
+            Text(text("usage_today", "Today").uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(2)
+                .foregroundColor(.white.opacity(0.55))
+            Text(format(summary.today))
+                .font(impact(64))
+                .foregroundColor(.white)
+            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1).padding(.horizontal, 24)
+            if years > 0 {
+                Text(text("usage_continuing", "At this rate you'll spend on your phone").uppercased())
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(1.5)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white.opacity(0.55))
+                    .padding(.horizontal, 16)
+                Text("\(years) \(text(years == 1 ? "usage_year_one" : "usage_year_many", "years").uppercased())")
+                    .font(impact(72))
+                    .foregroundColor(.white)
             }
-            .padding(.horizontal, 24)
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.1), lineWidth: 1))
     }
 }

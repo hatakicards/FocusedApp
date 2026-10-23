@@ -39,6 +39,9 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setKeepAwake", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "hasUsageReport", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showUsageReport", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setUsageStrings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "showUsageEmbed", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "hideUsageEmbed", returnType: CAPPluginReturnPromise),
     ]
 
     static let appGroupId = "group.org.focusedapp.app"
@@ -48,6 +51,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let store = ManagedSettingsStore()
     private var blockTimer: Timer?
+    private var usageHost: UIHostingController<UsageReportView>?
 
     private var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: Self.appGroupId)
@@ -141,7 +145,50 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
     // MARK: - Tempo di utilizzo (estensione FocusedReport)
 
     @objc func hasUsageReport(_ call: CAPPluginCall) {
-        call.resolve(["available": true])
+        call.resolve(["available": true, "embed": true])
+    }
+
+    // Stringhe nella lingua dell'utente per la vista del report (l'estensione non conosce la lingua dell'app).
+    @objc func setUsageStrings(_ call: CAPPluginCall) {
+        let d = sharedDefaults
+        d?.set(call.getString("today") ?? "Today", forKey: "usage_today")
+        d?.set(call.getString("continuing") ?? "At this rate you'll spend on your phone", forKey: "usage_continuing")
+        d?.set(call.getString("yearOne") ?? "year", forKey: "usage_year_one")
+        d?.set(call.getString("yearMany") ?? "years", forKey: "usage_year_many")
+        call.resolve()
+    }
+
+    // Incolla la vista del report sopra la pagina web, nel rettangolo (coordinate del documento) della
+    // scheda in Optimize. Sta dentro lo scrollView della WebView, cosi' scorre insieme al contenuto.
+    @objc func showUsageEmbed(_ call: CAPPluginCall) {
+        let frame = CGRect(
+            x: call.getDouble("x") ?? 0, y: call.getDouble("y") ?? 0,
+            width: call.getDouble("width") ?? 0, height: call.getDouble("height") ?? 0
+        )
+        DispatchQueue.main.async {
+            guard let web = self.bridge?.webView else { call.reject("no_webview"); return }
+            if let host = self.usageHost {
+                host.view.frame = frame
+                host.view.isHidden = false
+                call.resolve()
+                return
+            }
+            let host = UIHostingController(rootView: UsageReportView())
+            host.view.backgroundColor = .clear
+            host.view.frame = frame
+            host.view.layer.cornerRadius = 20
+            host.view.clipsToBounds = true
+            web.scrollView.addSubview(host.view)
+            self.usageHost = host
+            call.resolve()
+        }
+    }
+
+    @objc func hideUsageEmbed(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.usageHost?.view.isHidden = true
+            call.resolve()
+        }
     }
 
     // Apre a schermo la vista di sistema con il tempo di utilizzo di oggi: iOS non passa il
@@ -179,8 +226,9 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         let center = DeviceActivityCenter()
-        center.stopMonitoring()
-        var modes: [String: String] = [:]
+        center.stopMonitoring(center.activities.filter { !$0.rawValue.hasPrefix("focus.session") })
+        var modes = (sharedDefaults?.dictionary(forKey: "schedule_modes") as? [String: String] ?? [:])
+            .filter { $0.key.hasPrefix("focus.session") }
         var registered = 0
         for item in call.getArray("schedules", JSObject.self) ?? [] {
             guard let id = item["id"] as? String,
@@ -247,6 +295,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         sharedDefaults?.set(endAt.timeIntervalSince1970, forKey: Self.blockEndKey)
 
         scheduleEndTimer(for: endAt)
+        monitorSession(endAt: endAt, mode: mode)
         call.resolve(["active": true])
     }
 
@@ -263,6 +312,26 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         } else {
             call.resolve(["active": false])
         }
+    }
+
+    // Registra la sessione in corso in DeviceActivity: allo scadere e' l'estensione FocusedMonitor
+    // a togliere lo shield, cosi' le app si sbloccano anche se Focused e' chiusa. iOS accetta
+    // intervalli di almeno 15 minuti: per le sessioni piu' brevi resta il timer dell'app.
+    private func monitorSession(endAt: Date, mode: String) {
+        let center = DeviceActivityCenter()
+        let name = DeviceActivityName("focus.session")
+        center.stopMonitoring([name])
+        guard endAt.timeIntervalSinceNow >= 15 * 60 else { return }
+        let parts: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute]
+        let schedule = DeviceActivitySchedule(
+            intervalStart: Calendar.current.dateComponents(parts, from: Date()),
+            intervalEnd: Calendar.current.dateComponents(parts, from: endAt),
+            repeats: false
+        )
+        var modes = sharedDefaults?.dictionary(forKey: "schedule_modes") as? [String: String] ?? [:]
+        modes[name.rawValue] = mode
+        sharedDefaults?.set(modes, forKey: "schedule_modes")
+        try? center.startMonitoring(name, during: schedule)
     }
 
     private func scheduleEndTimer(for endAt: Date) {
@@ -285,6 +354,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         store.shield.webDomains = nil
         store.shield.webDomainCategories = nil
         sharedDefaults?.removeObject(forKey: Self.blockEndKey)
+        DeviceActivityCenter().stopMonitoring([DeviceActivityName("focus.session")])
         notifyListeners("blockEnded", data: [:])
     }
 
@@ -348,16 +418,22 @@ extension DeviceActivityReport.Context {
 }
 
 @available(iOS 16.0, *)
-private struct UsageReportSheet: View {
+private struct UsageReportView: View {
     var body: some View {
-        let start = Calendar.current.startOfDay(for: Date())
+        let end = Date()
+        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: end)) ?? end
         DeviceActivityReport(
             .totalActivity,
             filter: DeviceActivityFilter(
-                segment: .daily(during: DateInterval(start: start, end: Date())),
+                segment: .daily(during: DateInterval(start: start, end: end)),
                 users: .all,
                 devices: .init([.iPhone, .iPad])
             )
         )
     }
+}
+
+@available(iOS 16.0, *)
+private struct UsageReportSheet: View {
+    var body: some View { UsageReportView() }
 }
