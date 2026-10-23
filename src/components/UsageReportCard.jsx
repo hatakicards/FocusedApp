@@ -13,20 +13,21 @@ const HEIGHT = 250;
 // incollata sopra la pagina nel rettangolo di questa scheda (il numero grande e, sotto, "per
 // quanti anni userai il telefono continuando cosi'"). Quando sopra la pagina compare un
 // pannello (finestre, sessione a tutto schermo) la vista si nasconde.
-export default function UsageReportCard({ onAvailability, className = '' }) {
+export default function UsageReportCard({ className = '' }) {
   const t = useT();
   const boxRef = useRef(null);
   const [available, setAvailable] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!isScreenTimeSupported()) { onAvailability?.(false); return undefined; }
+    if (!isScreenTimeSupported()) return undefined;
     let alive = true;
     (async () => {
       const ok = await hasUsageEmbed();
       if (!alive) return;
       setAvailable(ok);
-      onAvailability?.(ok);
+      setChecked(true);
       if (ok) setAuthorized((await getAuthorizationStatus()) === 'authorized');
     })();
     return () => { alive = false; };
@@ -65,7 +66,20 @@ export default function UsageReportCard({ onAvailability, className = '' }) {
     };
   }, [available, authorized, place, t]);
 
-  if (!available) return null;
+  // Mai un campo da compilare: il tempo di utilizzo lo sa da solo il telefono. Finche' questa
+  // versione dell'app non contiene l'estensione di report, la scheda lo dice e basta.
+  if (!isScreenTimeSupported() || !checked) return null;
+  if (!available) {
+    return (
+      <div className={`flex items-start gap-3 rounded-2xl border border-border bg-card p-4 ${className}`}>
+        <Smartphone size={18} className="mt-0.5 shrink-0 text-blue-400" />
+        <span>
+          <span className="block text-sm font-semibold">{t('opt_usage_title')}</span>
+          <span className="block text-xs text-muted-foreground">{t('opt_usage_pending')}</span>
+        </span>
+      </div>
+    );
+  }
 
   if (!authorized) {
     return (
