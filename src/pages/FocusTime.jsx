@@ -12,10 +12,9 @@ import {
 } from '@/lib/useAppData';
 import { useI18n, useT } from '@/lib/i18n';
 import PullToRefresh from '@/components/PullToRefresh';
-import FocusTimer from '@/components/FocusTimer';
 import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
-import { saveActiveFocus, loadActiveFocus, clearActiveFocus } from '@/lib/activeFocus';
+import { saveActiveFocus } from '@/lib/activeFocus';
 import FocusStats from '@/components/FocusStats';
 import PhoneTimeSection from '@/components/PhoneTimeSection';
 import UsageReportCard from '@/components/UsageReportCard';
@@ -31,7 +30,6 @@ import {
 } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
 import IphoneToggle from '@/components/IphoneToggle';
-import { dismissScheduleToday } from '@/lib/useFocusScheduler';
 import { recurringSchedules, describeDays } from '@/lib/focusSchedule';
 
 export default function FocusTime() {
@@ -46,8 +44,9 @@ export default function FocusTime() {
   const location = useLocation();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  // null = non ancora saputo; true = tempo di utilizzo reale da Screen Time (iOS), niente inserimento a mano.
+  const [nativeUsage, setNativeUsage] = useState(null);
   const [quickPick, setQuickPick] = useState(false);
-  const [timer, setTimer] = useState(null);
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
   const [quickMinutes, setQuickMinutes] = useState(25);
@@ -122,23 +121,11 @@ export default function FocusTime() {
       session: session || null,
     };
     saveActiveFocus(active);
-    setTimer(active);
+    window.dispatchEvent(new Event('focus-active-changed'));
     if (session?.spotify_url) {
       try { window.open(session.spotify_url, '_blank'); } catch { /* ignore */ }
     }
   };
-
-  // Sessione ancora in corso (o finita mentre eri in un'altra app): si riprende da dove era.
-  // Anche i programmi ricorrenti che partono da soli arrivano da qui (evento dal scheduler).
-  useEffect(() => {
-    const restore = () => {
-      const active = loadActiveFocus();
-      if (active) setTimer(active);
-    };
-    restore();
-    window.addEventListener('focus-active-changed', restore);
-    return () => window.removeEventListener('focus-active-changed', restore);
-  }, []);
 
   // Ripete una sessione passata con la stessa durata, titolo e blocco.
   const handleRepeat = async (s) => {
@@ -157,15 +144,6 @@ export default function FocusTime() {
 
   const handleToggleSchedule = async (s, on) => {
     await optimisticFocusTimeUpdate(s.id, { schedule_active: on });
-  };
-
-  const handleComplete = async (result) => {
-    if (!timer?.session?.id || timer.session.is_recurring || !result?.actualMinutes) return;
-    await optimisticFocusTimeUpdate(timer.session.id, {
-      status: 'done',
-      completed_at: new Date().toISOString().split('T')[0],
-      actual_minutes: result.actualMinutes,
-    });
   };
 
   const handleDelete = async (id) => {
@@ -210,8 +188,8 @@ export default function FocusTime() {
             <h1 className="text-2xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>
 
-          <UsageReportCard className="mb-3" />
-          <PhoneTimeSection />
+          <UsageReportCard className="mb-3" onAvailability={setNativeUsage} />
+          {nativeUsage === false && <PhoneTimeSection />}
 
           <div className="mb-3 grid grid-cols-2 gap-2.5">
             <button
@@ -371,23 +349,6 @@ export default function FocusTime() {
           </div>
         </div>,
         document.body
-      )}
-
-      {timer && (
-        <FocusTimer
-          durationMin={timer.durationMin}
-          endAt={timer.endAt}
-          spotifyUrl={timer.spotifyUrl}
-          session={timer.session}
-          blockMode={timer.blockMode}
-          onComplete={handleComplete}
-          onClose={() => {
-            // Programma chiuso prima della fine: per oggi non riparte da solo.
-            if (timer.session?.is_recurring) dismissScheduleToday(timer.session.id);
-            clearActiveFocus();
-            setTimer(null);
-          }}
-        />
       )}
 
       <TutorialDialog pageId="focus" />

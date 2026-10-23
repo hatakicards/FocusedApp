@@ -21,7 +21,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useDailyReminder, useGymNudges } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
-import { loadActiveFocus } from '@/lib/activeFocus';
+import ActiveFocusHost from './ActiveFocusHost';
 import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
 import { TUTORIALS } from '@/lib/tutorials';
@@ -79,12 +79,6 @@ export default function AppLayout() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [user]);
-
-  // Sessione Focus Time in corso: se l'app si riapre su un'altra pagina, riporta al timer.
-  useEffect(() => {
-    if (loadActiveFocus() && location.pathname !== '/focus') navigate('/focus', { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Prompt one-time upsell right after a promo trial (e.g. NEWICEPROMO!) expires.
   useEffect(() => {
@@ -241,6 +235,7 @@ export default function AppLayout() {
       {statsFlow === 'review' && (
         <WeeklyReviewModal baseline={statsBaseline} onClose={() => { statsDismissed.current = true; setStatsFlow(null); }} />
       )}
+      <ActiveFocusHost />
       <MilestoneChecker />
       <MorningCheckIn />
       <SensedActivityPrompt />
