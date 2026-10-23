@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Play, Check, Lock } from 'lucide-react';
+import { X, Play, Check, Lock, Minus, ChevronUp, Focus as FocusIcon } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { startBlock, stopBlock, setShieldContent, setKeepAwake } from '@/lib/nativeScreenTime';
 import { useUserSettings } from '@/lib/useAppData';
@@ -18,7 +18,10 @@ const fmt = (ms) => {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 };
 
-export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, blockMode, onComplete, onClose }) {
+// minimized: la sessione resta attiva ma sta in una barretta sopra la barra in basso (e la
+// pubblicita'), cosi' nel frattempo si usa il resto di Focused. Il blocco delle app e il timer
+// non dipendono da cosa e' a schermo.
+export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, blockMode, minimized = false, onMinimize, onExpand, onComplete, onClose }) {
   const t = useT();
   const { data: settings } = useUserSettings();
   const totalMs = durationMin * 60 * 1000;
@@ -27,36 +30,21 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
   const [remaining, setRemaining] = useState(Math.max(0, endAtRef.current - Date.now()));
   const [done, setDone] = useState(endAtRef.current <= Date.now());
   const wakeRef = useRef(null);
-  const pushedRef = useRef(false);
   const [blockFailed, setBlockFailed] = useState(false);
+  const [barOffset, setBarOffset] = useState(16);
 
+  // La barretta sta sopra la barra in basso (che contiene anche la pubblicita'): ne segue l'altezza.
   useEffect(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('overlay', 'focus-running');
-    window.history.pushState({ overlay: 'focus-running' }, '', url.toString());
-    pushedRef.current = true;
-
-    const onPopState = () => {
-      if (pushedRef.current) {
-        pushedRef.current = false;
-        onClose?.();
-      }
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-      if (pushedRef.current) {
-        pushedRef.current = false;
-        window.history.back();
-      }
-    };
+    const nav = document.getElementById('bottom-nav');
+    if (!nav) return undefined;
+    const measure = () => setBarOffset(nav.offsetHeight > 0 ? nav.offsetHeight + 8 : 16);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(nav);
+    return () => ro.disconnect();
   }, []);
 
   const handleClose = () => {
-    if (pushedRef.current) {
-      pushedRef.current = false;
-      window.history.back();
-    }
     onClose?.();
   };
 
@@ -155,13 +143,40 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
     );
   }
 
+  if (minimized) {
+    const locked = blockMode && blockMode !== 'off';
+    return createPortal(
+      <button
+        onClick={onExpand}
+        style={{ bottom: barOffset }}
+        className="fixed left-3 right-16 z-[45] overflow-hidden rounded-2xl bg-foreground px-4 py-2.5 text-left text-background shadow-xl md:left-auto md:right-4 md:w-72"
+      >
+        <span className="flex items-center gap-3">
+          {locked ? <Lock size={16} className="shrink-0" /> : <FocusIcon size={16} className="shrink-0" />}
+          <span className="text-base font-bold tabular-nums">{fmt(remaining)}</span>
+          <span className="min-w-0 flex-1 truncate text-xs opacity-70">{session?.title || t('oggi_focus')}</span>
+          <ChevronUp size={16} className="shrink-0 opacity-70" />
+        </span>
+        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-background/20">
+          <span className="block h-full bg-background" style={{ width: `${(1 - pct) * 100}%` }} />
+        </span>
+      </button>,
+      document.body
+    );
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[70] bg-background flex flex-col">
       <header className="flex items-center justify-between px-5 safe-top pb-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('oggi_focus')}</span>
-        <button onClick={handleClose} className="text-muted-foreground hover:text-foreground">
-          <X size={20} />
-        </button>
+        <div className="flex items-center gap-4">
+          <button onClick={onMinimize} aria-label={t('ftimer_riduci')} className="text-muted-foreground hover:text-foreground">
+            <Minus size={22} />
+          </button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground">
+            <X size={20} />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">

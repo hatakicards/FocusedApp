@@ -127,7 +127,7 @@ enum WidgetAPI {
 
     static func fetchData() async -> WidgetPayload? {
         guard let token = SharedSession.accessToken, !SharedSession.isExpired(),
-              let url = URL(string: "\(apiBaseUrl)/api/widget-data?v=2") else { return nil }
+              let url = URL(string: "\(apiBaseUrl)/api/widget-data?v=2&tz=\(TimeZone.current.identifier)") else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

@@ -24,6 +24,48 @@ async function loadPlugin() {
   }
 }
 
+// L'ultimo errore delle notifiche resta salvato: la scheda di prova in Profilo lo mostra, cosi'
+// si vede cosa non va anche senza i log del telefono.
+const ERR_KEY = 'notif_last_error';
+function noteError(where, e) {
+  try { localStorage.setItem(ERR_KEY, `${where}: ${e?.message || e}`); } catch { /* ignore */ }
+}
+
+// Stato delle notifiche su questo dispositivo + prova: serve a capire se il permesso c'e',
+// quante notifiche sono in coda e se una di prova arriva davvero.
+export async function notificationDiagnostics() {
+  const LN = await loadPlugin();
+  let lastError = null;
+  try { lastError = localStorage.getItem(ERR_KEY); } catch { /* ignore */ }
+  if (!LN) {
+    const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+    return { native: false, permission, pending: 0, lastError };
+  }
+  try {
+    const { display } = await LN.checkPermissions();
+    const { notifications } = await LN.getPending();
+    return { native: true, permission: display, pending: notifications.length, lastError };
+  } catch (e) {
+    noteError('diagnostica', e);
+    return { native: true, permission: 'error', pending: 0, lastError: String(e?.message || e) };
+  }
+}
+
+export async function sendTestNotification(title, body, seconds = 6) {
+  const LN = await loadPlugin();
+  if (!LN) return { ok: false, reason: 'web' };
+  try {
+    if (!(await ensurePermission(LN))) return { ok: false, reason: 'denied' };
+    await LN.schedule({
+      notifications: [{ id: 7999, title, body, schedule: { at: new Date(Date.now() + seconds * 1000) } }],
+    });
+    return { ok: true };
+  } catch (e) {
+    noteError('prova', e);
+    return { ok: false, reason: String(e?.message || e) };
+  }
+}
+
 async function ensurePermission(LN) {
   let { display } = await LN.checkPermissions();
   if (display === 'prompt' || display === 'prompt-with-rationale') {
@@ -85,6 +127,7 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
     if (notifications.length) await LN.schedule({ notifications });
   } catch (e) {
     console.warn('Daily reminder sync failed', e);
+    noteError('promemoria', e);
   }
 }
 
@@ -129,6 +172,7 @@ export async function scheduleSessionEnd(endAt, title, body) {
     });
   } catch (e) {
     console.warn('Session end notification failed', e);
+    noteError('fine sessione', e);
   }
 }
 
@@ -177,6 +221,7 @@ export async function syncGymNudges({ enabled, sessions, doneToday, hour, titleF
     if (notifications.length) await LN.schedule({ notifications });
   } catch (e) {
     console.warn('Gym nudge sync failed', e);
+    noteError('palestra', e);
   }
 }
 

@@ -1,8 +1,19 @@
 import { getSupabaseAdmin, getUserFromRequest, jsonResponse } from './_shared/supabaseAdmin.js';
-import { computeFocusScore, computeFocusScoreForDate, computeLongestStreak, computeCategoryRank, todayISO } from '../../src/lib/productivity.js';
+import { computeFocusScore, computeFocusScoreForDate, computeLongestStreak, computeCategoryRank } from '../../src/lib/productivity.js';
 import { CATEGORIES, GYM_IMAGE_URL } from '../../src/lib/constants.js';
 
-const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+// Giorno e giorno della settimana nel fuso dell'utente: il server gira in UTC, quindi dopo
+// mezzanotte "oggi" sarebbe sbagliato e la scheda palestra risultava sempre "nessuna".
+// Il widget manda il suo fuso con ?tz=; i widget gia' installati non lo mandano e si usa
+// quello italiano.
+function localDay(tz) {
+  let zone = tz || 'Europe/Rome';
+  try { new Intl.DateTimeFormat('en-CA', { timeZone: zone }); } catch { zone = 'Europe/Rome'; }
+  const now = new Date();
+  const iso = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'long' }).format(now).toLowerCase();
+  return { iso, weekday };
+}
 
 function isoDaysAgo(n) {
   const d = new Date();
@@ -20,7 +31,7 @@ export async function onRequestGet({ request, env }) {
     const user = await getUserFromRequest(request, supabaseAdmin);
     if (!user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-    const today = todayISO();
+    const { iso: today, weekday: todayWeekday } = localDay(new URL(request.url).searchParams.get('tz'));
     // v=2 (widget nuovi): include anche le attivita' gia' spuntate oggi; i widget vecchi vedono solo quelle aperte.
     const wantsDone = new URL(request.url).searchParams.get('v') === '2';
     const [activitiesRes, ratingsRes, dayEntriesRes, goalsRes, tasksRes, doneTasksRes, gymSessionsRes, settingsRes] = await Promise.all([
@@ -62,10 +73,12 @@ export async function onRequestGet({ request, env }) {
       return { category: cat.id, rankId: rank?.id || null };
     });
 
-    const todayWeekday = WEEKDAY_IDS[new Date().getDay()];
-    const todayGym = settings?.gym_enabled
-      ? gymSessions.find((s) => s.day_of_week === todayWeekday)
-      : null;
+    // Se ci sono piu' righe per lo stesso giorno (duplicati) vale quella con piu' esercizi. Non
+    // serve l'interruttore gym_enabled: basta una scheda salvata, come nell'app.
+    const exerciseCount = (s) => (s.exercises || []).filter((e) => e?.name?.trim()).length;
+    const todayGym = gymSessions
+      .filter((s) => s.day_of_week === todayWeekday && exerciseCount(s) > 0)
+      .sort((a, b) => exerciseCount(b) - exerciseCount(a))[0] || null;
 
     return jsonResponse({
       focusScore,
@@ -79,7 +92,7 @@ export async function onRequestGet({ request, env }) {
       ],
       tasksDone: wantsDone ? doneTasks.length : null,
       tasksTotal: wantsDone ? pendingTasks.length + doneTasks.length : null,
-      gym: todayGym ? { title: todayGym.title, exerciseCount: (todayGym.exercises || []).length, imageUrl: GYM_IMAGE_URL } : null,
+      gym: todayGym ? { title: todayGym.title, exerciseCount: exerciseCount(todayGym), imageUrl: GYM_IMAGE_URL } : null,
       date: today,
     });
   } catch (error) {

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useFocusSessions, useUserSettings } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { saveActiveFocus, loadActiveFocus } from '@/lib/activeFocus';
@@ -25,7 +24,6 @@ export function useFocusScheduler() {
   const { data: sessions } = useFocusSessions();
   const { data: settings } = useUserSettings();
   const t = useT();
-  const navigate = useNavigate();
   const sessionsRef = useRef(sessions);
   sessionsRef.current = sessions;
 
@@ -52,9 +50,9 @@ export function useFocusScheduler() {
         endAt: win.endAt.getTime(),
         spotifyUrl: null,
         session: win.schedule,
+        minimized: true, // parte da solo: non copre quello che stai facendo
       });
       window.dispatchEvent(new Event('focus-active-changed'));
-      navigate('/focus');
     };
     check();
     const id = setInterval(check, 20000);

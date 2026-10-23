@@ -5,10 +5,7 @@ import { usePhoneTimeEntries, useUserSettings, useOptimisticPhoneTimeSave, useOp
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-
-function calculateYearsOnPhone(hoursPerDay) {
-  return Math.ceil((hoursPerDay * 365 * 80) / (24 * 365));
-}
+import ImpactYears from '@/components/ImpactYears';
 
 export default function PhoneTimeSection({ activityId }) {
   const t = useT();
@@ -50,7 +47,6 @@ export default function PhoneTimeSection({ activityId }) {
   };
 
   const todayHours = parseFloat(hours) || 0;
-  const yearsOnPhone = calculateYearsOnPhone(todayHours);
   const reductionGoalValue = settings?.phone_reduction_goal || 0;
   const isGood = reductionGoalValue > 0 && todayHours <= reductionGoalValue;
   const isBad = reductionGoalValue > 0 && todayHours > reductionGoalValue;
@@ -98,9 +94,7 @@ export default function PhoneTimeSection({ activityId }) {
                 {isGood ? t('pt_good') : t('pt_bad')}
               </p>
             )}
-            <p className="text-sm text-muted-foreground">
-              {t('pt_years').replace('{years}', yearsOnPhone)}
-            </p>
+            <ImpactYears hoursPerDay={todayHours} className="pt-3" />
           </div>
         )}
       </div>

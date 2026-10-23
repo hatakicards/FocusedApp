@@ -42,11 +42,13 @@ export const getSelectionCount = (kind = 'block') =>
 export const setShieldContent = ({ dream, subtitle, button }) =>
   call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button }), null);
 
-// Tempo di utilizzo reale: iOS non lo passa alle app come numero, lo si puo' solo mostrare
-// con una vista di sistema (DeviceActivityReport, estensione FocusedReport). hasUsageReport
-// dice se questa build la contiene; showUsageReport la apre a schermo.
-export const hasUsageReport = () => call(async () => !!(await FocusedScreenTime.hasUsageReport()).available, false);
-export const showUsageReport = () => call(() => FocusedScreenTime.showUsageReport(), null);
+// Tempo di utilizzo reale: iOS non lo passa alle app come numero, lo si puo' solo mostrare con
+// una vista di sistema (DeviceActivityReport, estensione FocusedReport). L'app la incolla
+// sopra la pagina, nel rettangolo della scheda (coordinate del documento).
+export const hasUsageEmbed = () => call(async () => !!(await FocusedScreenTime.hasUsageReport()).embed, false);
+export const showUsageEmbed = (rect) => call(() => FocusedScreenTime.showUsageEmbed(rect), null);
+export const hideUsageEmbed = () => call(() => FocusedScreenTime.hideUsageEmbed(), null);
+export const setUsageStrings = (strings) => call(() => FocusedScreenTime.setUsageStrings(strings), null);
 
 // Tiene lo schermo acceso durante una sessione (UIApplication.isIdleTimerDisabled).
 export const setKeepAwake = (enabled) =>
@@ -93,7 +95,9 @@ export function getDefaultMode() {
     if (BLOCK_MODES.includes(m)) return m;
     if (localStorage.getItem(LEGACY_KEY) === '1') return 'selected';
   } catch { /* ignore */ }
-  return 'off';
+  // Una sessione di Focus Time blocca da sola le app (tutto tranne quelle che scegli di lasciare
+  // attive): chi non vuole il blocco lo spegne esplicitamente.
+  return isScreenTimeSupported() ? 'all_except' : 'off';
 }
 
 export function setDefaultMode(mode) {
