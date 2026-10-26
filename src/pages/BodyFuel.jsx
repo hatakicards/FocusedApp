@@ -60,6 +60,7 @@ export default function BodyFuel() {
   const [saving, setSaving] = useState(false);
   const [savingFood, setSavingFood] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [athTab, setAthTab] = useState('train');
   // Le aggiunte/rimozioni/modifiche cibo sono asincrone; senza questa coda,
   // due tap ravvicinati potevano generare due salvataggi in parallelo e
   // quello piu' lento a rispondere sovrascriveva l'altro nella cache
@@ -270,8 +271,22 @@ export default function BodyFuel() {
         <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
       </header>
 
-      <GymToday className="mb-6" />
+      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
+        {[['train', 'ath_tab_train'], ['food', 'ath_tab_food'], ['sleep', 'ath_tab_sleep'], ['body', 'ath_tab_body']].map(([id, key]) => (
+          <button
+            key={id}
+            onClick={() => setAthTab(id)}
+            className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${athTab === id ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
+          >
+            {t(key)}
+          </button>
+        ))}
+      </div>
 
+      {athTab === 'train' && <GymToday className="mb-6" />}
+
+      {athTab === 'food' && (
+      <>
       {/* Calorie plan (BMR/TDEE calculator) */}
       <button
         onClick={() => setShowCalculator(true)}
@@ -352,6 +367,11 @@ export default function BodyFuel() {
         </div>
       )}
 
+      </>
+      )}
+
+      {athTab === 'sleep' && (
+      <>
       {/* Sleep debt tracker */}
       <SleepDebtTracker />
 
@@ -413,6 +433,11 @@ export default function BodyFuel() {
         </div>
       )}
 
+      </>
+      )}
+
+      {athTab === 'body' && (
+      <>
       {/* Height and weight */}
       <div className="rounded-2xl border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -508,6 +533,9 @@ export default function BodyFuel() {
             );
           })}
         </div>
+      )}
+
+      </>
       )}
 
       {/* Edit dialog */}
@@ -607,7 +635,7 @@ export default function BodyFuel() {
         data={chartDialog ? macroChartData(chartDialog.key) : []}
         color={chartDialog?.color || '#ef4444'}
       />
-      <HealthSources className="mb-4" />
+      {athTab === 'body' && <HealthSources className="mb-4" />}
       <CalorieCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
       <TutorialDialog pageId="bodyfuel" />
     </div>
