@@ -6,16 +6,48 @@ import { useT } from '@/lib/i18n';
 import { computeStreak, todayISO } from '@/lib/productivity';
 import { useAutoActivities } from '@/lib/autoActivities';
 import ActivityIcon from '@/components/ActivityIcon';
-import ActivityCardBg from '@/components/ActivityCardBg';
-import RatingPicker from '@/components/RatingPicker';
 import ActivityForm from '@/components/ActivityForm';
 import FireStreak from '@/components/FireStreak';
 import { RATING_COLORS } from '@/lib/constants';
 
-// Le attivita' dell'utente dentro Today: stesso funzionamento della vecchia schermata
-// Abitudini (voto di oggi 1-5, tocco sul nome per il dettaglio) ma compatte, con la serie
-// attuale in arancione. Con Premium si aggiungono "Eating well" e "Sleeping well", che
-// leggono il voto da BodyFuel/Athlete e non si votano a mano.
+// Le attivita' dell'utente dentro Today: caselle quadrate, due per riga, con il simbolo
+// grande al centro, il nome sotto e il voto di oggi (1-5) in basso con un solo tocco.
+// Tocco sul simbolo o sul nome per il dettaglio; la serie attuale e' in alto a destra.
+// Con Premium si aggiungono "Eating well" e "Sleeping well", che leggono il voto da
+// BodyFuel/Athlete e non si votano a mano.
+function Tile({ icon, name, streak, onOpen, children }) {
+  return (
+    <div className="titanium-tile relative flex aspect-square flex-col rounded-3xl border border-border/70 p-3">
+      {streak > 0 && <FireStreak streak={streak} className="absolute right-2 top-2 !px-2 !py-0.5 text-[11px]" />}
+      <button onClick={onOpen} className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/[0.08] text-foreground">
+          <ActivityIcon name={icon} size={30} />
+        </span>
+        <span className="w-full truncate text-sm font-semibold">{name}</span>
+      </button>
+      <div className="mt-1.5 h-6">{children}</div>
+    </div>
+  );
+}
+
+function MiniRating({ value, onChange }) {
+  return (
+    <div className="flex h-6 w-full items-center justify-between">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-transform active:scale-90 ${value === n ? 'text-white' : 'bg-foreground/10 text-muted-foreground'}`}
+          style={value === n ? { backgroundColor: RATING_COLORS[n] } : undefined}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function TodayActivities() {
   const navigate = useNavigate();
   const t = useT();
@@ -33,40 +65,24 @@ export default function TodayActivities() {
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('today_attivita')}</h2>
-        <button
-          onClick={() => setFormOpen(true)}
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background"
-        >
-          <Plus size={13} /> {t('nuova')}
-        </button>
-      </div>
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('today_attivita')}</h2>
 
-      <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2.5">
         {auto.map((a) => (
-          <div key={a.id} className="rounded-2xl border border-border bg-card p-3">
-            <div className="flex items-center justify-between gap-2">
-              <button onClick={() => navigate('/body-fuel')} className="flex min-w-0 items-center gap-2 text-left">
-                <ActivityIcon name={a.icon} size={14} />
-                <span className="truncate text-sm font-medium">{t(a.nameKey)}</span>
-              </button>
-              <FireStreak streak={a.streak} />
-            </div>
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">
-                {a.todayRating == null ? t('today_no_data') : `${t('today_auto_hint')} Athlete`}
-              </span>
-              {a.todayRating != null && (
+          <Tile key={a.id} icon={a.icon} name={t(a.nameKey)} streak={a.streak} onOpen={() => navigate('/body-fuel')}>
+            {a.todayRating == null ? (
+              <p className="truncate text-center text-[11px] leading-6 text-muted-foreground">{t('today_no_data')}</p>
+            ) : (
+              <div className="flex h-6 items-center justify-center">
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
+                  className="flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-bold text-white"
                   style={{ backgroundColor: RATING_COLORS[a.todayRating] }}
                 >
                   {a.todayRating}
                 </span>
-              )}
-            </div>
-          </div>
+              </div>
+            )}
+          </Tile>
         ))}
 
         {list.map((activity) => {
@@ -74,35 +90,30 @@ export default function TodayActivities() {
           const streak = computeStreak(aRatings);
           const todayRating = aRatings.find((r) => r.date === today)?.rating;
           return (
-            <ActivityCardBg key={activity.id} activity={activity}>
-              <div className="w-full p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => navigate(`/attivita/${activity.id}`)}
-                    className="flex min-w-0 items-center gap-2 text-left"
-                  >
-                    {activity.emoji ? <ActivityIcon name={activity.emoji} size={14} /> : null}
-                    <span className="truncate text-sm font-medium">{activity.name}</span>
-                  </button>
-                  <FireStreak streak={streak} />
-                </div>
-                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                  <RatingPicker value={todayRating} onChange={(v) => optimisticRate(activity.id, today, v)} size="xs" fill />
-                </div>
-              </div>
-            </ActivityCardBg>
+            <Tile
+              key={activity.id}
+              icon={activity.emoji}
+              name={activity.name}
+              streak={streak}
+              onOpen={() => navigate(`/attivita/${activity.id}`)}
+            >
+              <MiniRating value={todayRating} onChange={(v) => optimisticRate(activity.id, today, v)} />
+            </Tile>
           );
         })}
 
-        {list.length === 0 && auto.length === 0 && (
-          <button
-            onClick={() => setFormOpen(true)}
-            className="w-full rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
-          >
-            {t('at_nessuna')}
-          </button>
-        )}
+        <button
+          onClick={() => setFormOpen(true)}
+          className="flex aspect-square flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-border text-muted-foreground active:scale-[0.98]"
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border"><Plus size={22} /></span>
+          <span className="text-xs font-semibold">{t('nuova')}</span>
+        </button>
       </div>
+
+      {list.length === 0 && auto.length === 0 && (
+        <p className="mt-3 text-center text-xs text-muted-foreground">{t('at_nessuna')}</p>
+      )}
 
       <ActivityForm open={formOpen} onClose={() => setFormOpen(false)} activity={null} />
     </section>

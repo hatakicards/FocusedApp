@@ -8,6 +8,7 @@ import TaskForm from '@/components/TaskForm';
 import TimeGrid from './TimeGrid';
 import MonthView from './MonthView';
 import OrganizeFocusy from './OrganizeFocusy';
+import OrganizeOverview from './OrganizeOverview';
 
 const VIEWS = ['day', 'week', 'month', 'list'];
 const VIEW_KEY = { day: 'org_giorno', week: 'org_settimana', month: 'org_mese', list: 'org_lista' };
@@ -27,6 +28,7 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
   const { locale } = useI18n();
   const navigate = useNavigate();
   const getEvents = useCalendarEvents();
+  const [mode, setMode] = useState('overview');
   const [view, setView] = useState('day');
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; });
   const [selected, setSelected] = useState(() => new Date());
@@ -81,6 +83,19 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
 
   return (
     <div>
+      {mode === 'overview' ? (
+        <OrganizeOverview
+          onOpenCalendar={() => setMode('calendar')}
+          onOpenDay={(d) => { setAnchor(d); setView('day'); setMode('calendar'); }}
+          onFocusy={() => setFocusyOpen(true)}
+          onEvent={handleEvent}
+          onAdd={() => openForm(new Date())}
+        />
+      ) : (
+        <div>
+          <button onClick={() => setMode('overview')} className="mb-4 flex items-center gap-1 text-sm font-semibold text-muted-foreground">
+            <ChevronLeft size={16} /> {t('org_overview')}
+          </button>
       <div className="mb-5 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
         {VIEWS.map((v) => (
           <button
@@ -156,6 +171,8 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
           onEventClick={handleEvent}
           onOpenDay={(d) => { setAnchor(d); setView('day'); }}
         />
+      )}
+        </div>
       )}
 
       <TaskForm

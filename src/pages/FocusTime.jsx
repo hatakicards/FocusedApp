@@ -48,6 +48,7 @@ export default function FocusTime() {
   const [quickMode, setQuickMode] = useState(getDefaultMode);
   const [quickMinutes, setQuickMinutes] = useState(25);
   const [showAllPast, setShowAllPast] = useState(false);
+  const [tab, setTab] = useState(null);
   const prefillHandledRef = useRef(false);
 
   useEffect(() => {
@@ -178,46 +179,64 @@ export default function FocusTime() {
     handleQuickStart(mins);
   }, []);
 
-  const label = 'text-[11px] font-semibold uppercase tracking-widest text-muted-foreground';
   const group = 'divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-card';
   const pastShown = showAllPast ? past : past.slice(0, 3);
+  const tabs = [
+    ['programs', t('ft_programmi'), schedules.length],
+    ['upcoming', t('ft_prossime'), upcoming.length],
+    ['history', t('ft_cronologia'), past.length],
+  ];
+  const activeTab = tab ?? (schedules.length ? 'programs' : upcoming.length ? 'upcoming' : past.length ? 'history' : 'programs');
 
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>
         <div className="mx-auto max-w-xl px-5 safe-top pb-4">
-          <header className="mb-5">
+          <header className="mb-6">
             <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t('opt_sub')}</p>
           </header>
 
-          <UsageReportCard className="mb-5" />
+          <UsageReportCard className="mb-6" />
 
-          <div className="mb-6 flex gap-2.5">
-            <button
-              onClick={() => setQuickPick(true)}
-              className="flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-foreground text-base font-semibold text-background transition-transform active:scale-[0.98]"
-            >
-              <Play size={18} /> {t('ft_avvia')}
-            </button>
-            <button
-              onClick={() => { setEditing(null); setFormOpen(true); }}
-              aria-label={t('opt_program_session')}
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-card transition-transform active:scale-[0.98]"
-            >
-              <Plus size={20} />
-            </button>
+          {/* Un'unica azione principale */}
+          <button
+            onClick={() => setQuickPick(true)}
+            className="titanium-bg mb-2 flex w-full flex-col items-center justify-center gap-0.5 rounded-3xl py-5 transition-transform active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2 text-lg font-bold"><Play size={20} /> {t('ft_avvia')}</span>
+            <span className="text-xs font-medium opacity-60">{t('opt_start_sub')}</span>
+          </button>
+          <button
+            onClick={() => { setEditing(null); setFormOpen(true); }}
+            className="mb-7 flex w-full items-center justify-center gap-1.5 py-2 text-sm font-semibold text-muted-foreground"
+          >
+            <Plus size={15} /> {t('opt_program_session')}
+          </button>
+
+          <FocusStats sessions={sessions} className="mb-7" />
+
+          <FocusBlockCard className="mb-7" />
+
+          {/* Una lista alla volta: programmi, prossime o cronologia */}
+          <div className="mb-3 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
+            {tabs.map(([id, text, count]) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${activeTab === id ? 'bg-foreground text-background' : 'text-muted-foreground'}`}
+              >
+                {text}
+                {count > 0 && <span className={`text-[10px] tabular-nums ${activeTab === id ? 'opacity-60' : 'opacity-70'}`}>{count}</span>}
+              </button>
+            ))}
           </div>
 
-          <FocusStats sessions={sessions} className="mb-6" />
-
-          <FocusBlockCard className="mb-8" />
-
-          <section className="mb-8">
-            <h2 className={`mb-2.5 ${label}`}>{t('ft_programmi')}</h2>
-            {schedules.length === 0 ? (
+          {activeTab === 'programs' && (
+            schedules.length === 0 ? (
               <button
                 onClick={() => { setEditing(null); setFormOpen(true); }}
-                className="w-full rounded-2xl border border-dashed border-border p-4 text-left text-xs text-muted-foreground"
+                className="w-full rounded-2xl border border-dashed border-border p-5 text-left text-xs text-muted-foreground"
               >
                 {t('ft_prog_vuoto')}
               </button>
@@ -242,13 +261,13 @@ export default function FocusTime() {
                   </div>
                 ))}
               </div>
-            )}
-            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{t('ft_programmi_sub')}</p>
-          </section>
+            )
+          )}
 
-          {upcoming.length > 0 && (
-            <section className="mb-8">
-              <h2 className={`mb-2.5 ${label}`}>{t('ft_prossime')}</h2>
+          {activeTab === 'upcoming' && (
+            upcoming.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">{t('ft_nessuna')}</p>
+            ) : (
               <div className={group}>
                 {upcoming.map((s) => (
                   <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
@@ -270,12 +289,13 @@ export default function FocusTime() {
                   </div>
                 ))}
               </div>
-            </section>
+            )
           )}
 
-          {past.length > 0 && (
-            <section className="mb-8">
-              <h2 className={`mb-2.5 ${label}`}>{t('ft_cronologia')}</h2>
+          {activeTab === 'history' && (
+            past.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">{t('ft_nessuna')}</p>
+            ) : (
               <div className={group}>
                 {pastShown.map((s) => (
                   <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
@@ -300,13 +320,7 @@ export default function FocusTime() {
                   </button>
                 )}
               </div>
-            </section>
-          )}
-
-          {upcoming.length === 0 && past.length === 0 && schedules.length === 0 && (
-            <div className="rounded-2xl border border-border/70 bg-card p-8 text-center">
-              <p className="text-sm text-muted-foreground">{t('ft_nessuna')}</p>
-            </div>
+            )
           )}
 
           <FocusScheduleForm open={formOpen} schedule={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSaved={handleSchedule} />

@@ -92,6 +92,26 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  /* Colore firma: grigio titanio sfumato. Solo per cio' che conta (azione principale,
+     progressi, numeri grandi); il resto resta bianco e grigio. */
+  .titanium-bg {
+    background: linear-gradient(135deg, #f2f3f4 0%, #bcbfc3 38%, #80848a 64%, #d9dbdd 100%);
+    color: #0a0a0a;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 8px 24px -12px rgba(190, 194, 200, 0.35);
+  }
+  .titanium-text {
+    background: linear-gradient(135deg, #f7f8f8 0%, #a7abb0 52%, #e4e6e8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .titanium-tile {
+    background: linear-gradient(150deg, hsl(220 4% 16%) 0%, hsl(220 3% 7%) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
+  .titanium-glow {
+    background: radial-gradient(120% 70% at 50% 0%, rgba(190, 194, 200, 0.14), transparent 70%);
+  }
   .safe-top {
     padding-top: calc(env(safe-area-inset-top) + 2.5rem);
   }
