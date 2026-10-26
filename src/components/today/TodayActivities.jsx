@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useActivities, useRatings, useSubscription, useOptimisticRating } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { computeStreak, todayISO } from '@/lib/productivity';
@@ -15,35 +16,58 @@ import { RATING_COLORS } from '@/lib/constants';
 // Tocco sul simbolo o sul nome per il dettaglio; la serie attuale e' in alto a destra.
 // Con Premium si aggiungono "Eating well" e "Sleeping well", che leggono il voto da
 // BodyFuel/Athlete e non si votano a mano.
-function Tile({ icon, name, streak, onOpen, children }) {
+function VoteButton({ value, onChange }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="titanium-tile relative flex aspect-square flex-col rounded-3xl border border-border/70 p-3">
-      {streak > 0 && <FireStreak streak={streak} className="absolute right-2 top-2 !px-2 !py-0.5 text-[11px]" />}
-      <button onClick={onOpen} className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-foreground/[0.08] text-foreground">
-          <ActivityIcon name={icon} size={30} />
-        </span>
-        <span className="w-full truncate text-sm font-semibold">{name}</span>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`flex h-8 min-w-8 items-center justify-center rounded-full text-xs font-bold transition-transform active:scale-90 ${value ? 'text-white' : 'border border-border text-muted-foreground'}`}
+        style={value ? { backgroundColor: RATING_COLORS[value] } : undefined}
+      >
+        {value || <Star size={14} />}
       </button>
-      <div className="mt-1.5 h-6">{children}</div>
-    </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.96 }}
+            transition={{ duration: 0.16 }}
+            className="absolute inset-x-2 bottom-2 z-10 flex h-12 items-center justify-between rounded-2xl border border-border bg-card px-2 shadow-lg"
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => { onChange(n); setOpen(false); }}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold active:scale-90 ${value === n ? 'text-white' : 'bg-foreground/10 text-muted-foreground'}`}
+                style={value === n ? { backgroundColor: RATING_COLORS[n] } : undefined}
+              >
+                {n}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
-function MiniRating({ value, onChange }) {
+// Casella quadrata: solo il simbolo grande e il nome; sotto, a sinistra il voto di oggi
+// (tocco per sceglierlo) e a destra la serie.
+function Tile({ icon, name, streak, onOpen, left }) {
   return (
-    <div className="flex h-6 w-full items-center justify-between">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n)}
-          className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-transform active:scale-90 ${value === n ? 'text-white' : 'bg-foreground/10 text-muted-foreground'}`}
-          style={value === n ? { backgroundColor: RATING_COLORS[n] } : undefined}
-        >
-          {n}
-        </button>
-      ))}
+    <div className="titanium-tile relative flex aspect-square flex-col rounded-3xl border border-border/70 p-3">
+      <button onClick={onOpen} className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
+        <ActivityIcon name={icon} size={42} className="text-foreground" />
+        <span className="w-full truncate text-sm font-semibold">{name}</span>
+      </button>
+      <div className="mt-1 flex h-8 items-center justify-between">
+        {left}
+        {streak > 0 ? <FireStreak streak={streak} /> : <span />}
+      </div>
     </div>
   );
 }
@@ -69,20 +93,18 @@ export default function TodayActivities() {
 
       <div className="grid grid-cols-2 gap-2.5">
         {auto.map((a) => (
-          <Tile key={a.id} icon={a.icon} name={t(a.nameKey)} streak={a.streak} onOpen={() => navigate('/body-fuel')}>
-            {a.todayRating == null ? (
-              <p className="truncate text-center text-[11px] leading-6 text-muted-foreground">{t('today_no_data')}</p>
+          <Tile
+            key={a.id}
+            icon={a.icon}
+            name={t(a.nameKey)}
+            streak={a.streak}
+            onOpen={() => navigate('/body-fuel')}
+            left={a.todayRating == null ? (
+              <span className="flex h-8 min-w-8 items-center justify-center rounded-full border border-dashed border-border text-xs text-muted-foreground">-</span>
             ) : (
-              <div className="flex h-6 items-center justify-center">
-                <span
-                  className="flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-bold text-white"
-                  style={{ backgroundColor: RATING_COLORS[a.todayRating] }}
-                >
-                  {a.todayRating}
-                </span>
-              </div>
+              <span className="flex h-8 min-w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: RATING_COLORS[a.todayRating] }}>{a.todayRating}</span>
             )}
-          </Tile>
+          />
         ))}
 
         {list.map((activity) => {
@@ -96,9 +118,8 @@ export default function TodayActivities() {
               name={activity.name}
               streak={streak}
               onOpen={() => navigate(`/attivita/${activity.id}`)}
-            >
-              <MiniRating value={todayRating} onChange={(v) => optimisticRate(activity.id, today, v)} />
-            </Tile>
+              left={<VoteButton value={todayRating} onChange={(v) => optimisticRate(activity.id, today, v)} />}
+            />
           );
         })}
 

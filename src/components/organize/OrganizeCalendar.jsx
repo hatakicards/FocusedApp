@@ -89,6 +89,7 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
           onOpenDay={(d) => { setAnchor(d); setView('day'); setMode('calendar'); }}
           onFocusy={() => setFocusyOpen(true)}
           onEvent={handleEvent}
+          onToggle={onToggle}
           onAdd={() => openForm(new Date())}
         />
       ) : (

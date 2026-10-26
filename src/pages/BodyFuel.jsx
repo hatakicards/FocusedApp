@@ -265,9 +265,9 @@ export default function BodyFuel() {
 
   return (
     <div className="px-5 safe-top pb-4">
-      <header className="mb-6 flex items-center gap-2">
-        <Flame size={22} className="text-red-500" />
-        <h1 className="text-2xl font-bold tracking-tight">{t('personal_athlete')}</h1>
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">{t('personal_athlete')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
       </header>
 
       <GymToday className="mb-6" />

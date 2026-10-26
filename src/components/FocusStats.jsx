@@ -30,7 +30,7 @@ export default function FocusStats({ sessions, className = '' }) {
     <div className={`grid grid-cols-3 text-center ${className}`}>
       {items.map(([value, label]) => (
         <div key={label}>
-          <p className="text-2xl font-bold tabular-nums leading-none">{value}</p>
+          <p className="titanium-text text-3xl font-bold tabular-nums leading-none">{value}</p>
           <p className="mt-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
         </div>
       ))}

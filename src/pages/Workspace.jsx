@@ -107,9 +107,9 @@ export default function Workspace() {
   return (
     <div className="px-5 safe-top pb-4">
       <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Briefcase size={22} className="text-emerald-500" />
-          <h1 className="text-2xl font-bold tracking-tight">{t('personal_projects')}</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t('personal_projects')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('personal_projects_sub')}</p>
         </div>
         {tab === 'progetti' && (
           <button
@@ -121,16 +121,16 @@ export default function Workspace() {
         )}
       </header>
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
         <button
           onClick={() => setTab('giornata')}
-          className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${tab === 'giornata' ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'}`}
+          className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${tab === 'giornata' ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
         >
           Businesses
         </button>
         <button
           onClick={() => setTab('progetti')}
-          className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${tab === 'progetti' ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'}`}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${tab === 'progetti' ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
         >
           Projects
           <span className={`rounded px-1 py-px text-[9px] font-bold tracking-wider ${tab === 'progetti' ? 'bg-background text-foreground' : 'bg-foreground/10'}`}>BETA</span>

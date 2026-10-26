@@ -41,35 +41,21 @@ export default function ObiettiviRanking() {
 
   return (
     <div className="px-5 safe-top pb-4">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">LifeGame</h1>
+      <header className="mb-5">
+        <h1 className="text-3xl font-bold tracking-tight">LifeGame</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('lg_sub')}</p>
       </header>
 
-      <div className="flex gap-1 p-1 rounded-xl bg-muted mb-6 w-fit overflow-x-auto scrollbar-hide">
-        <button
-          onClick={() => setTab('goals')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-            tab === 'goals' ? 'bg-foreground text-background' : 'text-muted-foreground'
-          }`}
-        >
-          {t('ob_obiettivi')}
-        </button>
-        <button
-          onClick={() => setTab('ranking')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-            tab === 'ranking' ? 'bg-foreground text-background' : 'text-muted-foreground'
-          }`}
-        >
-          {t('ob_titolo')}
-        </button>
-        <button
-          onClick={() => setTab('lifestats')}
-          className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-            tab === 'lifestats' ? 'bg-foreground text-background' : 'text-muted-foreground'
-          }`}
-        >
-          {t('stat_titolo')}
-        </button>
+      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
+        {[['goals', 'ob_obiettivi'], ['ranking', 'ob_titolo'], ['lifestats', 'stat_titolo']].map(([id, key]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${tab === id ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
+          >
+            {t(key)}
+          </button>
+        ))}
       </div>
 
       {tab === 'goals' && <GoalsListTab onOpenHistory={setCalendarGoalId} />}
@@ -78,20 +64,18 @@ export default function ObiettiviRanking() {
 
       {tab === 'ranking' && (
       <>
-      <div className="space-y-4">
+      <div className="mb-7 grid grid-cols-2 gap-2.5">
         {CATEGORIES.map((cat) => {
           const rankInfo = computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || []);
 
           return (
-            <div key={cat.id} className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="flex w-full items-center gap-4 p-4">
-                <RankBadge rankId={rankInfo.rank?.id} size="md" showName={false} />
-                <div className="text-left">
-                  <p className="text-sm font-semibold">{t('cat_' + cat.id)}</p>
-                  <span className="text-xs text-muted-foreground">
-                    {rankInfo.rank ? t('rank_' + rankInfo.rank.id) : t('nessun_rank')}
-                  </span>
-                </div>
+            <div key={cat.id} className="titanium-tile flex flex-col items-center gap-3 rounded-3xl border border-border/70 px-3 py-5 text-center">
+              <RankBadge rankId={rankInfo.rank?.id} size="md" showName={false} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{t('cat_' + cat.id)}</p>
+                <span className="titanium-text text-xs font-semibold">
+                  {rankInfo.rank ? t('rank_' + rankInfo.rank.id) : t('nessun_rank')}
+                </span>
               </div>
             </div>
           );

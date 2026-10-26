@@ -1,14 +1,40 @@
 import { useMemo } from 'react';
-import { CalendarDays, ChevronRight, Check, Sparkles, Lock } from 'lucide-react';
+import { CalendarDays, ChevronRight, Sparkles, Lock } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useI18n, useT } from '@/lib/i18n';
 import { useCalendarEvents, dateKey } from '@/lib/calendarEvents';
 import { toMinutes } from '@/lib/focusSchedule';
 import { EVENT_STYLE } from './TimeGrid';
 
+// Spunta di completamento a destra: si riempie di titanio con un piccolo rimbalzo e il segno
+// si disegna da solo.
+function CheckButton({ done, onClick }) {
+  return (
+    <motion.span
+      role="button"
+      aria-pressed={done}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      whileTap={{ scale: 0.82 }}
+      animate={{ scale: done ? [1, 1.28, 1] : 1 }}
+      transition={{ duration: 0.35 }}
+      className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors duration-300 ${done ? 'titanium-bg border-transparent' : 'border-border'}`}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="#0a0a0a" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+        <motion.path
+          d="M5 12.5l4.5 4.5L19 7.5"
+          initial={false}
+          animate={{ pathLength: done ? 1 : 0, opacity: done ? 1 : 0 }}
+          transition={{ duration: 0.3, delay: done ? 0.08 : 0 }}
+        />
+      </svg>
+    </motion.span>
+  );
+}
+
 // Prima schermata di Organize: niente calendario in faccia. Dice cosa c'e' adesso (il
 // prossimo impegno), com'e' la giornata (barra di avanzamento + elenco in ordine di orario)
 // e cosa viene dopo. Il calendario completo e' un passo in piu' ("Calendario").
-export default function OrganizeOverview({ onOpenCalendar, onOpenDay, onFocusy, onEvent, onAdd }) {
+export default function OrganizeOverview({ onOpenCalendar, onOpenDay, onFocusy, onEvent, onAdd, onToggle }) {
   const t = useT();
   const { locale } = useI18n();
   const getEvents = useCalendarEvents();
@@ -75,11 +101,11 @@ export default function OrganizeOverview({ onOpenCalendar, onOpenDay, onFocusy, 
               <button key={e.id} onClick={() => onEvent(e)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                 <span className={`h-8 w-1 shrink-0 rounded-full ${(EVENT_STYLE[e.kind] || EVENT_STYLE.task).split(' ')[0]}`} />
                 <span className="min-w-0 flex-1">
-                  <span className={`block truncate text-sm font-semibold ${e.done ? 'text-muted-foreground line-through' : ''}`}>{e.title}</span>
+                  <span className={`block truncate text-sm font-semibold transition-colors duration-300 ${e.done ? 'text-muted-foreground line-through' : ''}`}>{e.title}</span>
                   <span className="block text-[11px] tabular-nums text-muted-foreground">{time(e)}</span>
                 </span>
                 {e.locked && <Lock size={12} className="shrink-0 text-muted-foreground" />}
-                {e.done && <Check size={16} className="shrink-0 text-muted-foreground" />}
+                {e.task && <CheckButton done={e.done} onClick={() => onToggle?.(e.task)} />}
               </button>
             ))}
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Pencil, Calendar, Monitor, BookOpen, GraduationCap } from 'lucide-react';
+import { Plus, Trash2, Pencil, Calendar, BookOpen, GraduationCap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useLessonGrades, useVerifiche, useInvalidateAll, useUserSettings, useTasks, useSubjects, useOptimisticLessonGradeSave, useOptimisticLessonGradeDelete, useOptimisticVerificaSave, useOptimisticVerificaUpdate, useOptimisticVerificaDelete, useSubscription } from '@/lib/useAppData';
 import { todayISO } from '@/lib/productivity';
@@ -165,9 +165,9 @@ export default function Lezioni() {
   return (
     <div className="px-5 safe-top pb-4">
       <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Monitor size={22} className="text-blue-500" />
-          <h1 className="text-2xl font-bold tracking-tight">{t('personal_study')}</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t('personal_study')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('personal_study_sub')}</p>
         </div>
         <button
           onClick={() => setMaterieOpen(true)}
@@ -177,12 +177,12 @@ export default function Lezioni() {
         </button>
       </header>
 
-      <div className="flex gap-2 mb-6 p-1 rounded-2xl bg-card border border-border overflow-x-auto scrollbar-hide">
+      <div className="mb-6 flex gap-1 overflow-x-auto rounded-full bg-foreground/[0.06] p-1 scrollbar-hide">
         {['voti', 'verifiche', 'orario', 'libri', 'simulatore'].map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
-            className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-semibold transition-colors ${tab === tabKey ? 'bg-foreground text-background' : 'text-muted-foreground'}`}
+            className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-colors ${tab === tabKey ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
           >
             {t('ls_tab_' + tabKey)}
           </button>
