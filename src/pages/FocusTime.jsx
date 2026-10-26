@@ -185,7 +185,7 @@ export default function FocusTime() {
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>
-        <div className="px-5 safe-top pb-4">
+        <div className="mx-auto max-w-xl px-5 safe-top pb-4">
           <header className="mb-5">
             <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>

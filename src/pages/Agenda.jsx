@@ -19,8 +19,6 @@ import { useTaskCelebration } from '@/components/CompletionCelebration';
 import ActivityCardBg from '@/components/ActivityCardBg';
 import { GYM_IMAGE_URL } from '@/lib/constants';
 import { Image } from '@/components/ui/image';
-import { useIsMobile } from '@/hooks/use-mobile';
-import AgendaDesktop from '@/components/desktop/AgendaDesktop';
 
 const TYPE_META = {
   todo: { key: 'ag_type_todo', icon: Circle },
@@ -46,7 +44,6 @@ export default function Agenda() {
   const optimisticTaskArchive = useOptimisticTaskArchive();
   const { locale } = useI18n();
   const t = useT();
-  const isMobile = useIsMobile();
 
   const [formOpen, setFormOpen] = useState(false);
   const [rateTask, setRateTask] = useState(null);
@@ -159,18 +156,9 @@ export default function Agenda() {
   const byWhen = (a, b) => `${a.due_date || '9999'} ${a.due_time || '99:99'}`.localeCompare(`${b.due_date || '9999'} ${b.due_time || '99:99'}`);
   const byType = (type) => activeTasks.filter((task) => task.type === type).sort(byWhen);
 
-  if (!isMobile) {
-    return (
-      <>
-        <AgendaDesktop />
-        <TutorialDialog pageId="agenda" />
-      </>
-    );
-  }
-
   return (
     <PullToRefresh onRefresh={invalidate}>
-      <div className="px-5 safe-top pb-4">
+      <div className="mx-auto max-w-3xl px-5 safe-top pb-4">
         <header className="mb-5 flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-xs font-medium capitalize text-muted-foreground">{now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
