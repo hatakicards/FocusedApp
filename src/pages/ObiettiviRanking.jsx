@@ -64,19 +64,14 @@ export default function ObiettiviRanking() {
 
       {tab === 'ranking' && (
       <>
-      <div className="mb-7 grid grid-cols-2 gap-2.5">
+      <div className="mb-7 grid grid-cols-3 gap-2.5">
         {CATEGORIES.map((cat) => {
           const rankInfo = computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || []);
 
           return (
-            <div key={cat.id} className="titanium-tile flex flex-col items-center gap-3 rounded-3xl border border-border/70 px-3 py-5 text-center">
-              <RankBadge rankId={rankInfo.rank?.id} size="md" showName={false} />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{t('cat_' + cat.id)}</p>
-                <span className="titanium-text text-xs font-semibold">
-                  {rankInfo.rank ? t('rank_' + rankInfo.rank.id) : t('nessun_rank')}
-                </span>
-              </div>
+            <div key={cat.id} className="titanium-tile flex aspect-square flex-col items-center justify-center gap-2 rounded-3xl border border-border/70 p-2 text-center">
+              <RankBadge rankId={rankInfo.rank?.id} size="lg" showName={false} />
+              <p className="line-clamp-2 w-full text-[10px] font-semibold leading-tight">{t('cat_' + cat.id)}</p>
             </div>
           );
         })}
