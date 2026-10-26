@@ -72,14 +72,21 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
 
   const showNav = view !== 'list';
 
+  const todayKey = dateKey(new Date());
+  const weekDays = useMemo(() => {
+    const st = startOfWeek(anchor);
+    return Array.from({ length: 7 }, (_, i) => { const d = new Date(st); d.setDate(st.getDate() + i); return d; });
+  }, [anchor]);
+  const dayLetter = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+
   return (
     <div>
-      <div className="mb-4 flex gap-1.5 rounded-2xl border border-border bg-card p-1">
+      <div className="mb-5 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
         {VIEWS.map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex-1 rounded-xl py-2 text-xs font-semibold transition-colors ${view === v ? 'bg-foreground text-background' : 'text-muted-foreground'}`}
+            className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${view === v ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
           >
             {t(VIEW_KEY[v])}
           </button>
@@ -87,22 +94,46 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
       </div>
 
       {showNav && (
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <button onClick={() => shift(-1)} className="rounded-lg p-2 active:scale-95"><ChevronLeft size={20} /></button>
-            <button onClick={() => shift(1)} className="rounded-lg p-2 active:scale-95"><ChevronRight size={20} /></button>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 flex-1 truncate text-lg font-semibold capitalize tracking-tight">{title}</h2>
+          <div className="flex shrink-0 items-center gap-1">
+            <button onClick={() => shift(-1)} aria-label="prev" className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 active:scale-95"><ChevronLeft size={18} /></button>
+            <button onClick={goToday} className="h-9 rounded-full border border-border/70 px-3 text-xs font-semibold active:scale-95">{t('org_oggi')}</button>
+            <button onClick={() => shift(1)} aria-label="next" className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 active:scale-95"><ChevronRight size={18} /></button>
           </div>
-          <h2 className="flex-1 px-1 text-sm font-semibold capitalize">{title}</h2>
-          <button onClick={goToday} className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold">{t('org_oggi')}</button>
+        </div>
+      )}
+
+      {view === 'day' && (
+        <div className="mb-4 grid grid-cols-7 gap-1">
+          {weekDays.map((d) => {
+            const key = dateKey(d);
+            const isSel = key === dateKey(anchor);
+            const ev = getEvents(d);
+            const has = ev.timed.length + ev.allDay.length > 0;
+            return (
+              <button
+                key={key}
+                onClick={() => setAnchor(d)}
+                className={`flex flex-col items-center gap-1 rounded-2xl py-2 transition-colors active:scale-95 ${isSel ? 'bg-foreground text-background' : ''}`}
+              >
+                <span className={`text-[10px] font-medium uppercase ${isSel ? 'opacity-70' : 'text-muted-foreground'}`}>{dayLetter.format(d)}</span>
+                <span className={`text-sm font-semibold tabular-nums ${key === todayKey && !isSel ? 'underline underline-offset-4' : ''}`}>{d.getDate()}</span>
+                <span className={`h-1 w-1 rounded-full ${has ? (isSel ? 'bg-background' : 'bg-foreground/60') : 'bg-transparent'}`} />
+              </button>
+            );
+          })}
         </div>
       )}
 
       {showNav && (
         <button
           onClick={() => setFocusyOpen(true)}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3 text-sm font-semibold text-background active:scale-[0.99]"
+          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 text-left active:scale-[0.99]"
         >
-          <Sparkles size={16} /> {t('org_focusy_btn')}
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Sparkles size={15} /></span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{t('org_focusy_btn')}</span>
+          <ChevronRight size={16} className="shrink-0 text-muted-foreground" />
         </button>
       )}
 

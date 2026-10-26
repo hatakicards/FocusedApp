@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2, Check, Clock, Bell, Repeat, Lock } from 'lucide-react';
+import { Plus, Play, Trash2, Check, Clock, Bell, Repeat, Lock, ChevronDown } from 'lucide-react';
 import {
   useFocusSessions,
   useHomeworks,
@@ -47,6 +47,7 @@ export default function FocusTime() {
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
   const [quickMinutes, setQuickMinutes] = useState(25);
+  const [showAllPast, setShowAllPast] = useState(false);
   const prefillHandledRef = useRef(false);
 
   useEffect(() => {
@@ -177,41 +178,42 @@ export default function FocusTime() {
     handleQuickStart(mins);
   }, []);
 
+  const label = 'text-[11px] font-semibold uppercase tracking-widest text-muted-foreground';
+  const group = 'divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-card';
+  const pastShown = showAllPast ? past : past.slice(0, 3);
+
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>
         <div className="px-5 safe-top pb-4">
           <header className="mb-5">
-            <h1 className="text-2xl font-bold tracking-tight">{t('nav_focus')}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
           </header>
 
-          <UsageReportCard className="mb-3" />
+          <UsageReportCard className="mb-5" />
 
-          <div className="mb-3 grid grid-cols-2 gap-2.5">
+          <div className="mb-6 flex gap-2.5">
             <button
               onClick={() => setQuickPick(true)}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-foreground px-3 py-4 text-center text-background active:scale-[0.98] transition-transform"
+              className="flex h-14 flex-1 items-center justify-center gap-2.5 rounded-2xl bg-foreground text-base font-semibold text-background transition-transform active:scale-[0.98]"
             >
-              <Play size={20} />
-              <span className="text-xs font-semibold leading-tight">{t('ft_avvia')}</span>
+              <Play size={18} /> {t('ft_avvia')}
             </button>
             <button
               onClick={() => { setEditing(null); setFormOpen(true); }}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-4 text-center active:scale-[0.98] transition-transform"
+              aria-label={t('opt_program_session')}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-card transition-transform active:scale-[0.98]"
             >
               <Plus size={20} />
-              <span className="text-xs font-semibold leading-tight">{t('opt_program_session')}</span>
             </button>
           </div>
 
-          <FocusStats sessions={sessions} />
+          <FocusStats sessions={sessions} className="mb-6" />
 
-          <FocusBlockCard className="mb-6" />
+          <FocusBlockCard className="mb-8" />
 
-          <section className="mb-6">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ft_programmi')}</h2>
-            </div>
+          <section className="mb-8">
+            <h2 className={`mb-2.5 ${label}`}>{t('ft_programmi')}</h2>
             {schedules.length === 0 ? (
               <button
                 onClick={() => { setEditing(null); setFormOpen(true); }}
@@ -220,60 +222,50 @@ export default function FocusTime() {
                 {t('ft_prog_vuoto')}
               </button>
             ) : (
-              <div className="space-y-2">
+              <div className={group}>
                 {schedules.map((s) => (
-                  <div key={s.id} className={`rounded-2xl border border-border bg-card p-4 ${s.schedule_active === false ? 'opacity-60' : ''}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <button onClick={() => { setEditing(s); setFormOpen(true); }} className="min-w-0 text-left">
-                        <span className="block truncate text-sm font-semibold">{s.title}</span>
-                        <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <Clock size={11} />
-                          {describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}
-                          {s.block_mode && s.block_mode !== 'off' && <Lock size={11} />}
-                        </span>
+                  <div key={s.id} className={`flex items-center justify-between gap-3 px-4 py-3.5 ${s.schedule_active === false ? 'opacity-50' : ''}`}>
+                    <button onClick={() => { setEditing(s); setFormOpen(true); }} className="min-w-0 text-left">
+                      <span className="block truncate text-sm font-semibold">{s.title}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Clock size={11} className="shrink-0" />
+                        <span className="truncate">{describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}</span>
+                        {s.block_mode && s.block_mode !== 'off' && <Lock size={11} className="shrink-0" />}
+                      </span>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
+                      <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive">
+                        <Trash2 size={14} />
                       </button>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
-                        <button
-                          onClick={() => handleDelete(s.id)}
-                          className="rounded-lg p-2 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-muted-foreground">{t('ft_programmi_sub')}</p>
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{t('ft_programmi_sub')}</p>
           </section>
 
           {upcoming.length > 0 && (
-            <section className="mb-6">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ft_prossime')}</h2>
-              <div className="space-y-2">
+            <section className="mb-8">
+              <h2 className={`mb-2.5 ${label}`}>{t('ft_prossime')}</h2>
+              <div className={group}>
                 {upcoming.map((s) => (
-                  <div key={s.id} className="rounded-2xl border border-border bg-card p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium truncate">{s.title}</span>
-                      <div className="flex gap-1 shrink-0">
-                        <button onClick={() => handleStart(s)} className="rounded-lg p-2 bg-foreground text-background">
-                          <Play size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(s.id)}
-                          className="rounded-lg p-2 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                  <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{s.title}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Clock size={11} /> {fmtWhen(s.scheduled_at)} · {s.duration_minutes} min
+                        {s.reminder_enabled && <Bell size={11} />}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock size={11} /> {fmtWhen(s.scheduled_at)}</span>
-                      <span>· {s.duration_minutes} min</span>
-                      {s.reminder_enabled && <span className="flex items-center gap-1"><Bell size={11} /> {t('ft_promemoria')}</span>}
-                      {s.spotify_url && <span>· Spotify</span>}
+                    <div className="flex shrink-0 gap-1">
+                      <button onClick={() => handleStart(s)} className="rounded-lg bg-foreground p-2 text-background">
+                        <Play size={14} />
+                      </button>
+                      <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -282,33 +274,38 @@ export default function FocusTime() {
           )}
 
           {past.length > 0 && (
-            <section className="mb-6">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ft_cronologia')}</h2>
-              <div className="space-y-2">
-                {past.map((s) => (
-                  <div key={s.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
-                    <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${s.status === 'done' ? 'bg-foreground text-background' : 'bg-foreground/10'}`}>
+            <section className="mb-8">
+              <h2 className={`mb-2.5 ${label}`}>{t('ft_cronologia')}</h2>
+              <div className={group}>
+                {pastShown.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${s.status === 'done' ? 'bg-foreground text-background' : 'bg-foreground/10'}`}>
                       {s.status === 'done' ? <Check size={14} /> : <Clock size={14} className="text-muted-foreground" />}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm font-medium truncate block">{s.title}</span>
-                      <span className="text-[10px] text-muted-foreground">{fmtWhen(s.scheduled_at)} · {s.actual_minutes ?? s.duration_minutes} min</span>
+                      <span className="block truncate text-sm font-medium">{s.title}</span>
+                      <span className="text-[11px] text-muted-foreground">{fmtWhen(s.scheduled_at)} · {s.actual_minutes ?? s.duration_minutes} min</span>
                     </div>
                     <button
                       onClick={() => handleRepeat(s)}
-                      className="shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold"
+                      className="flex shrink-0 items-center gap-1 rounded-lg border border-border/70 px-2.5 py-1.5 text-[11px] font-semibold"
                     >
                       <Repeat size={12} /> {t('ft_ripeti')}
                     </button>
                   </div>
                 ))}
+                {past.length > 3 && (
+                  <button onClick={() => setShowAllPast((v) => !v)} className="flex w-full items-center justify-center gap-1.5 py-3 text-xs font-semibold text-muted-foreground">
+                    {showAllPast ? '' : `+${past.length - 3}`} <ChevronDown size={14} className={showAllPast ? 'rotate-180' : ''} />
+                  </button>
+                )}
               </div>
             </section>
           )}
 
           {upcoming.length === 0 && past.length === 0 && schedules.length === 0 && (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center">
-              <p className="text-sm text-muted-foreground mb-4">{t('ft_nessuna')}</p>
+            <div className="rounded-2xl border border-border/70 bg-card p-8 text-center">
+              <p className="text-sm text-muted-foreground">{t('ft_nessuna')}</p>
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import { useT } from '@/lib/i18n';
 
-export default function FocusStats({ sessions }) {
+// Tre numeri in fila, senza riquadro: minuti totali, sessioni, giorni di fila.
+export default function FocusStats({ sessions, className = '' }) {
   const t = useT();
   const doneSessions = (sessions || []).filter((s) => s.status === 'done');
   if (doneSessions.length === 0) return null;
@@ -19,20 +20,20 @@ export default function FocusStats({ sessions }) {
     cursorStr = prev.toISOString().slice(0, 10);
   }
 
+  const items = [
+    [totalMinutes, t('ft_stats_minuti')],
+    [doneSessions.length, t('ft_stats_sessioni')],
+    [streak, t('ft_stats_streak')],
+  ];
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 mb-6 grid grid-cols-3 divide-x divide-border text-center">
-      <div>
-        <p className="text-2xl font-bold tabular-nums">{totalMinutes}</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{t('ft_stats_minuti')}</p>
-      </div>
-      <div>
-        <p className="text-2xl font-bold tabular-nums">{doneSessions.length}</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{t('ft_stats_sessioni')}</p>
-      </div>
-      <div>
-        <p className="text-2xl font-bold tabular-nums">{streak}</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">{t('ft_stats_streak')}</p>
-      </div>
+    <div className={`grid grid-cols-3 text-center ${className}`}>
+      {items.map(([value, label]) => (
+        <div key={label}>
+          <p className="text-2xl font-bold tabular-nums leading-none">{value}</p>
+          <p className="mt-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        </div>
+      ))}
     </div>
   );
 }

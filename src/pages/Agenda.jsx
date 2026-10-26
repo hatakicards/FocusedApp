@@ -124,7 +124,7 @@ export default function Agenda() {
     const Icon = meta.icon;
     const expired = isExpired(task);
     return (
-      <div key={task.id} className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
+      <div key={task.id} className="rounded-2xl border border-border/70 bg-card px-4 py-3.5 flex items-center gap-3">
         <button
           onClick={() => handleToggle(task)}
           className={`shrink-0 w-6 h-6 rounded-full border flex items-center justify-center ${task.status === 'done' ? 'bg-foreground border-foreground' : 'border-border'}`}
@@ -171,13 +171,17 @@ export default function Agenda() {
   return (
     <PullToRefresh onRefresh={invalidate}>
       <div className="px-5 safe-top pb-4">
-        <header className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">{t('nav_agenda')}</h1>
+        <header className="mb-5 flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-medium capitalize text-muted-foreground">{now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('nav_agenda')}</h1>
+          </div>
           <button
             onClick={() => setFormOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-sm font-semibold text-background"
+            aria-label={t('nuovo')}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background active:scale-95"
           >
-            <Plus size={16} /> {t('nuovo')}
+            <Plus size={20} />
           </button>
         </header>
 
@@ -238,9 +242,9 @@ export default function Agenda() {
           const meta = TYPE_META[type];
           const Icon = meta.icon;
           return (
-            <section key={type} className="mb-6">
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Icon size={12} /> {t(meta.key)}
+            <section key={type} className="mb-7">
+              <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Icon size={12} /> {t(meta.key)} <span className="rounded-full bg-foreground/10 px-1.5 py-0.5 text-[10px] tabular-nums">{items.length}</span>
               </h2>
               <div className="space-y-2">{items.map(renderTask)}</div>
             </section>

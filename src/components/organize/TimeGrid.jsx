@@ -18,6 +18,17 @@ export const EVENT_STYLE = {
   gym: 'bg-red-500 text-white',
 };
 
+// Eventi della griglia: fondo velato e barretta colorata a sinistra, testo sempre leggibile.
+export const EVENT_SOFT = {
+  task: 'bg-foreground/[0.12] border-foreground',
+  meeting: 'bg-blue-500/20 border-blue-400',
+  deadline: 'bg-amber-500/20 border-amber-400',
+  focus: 'bg-emerald-500/20 border-emerald-400',
+  lesson: 'bg-violet-500/20 border-violet-400',
+  verifica: 'bg-purple-500/20 border-purple-400',
+  gym: 'bg-red-500/20 border-red-400',
+};
+
 const pad = (n) => String(n).padStart(2, '0');
 
 // Griglia oraria stile Google Calendar: una colonna (giorno) o sette (settimana), con la
@@ -58,16 +69,16 @@ export default function TimeGrid({ days, getEvents, onSlotClick, onEventClick, o
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="overflow-hidden rounded-3xl border border-border/70 bg-card">
       {/* intestazione giorni */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-border/70">
         <div className="w-9 shrink-0" />
         {columns.map((c) => {
           const isToday = c.key === todayKey;
           return (
             <button key={c.key} onClick={() => onDayClick?.(c.date)} className="flex flex-1 flex-col items-center py-2">
-              <span className="text-[10px] font-medium uppercase text-muted-foreground">{wd.format(c.date)}</span>
-              <span className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday ? 'bg-foreground text-background' : ''}`}>
+              <span className={`text-[10px] font-medium uppercase tracking-wide ${isToday ? 'text-foreground' : 'text-muted-foreground'}`}>{wd.format(c.date)}</span>
+              <span className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday ? 'bg-foreground text-background' : ''}`}>
                 {c.date.getDate()}
               </span>
             </button>
@@ -85,7 +96,7 @@ export default function TimeGrid({ days, getEvents, onSlotClick, onEventClick, o
                 <button
                   key={ev.id}
                   onClick={() => onEventClick?.(ev)}
-                  className={`truncate rounded px-1 py-0.5 text-left text-[10px] font-medium ${EVENT_STYLE[ev.kind] || EVENT_STYLE.task} ${ev.done ? 'opacity-50 line-through' : ''}`}
+                  className={`truncate rounded-md border-l-2 px-1.5 py-0.5 text-left text-[10px] font-medium ${EVENT_SOFT[ev.kind] || EVENT_SOFT.task} ${ev.done ? 'opacity-50 line-through' : ''}`}
                 >
                   {ev.title}
                 </button>
@@ -110,8 +121,8 @@ export default function TimeGrid({ days, getEvents, onSlotClick, onEventClick, o
             <div
               key={c.key}
               onClick={(e) => handleSlot(e, c)}
-              className="relative min-w-0 flex-1 cursor-pointer border-l border-border/60"
-              style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_H - 1}px, hsl(var(--border) / 0.6) ${HOUR_H - 1}px, hsl(var(--border) / 0.6) ${HOUR_H}px)` }}
+              className={`relative min-w-0 flex-1 cursor-pointer border-l border-border/40 ${week && c.key === todayKey ? 'bg-foreground/[0.04]' : ''}`}
+              style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_H - 1}px, hsl(var(--border) / 0.45) ${HOUR_H - 1}px, hsl(var(--border) / 0.45) ${HOUR_H}px)` }}
             >
               {c.lanes.map((p) => {
                 const top = ((p.s - FIRST_HOUR * 60) / 60) * HOUR_H;
@@ -121,14 +132,14 @@ export default function TimeGrid({ days, getEvents, onSlotClick, onEventClick, o
                   <button
                     key={p.ev.id}
                     onClick={(e) => { e.stopPropagation(); onEventClick?.(p.ev); }}
-                    className={`absolute overflow-hidden rounded-md px-1 py-0.5 text-left text-[10px] font-medium leading-tight ${EVENT_STYLE[p.ev.kind] || EVENT_STYLE.task} ${p.ev.done ? 'opacity-50' : ''}`}
+                    className={`absolute overflow-hidden rounded-lg border-l-[3px] px-1.5 py-1 text-left text-[10px] font-semibold leading-tight ${EVENT_SOFT[p.ev.kind] || EVENT_SOFT.task} ${p.ev.done ? 'opacity-50' : ''}`}
                     style={{ top, height, left: `calc(${p.lane * w}% + 1px)`, width: `calc(${w}% - 2px)` }}
                   >
                     <span className={`flex items-center gap-0.5 ${p.ev.done ? 'line-through' : ''}`}>
                       {p.ev.locked && <Lock size={9} className="shrink-0" />}
                       <span className="truncate">{p.ev.title}</span>
                     </span>
-                    {!week && height > 30 && <span className="block text-[9px] opacity-80">{p.ev.start}{p.ev.end ? `–${p.ev.end}` : ''}</span>}
+                    {!week && height > 30 && <span className="block text-[9px] font-normal text-muted-foreground">{p.ev.start}{p.ev.end ? `–${p.ev.end}` : ''}</span>}
                   </button>
                 );
               })}

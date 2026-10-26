@@ -34,7 +34,7 @@ export default function MonthView({ viewDate, selected, onSelect, getEvents, onE
 
   return (
     <div>
-      <div className="mb-1 grid grid-cols-7">
+      <div className="mb-2 grid grid-cols-7">
         {headers.map((h, i) => <div key={i} className="text-center text-[10px] font-medium uppercase text-muted-foreground">{h}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -48,8 +48,8 @@ export default function MonthView({ viewDate, selected, onSelect, getEvents, onE
             <button
               key={key}
               onClick={() => onSelect(d)}
-              className={`relative flex aspect-square flex-col items-center justify-center rounded-lg transition-all active:scale-95 ${
-                isSel ? 'bg-foreground text-background' : key === todayKey ? 'bg-foreground/10' : 'hover:bg-foreground/5'
+              className={`relative flex aspect-square flex-col items-center justify-center rounded-2xl transition-all active:scale-95 ${
+                isSel ? 'bg-foreground text-background' : key === todayKey ? 'bg-foreground/10 ring-1 ring-foreground/30' : 'hover:bg-foreground/5'
               }`}
             >
               <span className={`text-sm ${isSel ? 'font-bold' : ''}`}>{d.getDate()}</span>
@@ -66,7 +66,7 @@ export default function MonthView({ viewDate, selected, onSelect, getEvents, onE
       </div>
 
       {selected && (
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+        <div className="mt-5 rounded-3xl border border-border/70 bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase capitalize tracking-wider text-muted-foreground">
               {selected.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -78,8 +78,8 @@ export default function MonthView({ viewDate, selected, onSelect, getEvents, onE
           ) : (
             <div className="space-y-2">
               {list.map((e) => (
-                <button key={e.id} onClick={() => onEventClick(e)} className="flex w-full items-center gap-2.5 rounded-lg bg-foreground/5 px-3 py-2 text-left">
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${(EVENT_STYLE[e.kind] || EVENT_STYLE.task).split(' ')[0]}`} />
+                <button key={e.id} onClick={() => onEventClick(e)} className="flex w-full items-center gap-3 rounded-xl bg-foreground/[0.05] py-2.5 pl-3 pr-3 text-left">
+                  <span className={`h-6 w-1 shrink-0 rounded-full ${(EVENT_STYLE[e.kind] || EVENT_STYLE.task).split(' ')[0]}`} />
                   <span className={`min-w-0 flex-1 truncate text-sm font-medium ${e.done ? 'text-muted-foreground line-through' : ''}`}>{e.title}</span>
                   {e.locked && <Lock size={12} className="shrink-0 text-muted-foreground" />}
                   {e.start && <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{e.start}{e.end ? `–${e.end}` : ''}</span>}
