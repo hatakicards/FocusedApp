@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabaseClient';
@@ -5,6 +6,7 @@ import { clearQueue } from '@/lib/syncQueue';
 import { setGuestMode, isGuestFlagSet, getGuestUser, clearGuestData } from '@/lib/guestDB';
 import { syncWidgetSession, clearWidgetSession } from '@/lib/nativeWidgetSync';
 import { configureRevenueCat, configureRevenueCatAnonymous, logOutRevenueCat } from '@/lib/revenueCat';
+import { parseConfirmUrl } from '@/lib/emailConfirm';
 
 const AuthContext = createContext();
 
@@ -92,6 +94,25 @@ export const AuthProvider = ({ children }) => {
       }
     });
     return () => listener?.subscription?.unsubscribe();
+  }, []);
+
+  // Il link di conferma email, aperto dal telefono, rimanda qui con focusedapp://auth-callback#...:
+  // si apre la sessione e si prosegue come dopo l'inserimento del codice.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    let handle;
+    let cancelled = false;
+    (async () => {
+      const { App } = await import('@capacitor/app');
+      const h = await App.addListener('appUrlOpen', async ({ url }) => {
+        const tokens = parseConfirmUrl(url);
+        if (!tokens) return;
+        const { error } = await supabase.auth.setSession(tokens);
+        if (!error) window.location.href = '/welcome';
+      });
+      if (cancelled) h.remove(); else handle = h;
+    })().catch(() => {});
+    return () => { cancelled = true; handle?.remove(); };
   }, []);
 
   const guestLogin = useCallback(() => {

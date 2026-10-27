@@ -3,6 +3,7 @@ import Capacitor
 import HealthKit
 import CoreMotion
 import CoreLocation
+import MapKit
 import UserNotifications
 
 // Segnali "reali" per capire cosa ha fatto l'utente senza che lo scriva: allenamenti,
@@ -45,8 +46,16 @@ public class FocusedHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             HKCategoryType(.sleepAnalysis),
             HKQuantityType(.stepCount),
         ]
-        store.requestAuthorization(toShare: nil, read: types) { _, _ in
-            call.resolve(["done": true])
+        store.requestAuthorization(toShare: nil, read: types) { [weak self] _, _ in
+            guard let self = self, CMMotionActivityManager.isActivityAvailable() else {
+                call.resolve(["done": true])
+                return
+            }
+            // La prima lettura dei movimenti e' quella che fa comparire il permesso "Movimento e fitness".
+            let now = Date()
+            self.motion.queryActivityStarting(from: now.addingTimeInterval(-3600), to: now, to: .main) { _, _ in
+                call.resolve(["done": true])
+            }
         }
     }
 
@@ -364,6 +373,7 @@ public class FocusedLocationPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setGymRegion", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearGymRegion", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "popGymVisits", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pickPlace", returnType: CAPPluginReturnPromise),
     ]
 
     @objc func getAuthorizationStatus(_ call: CAPPluginCall) {
@@ -429,4 +439,183 @@ public class FocusedLocationPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func popGymVisits(_ call: CAPPluginCall) {
         DispatchQueue.main.async { call.resolve(["visits": GymRegionMonitor.shared.popVisits()]) }
     }
+
+    // Mappa di Apple a schermo intero: cerchi o sposti la mappa, il segno al centro e' la palestra.
+    @objc func pickPlace(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            var start: CLLocationCoordinate2D?
+            if let lat = call.getDouble("lat"), let lon = call.getDouble("lon") {
+                start = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+            }
+            var strings: [String: String] = [:]
+            for key in ["title", "hint", "search", "confirm"] {
+                if let v = call.getString(key) { strings[key] = v }
+            }
+            let picker = GymPlacePickerController(start: start, strings: strings)
+            picker.modalPresentationStyle = .fullScreen
+            picker.completion = { coordinate in
+                if let c = coordinate {
+                    call.resolve(["lat": c.latitude, "lon": c.longitude])
+                } else {
+                    call.resolve(["cancelled": true])
+                }
+            }
+            guard let host = self.bridge?.viewController else {
+                call.reject("no_view")
+                return
+            }
+            host.present(picker, animated: true)
+        }
+    }
+}
+
+final class GymPlacePickerController: UIViewController, UISearchBarDelegate {
+    var completion: ((CLLocationCoordinate2D?) -> Void)?
+    private let start: CLLocationCoordinate2D?
+    private let strings: [String: String]
+    private let map = MKMapView()
+    private let search = UISearchBar()
+    private var finished = false
+
+    init(start: CLLocationCoordinate2D?, strings: [String: String]) {
+        self.start = start
+        self.strings = strings
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) non usato") }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        overrideUserInterfaceStyle = .dark
+        view.backgroundColor = .black
+
+        map.translatesAutoresizingMaskIntoConstraints = false
+        map.showsUserLocation = true
+        if let c = start {
+            map.setRegion(MKCoordinateRegion(center: c, latitudinalMeters: 600, longitudinalMeters: 600), animated: false)
+        } else {
+            map.setUserTrackingMode(.follow, animated: false)
+        }
+        view.addSubview(map)
+
+        let pin = UIImageView(image: UIImage(systemName: "mappin.circle.fill"))
+        pin.tintColor = .white
+        pin.translatesAutoresizingMaskIntoConstraints = false
+        pin.layer.shadowColor = UIColor.black.cgColor
+        pin.layer.shadowOpacity = 0.5
+        pin.layer.shadowRadius = 4
+        view.addSubview(pin)
+
+        let topBar = UIView()
+        topBar.translatesAutoresizingMaskIntoConstraints = false
+        topBar.backgroundColor = UIColor.black.withAlphaComponent(0.85)
+        view.addSubview(topBar)
+
+        let close = UIButton(type: .system)
+        close.setImage(UIImage(systemName: "xmark"), for: .normal)
+        close.tintColor = .white
+        close.translatesAutoresizingMaskIntoConstraints = false
+        close.addTarget(self, action: #selector(cancel), for: .touchUpInside)
+        topBar.addSubview(close)
+
+        let title = UILabel()
+        title.text = strings["title"] ?? "Palestra"
+        title.textColor = .white
+        title.font = .systemFont(ofSize: 17, weight: .semibold)
+        title.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(title)
+
+        search.placeholder = strings["search"]
+        search.delegate = self
+        search.searchBarStyle = .minimal
+        search.translatesAutoresizingMaskIntoConstraints = false
+        topBar.addSubview(search)
+
+        let bottom = UIView()
+        bottom.translatesAutoresizingMaskIntoConstraints = false
+        bottom.backgroundColor = UIColor.black.withAlphaComponent(0.85)
+        view.addSubview(bottom)
+
+        let hint = UILabel()
+        hint.text = strings["hint"]
+        hint.textColor = UIColor.white.withAlphaComponent(0.6)
+        hint.font = .systemFont(ofSize: 13)
+        hint.numberOfLines = 0
+        hint.textAlignment = .center
+        hint.translatesAutoresizingMaskIntoConstraints = false
+        bottom.addSubview(hint)
+
+        let confirm = UIButton(type: .system)
+        confirm.setTitle(strings["confirm"] ?? "OK", for: .normal)
+        confirm.setTitleColor(.black, for: .normal)
+        confirm.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+        confirm.backgroundColor = UIColor(white: 0.88, alpha: 1)
+        confirm.layer.cornerRadius = 16
+        confirm.translatesAutoresizingMaskIntoConstraints = false
+        confirm.addTarget(self, action: #selector(done), for: .touchUpInside)
+        bottom.addSubview(confirm)
+
+        NSLayoutConstraint.activate([
+            map.topAnchor.constraint(equalTo: view.topAnchor),
+            map.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            map.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            map.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            pin.centerXAnchor.constraint(equalTo: map.centerXAnchor),
+            pin.centerYAnchor.constraint(equalTo: map.centerYAnchor, constant: -18),
+            pin.widthAnchor.constraint(equalToConstant: 36),
+            pin.heightAnchor.constraint(equalToConstant: 36),
+
+            topBar.topAnchor.constraint(equalTo: view.topAnchor),
+            topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            close.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 16),
+            close.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            close.widthAnchor.constraint(equalToConstant: 32),
+            close.heightAnchor.constraint(equalToConstant: 32),
+            title.centerYAnchor.constraint(equalTo: close.centerYAnchor),
+            title.centerXAnchor.constraint(equalTo: topBar.centerXAnchor),
+            search.topAnchor.constraint(equalTo: close.bottomAnchor, constant: 4),
+            search.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 8),
+            search.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -8),
+            search.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -6),
+
+            bottom.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bottom.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bottom.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            hint.topAnchor.constraint(equalTo: bottom.topAnchor, constant: 14),
+            hint.leadingAnchor.constraint(equalTo: bottom.leadingAnchor, constant: 24),
+            hint.trailingAnchor.constraint(equalTo: bottom.trailingAnchor, constant: -24),
+            confirm.topAnchor.constraint(equalTo: hint.bottomAnchor, constant: 12),
+            confirm.leadingAnchor.constraint(equalTo: bottom.leadingAnchor, constant: 24),
+            confirm.trailingAnchor.constraint(equalTo: bottom.trailingAnchor, constant: -24),
+            confirm.heightAnchor.constraint(equalToConstant: 52),
+            confirm.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+        ])
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+        guard let text = searchBar.text, !text.isEmpty else { return }
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = text
+        request.region = map.region
+        MKLocalSearch(request: request).start { [weak self] response, _ in
+            guard let item = response?.mapItems.first else { return }
+            self?.map.setUserTrackingMode(.none, animated: false)
+            self?.map.setRegion(MKCoordinateRegion(center: item.placemark.coordinate, latitudinalMeters: 500, longitudinalMeters: 500), animated: true)
+        }
+    }
+
+    private func finish(_ coordinate: CLLocationCoordinate2D?) {
+        guard !finished else { return }
+        finished = true
+        dismiss(animated: true) { [completion] in completion?(coordinate) }
+    }
+
+    @objc private func cancel() { finish(nil) }
+    @objc private func done() { finish(map.centerCoordinate) }
 }

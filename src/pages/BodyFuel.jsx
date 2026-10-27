@@ -12,7 +12,7 @@ import FoodTracker from '@/components/bodyfuel/FoodTracker';
 import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
-import GymToday from '@/components/gym/GymToday';
+import GymActions from '@/components/gym/GymActions';
 import GymLocationCard from '@/components/bodyfuel/GymLocationCard';
 import StepsCard from '@/components/bodyfuel/StepsCard';
 import { isSenseEnabled, getSleepFromHealth } from '@/lib/healthSense';
@@ -292,10 +292,9 @@ export default function BodyFuel() {
         <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
       </header>
 
-      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_train')}</h2>
-      <GymToday className="mb-3" />
-      <GymLocationCard className="mb-3" />
-      <StepsCard />
+      <StepsCard className="mb-6" />
+      <GymActions className="mb-3" />
+      <GymLocationCard />
 
       <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_food')}</h2>
       {/* Calorie plan (BMR/TDEE calculator) */}

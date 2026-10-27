@@ -96,6 +96,21 @@ export async function requestNotificationPermission() {
   }
 }
 
+// Stato del permesso notifiche: 'granted' | 'denied' | 'prompt' (mai chiesto).
+export async function getNotificationPermission() {
+  const LN = await loadPlugin();
+  try {
+    if (LN) {
+      const { display } = await LN.checkPermissions();
+      return display === 'granted' ? 'granted' : display === 'denied' ? 'denied' : 'prompt';
+    }
+    if (typeof Notification === 'undefined') return 'denied';
+    return Notification.permission === 'default' ? 'prompt' : Notification.permission;
+  } catch {
+    return 'prompt';
+  }
+}
+
 export async function syncDailyReminder({ enabled, time, ratedToday, title, body }) {
   const LN = await loadPlugin();
   if (!LN) return;

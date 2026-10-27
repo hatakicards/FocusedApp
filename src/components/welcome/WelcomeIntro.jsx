@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, HeartPulse, Hourglass, Check, ArrowLeft, Info, CheckCircle, Calendar, Play, Target } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { Bell, HeartPulse, Hourglass, MapPin, Check, ArrowLeft, Info, CheckCircle, Calendar, Play, Target, Loader2 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { LOGO_URL } from '@/lib/constants';
 import { LANGUAGES, useI18n, useT } from '@/lib/i18n';
-import { requestNotificationPermission } from '@/lib/dailyReminder';
-import { isSenseAvailable, enableSense } from '@/lib/healthSense';
-import { isScreenTimeSupported, getAuthorizationStatus, requestAuthorization } from '@/lib/nativeScreenTime';
+import { listPermissions, permissionState, askPermission, openAppSettings } from '@/lib/permissions';
 
 const TUT_ICONS = [CheckCircle, Calendar, Play, Target];
 
@@ -42,8 +39,8 @@ export default function WelcomeIntro({ initial = {}, onDone, existing = false })
   const [birthDate, setBirthDate] = useState(initial.birthDate || '');
   const [showWhy, setShowWhy] = useState(false);
   const [dream, setDream] = useState(initial.dream || '');
-  const [perms, setPerms] = useState([]);
-  const [granted, setGranted] = useState({});
+  const [perms, setPerms] = useState(['notifications']);
+  const [permState, setPermState] = useState({}); // id -> 'granted' | 'denied' | 'prompt' | 'busy'
   const [busy, setBusy] = useState(false);
   const [tourIdx, setTourIdx] = useState(0);
 
@@ -58,33 +55,39 @@ export default function WelcomeIntro({ initial = {}, onDone, existing = false })
 
   useEffect(() => {
     (async () => {
-      const list = ['notifications'];
-      if (await isSenseAvailable()) list.push('health');
-      if (isScreenTimeSupported() && (await getAuthorizationStatus()) !== 'unsupported') list.push('screentime');
+      const list = await listPermissions();
       setPerms(list);
+      const states = {};
+      for (const id of list) states[id] = await permissionState(id);
+      setPermState(states);
     })();
   }, []);
 
   const permMeta = useMemo(() => ({
-    notifications: { icon: Bell, title: 'wl_perm_notif', text: 'wl_perm_notif_d', run: requestNotificationPermission },
-    health: { icon: HeartPulse, title: 'wl_perm_health', text: 'wl_perm_health_d', run: enableSense },
-    screentime: {
-      icon: Hourglass, title: 'wl_perm_st', text: 'wl_perm_st_d',
-      run: async () => { if ((await getAuthorizationStatus()) !== 'authorized') await requestAuthorization(); },
-    },
+    notifications: { icon: Bell, title: 'wl_perm_notif', text: 'wl_perm_notif_d' },
+    health: { icon: HeartPulse, title: 'wl_perm_health', text: 'wl_perm_health_d' },
+    location: { icon: MapPin, title: 'wl_perm_loc', text: 'wl_perm_loc_d' },
+    screentime: { icon: Hourglass, title: 'wl_perm_st', text: 'wl_perm_st_d' },
   }), []);
+
+  // Un permesso alla volta, sempre dopo un tocco: il popup di iOS compare e si aspetta la risposta.
+  const askOne = async (id) => {
+    setPermState((p) => ({ ...p, [id]: 'busy' }));
+    const next = await askPermission(id);
+    setPermState((p) => ({ ...p, [id]: next === 'prompt' ? 'asked' : next }));
+  };
 
   const askAll = async () => {
     if (busy) return;
     setBusy(true);
     for (const id of perms) {
-      // Sul browser il permesso notifiche a volte non risponde mai: non si resta bloccati qui.
-      const limit = new Promise((resolve) => setTimeout(resolve, Capacitor.isNativePlatform() ? 90000 : 4000));
-      try { await Promise.race([permMeta[id].run(), limit]); setGranted((g) => ({ ...g, [id]: true })); } catch { /* un rifiuto non blocca il percorso */ }
+      if (['granted', 'denied', 'asked'].includes(permState[id])) continue;
+      await askOne(id);
     }
     setBusy(false);
-    setStage('q1');
   };
+
+  const pending = perms.some((id) => !['granted', 'denied', 'asked'].includes(permState[id]));
 
   const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate, dream: dream.trim(), skipTutorial, permsAsked: true });
 
@@ -222,6 +225,7 @@ export default function WelcomeIntro({ initial = {}, onDone, existing = false })
             {perms.map((id) => {
               const m = permMeta[id];
               const Icon = m.icon;
+              const st = permState[id] || 'prompt';
               return (
                 <div key={id} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10"><Icon size={20} strokeWidth={1.7} /></span>
@@ -229,14 +233,27 @@ export default function WelcomeIntro({ initial = {}, onDone, existing = false })
                     <span className="block text-sm font-semibold">{t(m.title)}</span>
                     <span className="block text-xs leading-snug text-white/50">{t(m.text)}</span>
                   </span>
-                  {granted[id] && <Check size={18} className="shrink-0" />}
+                  {st === 'granted' && <Check size={18} className="shrink-0" />}
+                  {st === 'busy' && <Loader2 size={18} className="shrink-0 animate-spin text-white/60" />}
+                  {(st === 'prompt' || st === 'asked') && (
+                    <button onClick={() => askOne(id)} disabled={busy} className="titanium-bg shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold disabled:opacity-40">{t('wl_perm_allow')}</button>
+                  )}
+                  {st === 'denied' && (
+                    <button onClick={openAppSettings} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-semibold text-white/80">{t('wl_perm_settings')}</button>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
-        <button onClick={askAll} disabled={busy} className={`${titaniumBtn} mt-8`}>{t('wl_perm_allow')}</button>
-        <button onClick={() => setStage('q1')} className="mt-3 py-2 text-sm font-medium text-white/50">{t('wl_perm_later')}</button>
+        <button
+          onClick={pending ? askAll : () => setStage('q1')}
+          disabled={busy}
+          className={`${titaniumBtn} mt-8`}
+        >
+          {t(pending ? 'wl_perm_all' : 'wl_continue')}
+        </button>
+        {pending && <button onClick={() => setStage('q1')} className="mt-3 py-2 text-sm font-medium text-white/50">{t('wl_perm_later')}</button>}
       </Page>
     );
   } else if (stage === 'q1' || stage === 'q2') {

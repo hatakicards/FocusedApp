@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { ArrowLeft, Mail, Lock, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { useT } from '@/lib/i18n';
 import { setGuestMode } from '@/lib/guestDB';
 import GoogleIcon from '@/components/GoogleIcon';
 import AppleIcon from '@/components/AppleIcon';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
+  const t = useT();
+  const [resent, setResent] = useState(false);
   const [mode, setMode] = useState('register'); // 'register' | 'login'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -87,12 +90,23 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
     }
   };
 
+  const handleResend = async () => {
+    setError('');
+    setResent(false);
+    try {
+      await base44.auth.resendOtp(email);
+      setResent(true);
+    } catch (err) {
+      setError(err.message || 'Failed to resend code');
+    }
+  };
+
   if (showOtp) {
     return (
       <div className="flex flex-col min-h-[60vh]">
         <div className="flex-1 flex flex-col justify-center">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Verify your email</h1>
-          <p className="text-muted-foreground text-sm mb-8">We sent a code to {email}</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{t('auth_verify_t')}</h1>
+          <p className="text-muted-foreground text-sm mb-8">{t('auth_verify_d').replace('{email}', email)}</p>
 
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">{error}</div>
@@ -113,8 +127,10 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
             disabled={loading || otpCode.length < 6}
             className="w-full rounded-2xl bg-foreground py-4 text-sm font-bold text-background flex items-center justify-center gap-2 disabled:opacity-30"
           >
-            {loading ? <Loader2 size={18} className="animate-spin" /> : 'Verify'}
+            {loading ? <Loader2 size={18} className="animate-spin" /> : t('auth_verify_btn')}
           </button>
+          <button onClick={handleResend} className="mt-4 py-2 text-sm font-medium text-muted-foreground">{t('auth_resend')}</button>
+          {resent && <p className="text-center text-xs text-muted-foreground">{t('auth_resent')}</p>}
         </div>
       </div>
     );
