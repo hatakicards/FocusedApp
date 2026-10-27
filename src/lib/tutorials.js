@@ -1,16 +1,16 @@
 import {
   Plus, ChevronRight, Calendar, BarChart3, Target,
   TrendingUp, Trophy, CheckCircle, Dumbbell, Timer, Play, Activity, Settings,
-  Flame, Sparkles, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator,
+  Flame, Sparkles, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator, Smartphone, Repeat,
 } from 'lucide-react';
 
 export const TUTORIALS = {
   oggi: {
     titleKey: 'tut_oggi_title',
     steps: [
-      { icon: Flame, titleKey: 'tut_oggi_s1_t', textKey: 'tut_oggi_s1_d' },
-      { icon: Sparkles, titleKey: 'tut_oggi_s2_t', textKey: 'tut_oggi_s2_d' },
-      { icon: CheckCircle, titleKey: 'tut_oggi_s3_t', textKey: 'tut_oggi_s3_d' },
+      { icon: CheckCircle, titleKey: 'tut_oggi_s1_t', textKey: 'tut_oggi_s1_d' },
+      { icon: Flame, titleKey: 'tut_oggi_s2_t', textKey: 'tut_oggi_s2_d' },
+      { icon: Sparkles, titleKey: 'tut_oggi_s3_t', textKey: 'tut_oggi_s3_d' },
     ],
   },
   abitudini: {
@@ -39,16 +39,17 @@ export const TUTORIALS = {
   agenda: {
     titleKey: 'tut_agenda_title',
     steps: [
-      { icon: CheckCircle, titleKey: 'tut_agenda_s1_t', textKey: 'tut_agenda_s1_d' },
-      { icon: Plus, titleKey: 'tut_agenda_s2_t', textKey: 'tut_agenda_s2_d' },
-      { icon: Dumbbell, titleKey: 'tut_agenda_s3_t', textKey: 'tut_agenda_s3_d' },
+      { icon: Calendar, titleKey: 'tut_agenda_s1_t', textKey: 'tut_agenda_s1_d' },
+      { icon: CheckCircle, titleKey: 'tut_agenda_s2_t', textKey: 'tut_agenda_s2_d' },
+      { icon: Sparkles, titleKey: 'tut_agenda_s3_t', textKey: 'tut_agenda_s3_d' },
     ],
   },
   focus: {
     titleKey: 'tut_focus_title',
     steps: [
-      { icon: Timer, titleKey: 'tut_focus_s1_t', textKey: 'tut_focus_s1_d' },
-      { icon: Play, titleKey: 'tut_focus_s2_t', textKey: 'tut_focus_s2_d' },
+      { icon: Play, titleKey: 'tut_focus_s1_t', textKey: 'tut_focus_s1_d' },
+      { icon: Repeat, titleKey: 'tut_focus_s2_t', textKey: 'tut_focus_s2_d' },
+      { icon: Smartphone, titleKey: 'tut_focus_s3_t', textKey: 'tut_focus_s3_d' },
     ],
   },
   gym: {
