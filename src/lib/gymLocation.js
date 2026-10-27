@@ -41,11 +41,19 @@ async function storePlace(lat, lon, strings) {
   markSenseEnabled();
 }
 
+const withTimeout = (promise, ms, fallback) => Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
 // Per riconoscere la palestra ad app chiusa serve "Sempre": iOS lo chiede in un secondo momento.
+// Il passaggio a "Sempre" non deve mai bloccare il resto (le build vecchie non rispondevano se l'utente
+// teneva "Mentre usi l'app"), quindi ha un tempo massimo.
 async function ensurePlacePermission() {
   let status = await getLocationStatus();
-  if (status === 'not_determined' || status === 'when_in_use') {
+  if (status === 'not_determined') {
     status = (await FocusedLocation.requestAuthorization()).status;
+  }
+  if (status === 'when_in_use') {
+    const r = await withTimeout(FocusedLocation.requestAuthorization(), 3000, { status: 'when_in_use' });
+    status = r.status || status;
   }
   return status;
 }

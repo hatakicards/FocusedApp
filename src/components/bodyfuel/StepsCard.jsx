@@ -21,6 +21,7 @@ export default function StepsCard({ className = '' }) {
   const [days, setDays] = useState(null); // null = non letto / non disponibile
   const [goal, setGoal] = useState(readGoal);
   const [editing, setEditing] = useState(false);
+  const [hint, setHint] = useState('');
   const [draft, setDraft] = useState('');
   const native = Capacitor.getPlatform() === 'ios';
 
@@ -36,7 +37,13 @@ export default function StepsCard({ className = '' }) {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
 
-  const connect = async () => { await enableSense(); load(); };
+  const connect = async () => {
+    const { error } = await enableSense();
+    const steps = await getStepsFromHealth(1);
+    setDays(steps);
+    const got = steps !== null && steps.some((d) => d.steps > 0);
+    setHint(got ? '' : error ? `${t('bf_steps_err')} (${error.slice(0, 80)})` : t('bf_steps_help'));
+  };
 
   const saveGoal = () => {
     const n = parseInt(draft, 10);
@@ -98,6 +105,9 @@ export default function StepsCard({ className = '' }) {
 
       {native && !connected && (
         <button onClick={connect} className="titanium-bg mt-3 rounded-xl px-4 py-2 text-xs font-bold">{t('bf_steps_connect')}</button>
+      )}
+      {native && !connected && hint && (
+        <p className="mt-2 max-w-xs text-center text-[11px] leading-snug text-muted-foreground">{hint}</p>
       )}
       {!native && <p className="mt-2 text-center text-[11px] text-muted-foreground">{t('bf_steps_native')}</p>}
     </div>

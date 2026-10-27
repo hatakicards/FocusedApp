@@ -46,15 +46,17 @@ public class FocusedHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             HKCategoryType(.sleepAnalysis),
             HKQuantityType(.stepCount),
         ]
-        store.requestAuthorization(toShare: nil, read: types) { [weak self] _, _ in
+        store.requestAuthorization(toShare: nil, read: types) { [weak self] success, error in
+            var result: [String: Any] = ["done": success]
+            if let error = error { result["error"] = error.localizedDescription }
             guard let self = self, CMMotionActivityManager.isActivityAvailable() else {
-                call.resolve(["done": true])
+                call.resolve(result)
                 return
             }
             // La prima lettura dei movimenti e' quella che fa comparire il permesso "Movimento e fitness".
             let now = Date()
             self.motion.queryActivityStarting(from: now.addingTimeInterval(-3600), to: now, to: .main) { _, _ in
-                call.resolve(["done": true])
+                call.resolve(result)
             }
         }
     }
@@ -253,6 +255,7 @@ final class GymRegionMonitor: NSObject, CLLocationManagerDelegate {
     private let defaults = UserDefaults(suiteName: "group.org.focusedapp.app") ?? .standard
     var authWaiters: [(String) -> Void] = []
     var locationWaiters: [(CLLocation?) -> Void] = []
+    var lastError: Error?
 
     override init() {
         super.init()
@@ -346,6 +349,7 @@ final class GymRegionMonitor: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        lastError = error
         let waiters = locationWaiters
         locationWaiters = []
         waiters.forEach { $0(nil) }
@@ -389,26 +393,49 @@ public class FocusedLocationPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(["status": monitor.status()])
                 return
             }
-            monitor.authWaiters.append { status in call.resolve(["status": status]) }
             if monitor.status() == "when_in_use" {
+                // iOS mostra il passaggio a "Sempre" una volta sola e, se l'utente tiene "Mentre usi l'app",
+                // lo stato non cambia e nessun callback arriva: rispondo subito, senza aspettare.
                 monitor.manager.requestAlwaysAuthorization()
-            } else {
-                monitor.manager.requestWhenInUseAuthorization()
+                call.resolve(["status": "when_in_use"])
+                return
             }
+            monitor.authWaiters.append { status in call.resolve(["status": status]) }
+            monitor.manager.requestWhenInUseAuthorization()
         }
     }
 
     @objc func getCurrentLocation(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             let monitor = GymRegionMonitor.shared
+            let status = monitor.status()
+            if status == "denied" || status == "not_determined" {
+                call.reject("permission_\(status)")
+                return
+            }
+            if let l = monitor.manager.location, abs(l.timestamp.timeIntervalSinceNow) < 300 {
+                call.resolve(["lat": l.coordinate.latitude, "lon": l.coordinate.longitude, "accuracy": l.horizontalAccuracy])
+                return
+            }
+            var answered = false
+            monitor.lastError = nil
             monitor.locationWaiters.append { location in
+                if answered { return }
+                answered = true
                 if let l = location {
                     call.resolve(["lat": l.coordinate.latitude, "lon": l.coordinate.longitude, "accuracy": l.horizontalAccuracy])
                 } else {
-                    call.reject("no_location")
+                    let code = (monitor.lastError as NSError?)?.code ?? -1
+                    call.reject("no_location_\(code)")
                 }
             }
             monitor.manager.requestLocation()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+                if answered { return }
+                answered = true
+                monitor.locationWaiters = []
+                call.reject("timeout")
+            }
         }
     }
 

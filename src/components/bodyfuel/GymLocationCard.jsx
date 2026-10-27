@@ -39,7 +39,7 @@ export default function GymLocationCard({ className = '' }) {
       // nessun messaggio: l'utente ha chiuso la mappa
     } else if (r.reason === 'denied') { setMsg(t('bf_gymloc_denied')); setDenied(true); }
     else if (r.reason === 'unsupported') setMsg(t('bf_gymloc_native'));
-    else setMsg(t('bf_gymloc_error'));
+    else setMsg(`${t('bf_gymloc_error')} (${String(r.reason).slice(0, 80)})`);
   };
 
   const remove = async () => {

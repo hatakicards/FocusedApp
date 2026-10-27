@@ -43,10 +43,19 @@ export async function isSenseAvailable() {
 export const wasSenseAsked = () => read(ASKED_KEY, false);
 export const isSenseEnabled = () => read(ENABLED_KEY, false);
 
+// Restituisce { error } con il motivo vero se Salute non si e' potuta collegare (stringa vuota = ok).
 export async function enableSense() {
   write(ASKED_KEY, true);
-  try { await FocusedHealth.requestAuthorization(); } catch { /* ignore */ }
-  write(ENABLED_KEY, true);
+  let error = '';
+  try {
+    const r = await FocusedHealth.requestAuthorization();
+    if (r?.error) error = String(r.error);
+    else if (r && r.done === false) error = 'unavailable';
+  } catch (e) {
+    error = String(e?.message || e);
+  }
+  write(ENABLED_KEY, !error);
+  return { error };
 }
 
 // Usato dalla posizione della palestra: il rilevamento resta acceso senza richiedere di nuovo Salute.
