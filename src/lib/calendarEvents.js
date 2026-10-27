@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useTasks, useVerifiche, useGymSessions, useUserSettings, useFocusSessions, useTimetable } from '@/lib/useAppData';
+import { useTasks, useVerifiche, useGymSessions, useUserSettings, useFocusSessions, useTimetable, useHomeworks, useBooks } from '@/lib/useAppData';
 import { recurringSchedules, toMinutes } from '@/lib/focusSchedule';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -7,6 +7,11 @@ export const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad
 export const parseDateKey = (k) => new Date(`${k}T12:00:00`);
 const WEEKDAY_IDS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const hhmm = (v) => (v ? String(v).slice(0, 5) : null);
+// Le attivita' settimanali salvano i giorni come 'mon'...'sun' (TaskForm, ProjectPlanner).
+const MON_SUN = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const isWeeklyOn = (task, monIdx) => task.type === 'weekly'
+  && Array.isArray(task.weekdays)
+  && (task.weekdays.includes(MON_SUN[monIdx]) || task.weekdays.includes(monIdx));
 
 // Tutto quello che finisce nel calendario di Organize, per un giorno: task e eventi con
 // orario, verifiche, allenamento, programmi Focus Time ricorrenti e orario scolastico.
@@ -19,6 +24,8 @@ export function useCalendarEvents() {
   const { data: settings } = useUserSettings();
   const { data: focusSessions } = useFocusSessions();
   const { data: timetable } = useTimetable();
+  const { data: homeworks } = useHomeworks();
+  const { data: books } = useBooks();
 
   return useCallback((day) => {
     const key = dateKey(day);
@@ -28,17 +35,32 @@ export function useCalendarEvents() {
 
     for (const task of tasks || []) {
       if (task.status === 'archived') continue;
+      const weekly = isWeeklyOn(task, monIdx);
       const onDay = task.due_date === key
-        || (task.type === 'weekly' && task.weekdays?.includes(monIdx))
+        || weekly
         || (task.type === 'project' && !task.due_date && task.expiry_date === key);
       if (!onDay) continue;
       const kind = task.type === 'meeting' ? 'meeting' : task.type === 'deadline' ? 'deadline' : 'task';
-      const ev = { id: `t-${task.id}`, kind, title: task.title, task, done: task.status === 'done', start: hhmm(task.due_time), end: hhmm(task.end_time) };
+      // Una attivita' settimanale e' "fatta" solo nel giorno in cui l'hai completata.
+      const done = task.status === 'done' && (!weekly || task.due_date === key || task.completed_date === key);
+      const ev = { id: `t-${task.id}-${key}`, kind, title: task.title, task, done, start: hhmm(task.due_time), end: hhmm(task.end_time) };
       (ev.start ? timed : allDay).push(ev);
     }
 
     for (const v of verifiche || []) {
       if (v.status === 'scheduled' && v.date === key) allDay.push({ id: `v-${v.id}`, kind: 'verifica', title: `${v.subject}${v.topic ? ` - ${v.topic}` : ''}`, start: null, end: null });
+    }
+
+    for (const h of homeworks || []) {
+      if (h.due_date === key && h.status !== 'done') {
+        allDay.push({ id: `h-${h.id}`, kind: 'deadline', title: `${h.subject ? `${h.subject} - ` : ''}${h.title}`, start: null, end: null });
+      }
+    }
+
+    for (const b of books || []) {
+      if (b.status === 'reading' && b.target_date === key) {
+        allDay.push({ id: `b-${b.id}`, kind: 'lesson', title: b.title, start: null, end: null });
+      }
     }
 
     if (settings?.gym_enabled) {
@@ -58,7 +80,7 @@ export function useCalendarEvents() {
 
     timed.sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     return { timed, allDay };
-  }, [tasks, verifiche, gymSessions, settings?.gym_enabled, focusSessions, timetable]);
+  }, [tasks, verifiche, gymSessions, settings?.gym_enabled, focusSessions, timetable, homeworks, books]);
 }
 
 // Durata a video di un evento con orario: se manca la fine, un'ora.
