@@ -119,6 +119,24 @@ export async function purchaseSubscription(tier, period) {
   return customerInfo;
 }
 
+// Prezzi veri dello store (gia' localizzati, es. "3,99 EUR"): { [productId]: priceString }.
+// Si leggono una volta sola per sessione.
+let storePricesPromise = null;
+export function getStorePrices() {
+  if (!storePricesPromise) {
+    storePricesPromise = (async () => {
+      await ensureConfigured();
+      const offerings = await Purchases.getOfferings();
+      const out = {};
+      Object.values(offerings.all || {}).flatMap((o) => o.availablePackages).forEach((p) => {
+        if (p.product?.identifier && p.product?.priceString) out[p.product.identifier] = p.product.priceString;
+      });
+      return out;
+    })().catch((e) => { storePricesPromise = null; throw e; });
+  }
+  return storePricesPromise;
+}
+
 // Schermata di Apple per riscattare un Offer Code (iOS 14+): e' l'unico modo ammesso
 // da Apple per dare accesso con un codice, e passa comunque dall'App Store.
 export async function presentOfferCodeSheet() {

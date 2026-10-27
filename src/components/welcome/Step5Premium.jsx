@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Crown, Star, Loader2, Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
+import { PRICING, useStorePrices, storePriceFor } from '@/lib/plans';
 
 const PERIODS = [
   { id: 'monthly', label: 'Monthly' },
@@ -10,23 +11,11 @@ const PERIODS = [
   { id: 'annual', label: 'Annual' },
 ];
 
-const PRICING = {
-  premium: {
-    monthly: { intro: '2,99', regular: '4,99' },
-    quarterly: { intro: '8,99', regular: '12,99' },
-    annual: { price: '44,99', monthlyEquiv: '3,75', save: '15' },
-  },
-  pro: {
-    monthly: { intro: '1,99', regular: '3,49' },
-    quarterly: { intro: '6,99', regular: '9,99' },
-    annual: { price: '29,99', monthlyEquiv: '2,50', save: '12' },
-  },
-};
-
 const PREMIUM_FEATURES = ['No Ads', 'Athlete Mode', 'Student Mode', 'Professional Mode', 'Life Stats', 'Real-time Rankings', 'Gym Schedule'];
 const PRO_FEATURES = ['No Ads', 'Life Stats', 'Real-time Rankings', 'Gym Schedule'];
 
 export default function Step5Premium({ onFinish }) {
+  const storePrices = useStorePrices();
   const { user } = useAuth();
   const [period, setPeriod] = useState('monthly');
   const [loading, setLoading] = useState(null);
@@ -38,6 +27,16 @@ export default function Step5Premium({ onFinish }) {
 
   const renderPrice = (tier) => {
     const p = PRICING[tier][period];
+    const real = storePriceFor(storePrices, tier, period);
+    const unit = period === 'monthly' ? 'month' : period === 'quarterly' ? 'quarter' : 'year';
+    if (real) {
+      return (
+        <div className="flex items-baseline justify-center gap-1">
+          <span className="text-3xl font-black">{real}</span>
+          <span className="text-xs text-muted-foreground">/{unit}</span>
+        </div>
+      );
+    }
     if (period === 'annual') {
       return (
         <div className="flex flex-col items-center gap-0.5">
@@ -52,16 +51,10 @@ export default function Step5Premium({ onFinish }) {
         </div>
       );
     }
-    const unit = period === 'monthly' ? 'month' : 'quarter';
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-black">{p.intro}</span>
-          <span className="text-xs text-muted-foreground">€/{unit}</span>
-        </div>
-        <div className="text-[11px] text-muted-foreground text-center">
-          intro, then {p.regular} €/{unit}
-        </div>
+      <div className="flex items-baseline justify-center gap-1">
+        <span className="text-3xl font-black">{p.regular}</span>
+        <span className="text-xs text-muted-foreground">€/{unit}</span>
       </div>
     );
   };

@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
+import { PRICING, useStorePrices, storePriceFor } from '@/lib/plans';
 import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, presentOfferCodeSheet, tierFromProductId } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
@@ -33,19 +34,6 @@ const PERIODS = [
   { id: 'annual', labelKey: 'pm_annual' },
 ];
 
-const PRICING = {
-  premium: {
-    monthly: { regular: '6,99' },
-    quarterly: { regular: '19,99' },
-    annual: { price: '59,99', monthlyEquiv: '5,00', save: '24' },
-  },
-  pro: {
-    monthly: { regular: '4,99' },
-    quarterly: { regular: '12,99' },
-    annual: { price: '39,99', monthlyEquiv: '3,33', save: '20' },
-  },
-};
-
 export default function PremiumModal({ open, onClose }) {
   const t = useT();
   const { user } = useAuth();
@@ -59,6 +47,7 @@ export default function PremiumModal({ open, onClose }) {
   const [restoring, setRestoring] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState(null);
   const [celebrateTier, setCelebrateTier] = useState(null);
+  const storePrices = useStorePrices();
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -161,6 +150,16 @@ export default function PremiumModal({ open, onClose }) {
 
   const renderPrice = (tier) => {
     const p = PRICING[tier][period];
+    const real = storePriceFor(storePrices, tier, period);
+    if (real) {
+      const unit = period === 'monthly' ? t('pm_month') : period === 'quarterly' ? t('pm_per_quarter') : t('pm_per_year');
+      return (
+        <div className="flex items-baseline justify-center gap-1">
+          <span className="text-3xl font-black">{real}</span>
+          <span className="text-sm text-muted-foreground">/{unit}</span>
+        </div>
+      );
+    }
     if (period === 'annual') {
       return (
         <div className="flex flex-col items-center gap-1">
