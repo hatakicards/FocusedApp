@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Flame, Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight } from 'lucide-react';
+import { Flame, Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete, useSubscription } from '@/lib/useAppData';
 import { useAuth } from '@/lib/AuthContext';
@@ -60,7 +60,7 @@ export default function BodyFuel() {
   const [saving, setSaving] = useState(false);
   const [savingFood, setSavingFood] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [athTab, setAthTab] = useState('train');
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Le aggiunte/rimozioni/modifiche cibo sono asincrone; senza questa coda,
   // due tap ravvicinati potevano generare due salvataggi in parallelo e
   // quello piu' lento a rispondere sovrascriveva l'altro nella cache
@@ -271,22 +271,10 @@ export default function BodyFuel() {
         <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
       </header>
 
-      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
-        {[['train', 'ath_tab_train'], ['food', 'ath_tab_food'], ['sleep', 'ath_tab_sleep'], ['body', 'ath_tab_body']].map(([id, key]) => (
-          <button
-            key={id}
-            onClick={() => setAthTab(id)}
-            className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${athTab === id ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}
-          >
-            {t(key)}
-          </button>
-        ))}
-      </div>
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_train')}</h2>
+      <GymToday className="mb-2" />
 
-      {athTab === 'train' && <GymToday className="mb-6" />}
-
-      {athTab === 'food' && (
-      <>
+      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_food')}</h2>
       {/* Calorie plan (BMR/TDEE calculator) */}
       <button
         onClick={() => setShowCalculator(true)}
@@ -367,11 +355,7 @@ export default function BodyFuel() {
         </div>
       )}
 
-      </>
-      )}
-
-      {athTab === 'sleep' && (
-      <>
+      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_sleep')}</h2>
       {/* Sleep debt tracker */}
       <SleepDebtTracker />
 
@@ -433,11 +417,7 @@ export default function BodyFuel() {
         </div>
       )}
 
-      </>
-      )}
-
-      {athTab === 'body' && (
-      <>
+      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_body')}</h2>
       {/* Height and weight */}
       <div className="rounded-2xl border border-border bg-card p-4 mb-4">
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -487,9 +467,15 @@ export default function BodyFuel() {
         </button>
       </div>
 
-      {/* History */}
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('storico')}</p>
-      {sorted.length === 0 ? (
+      {/* History: chiuso finche' non lo apri */}
+      <button
+        onClick={() => setHistoryOpen((o) => !o)}
+        className="mb-3 mt-9 flex w-full items-center justify-between text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
+      >
+        <span>{t('storico')}{sorted.length > 0 ? ` (${sorted.length})` : ''}</span>
+        <ChevronDown size={16} className={historyOpen ? 'rotate-180' : ''} />
+      </button>
+      {!historyOpen ? null : sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">{t('nessun_dato')}</p>
       ) : (
         <div className="space-y-2">
@@ -535,8 +521,6 @@ export default function BodyFuel() {
         </div>
       )}
 
-      </>
-      )}
 
       {/* Edit dialog */}
       <Dialog open={!!editEntry} onOpenChange={(v) => !v && setEditEntry(null)}>
@@ -635,7 +619,7 @@ export default function BodyFuel() {
         data={chartDialog ? macroChartData(chartDialog.key) : []}
         color={chartDialog?.color || '#ef4444'}
       />
-      {athTab === 'body' && <HealthSources className="mb-4" />}
+      <HealthSources className="mb-4" />
       <CalorieCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
       <TutorialDialog pageId="bodyfuel" />
     </div>
