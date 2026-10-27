@@ -49,6 +49,32 @@ export async function enableSense() {
   write(ENABLED_KEY, true);
 }
 
+// Usato dalla posizione della palestra: il rilevamento resta acceso senza richiedere di nuovo Salute.
+export function markSenseEnabled() {
+  write(ASKED_KEY, true);
+  write(ENABLED_KEY, true);
+}
+
+// Aggiunge un allenamento rilevato da un'altra fonte (visita in palestra): resta "da chiedere".
+export function addSensedEvent(ev) {
+  const store = read(EVENTS_KEY, {});
+  if (store[ev.id]) return;
+  store[ev.id] = { ...ev, date: localDate(ev.end), status: 'pending' };
+  write(EVENTS_KEY, store);
+}
+
+// Passi degli ultimi `days` giorni (oggi compreso) da Salute: [{ date, steps }].
+export async function getStepsFromHealth(days = 1) {
+  if (!isIOS()) return null;
+  try { return (await FocusedHealth.getSteps({ days })).days || []; } catch { return null; }
+}
+
+// Notti di sonno rilevate da Salute (ultimi `days` giorni): [{ date, bedtime, wake, minutes }].
+export async function getSleepFromHealth(days = 3) {
+  if (!isIOS()) return [];
+  try { return (await FocusedHealth.getSleep({ sinceDays: days })).nights || []; } catch { return []; }
+}
+
 export function declineSense() {
   write(ASKED_KEY, true);
   write(ENABLED_KEY, false);
@@ -141,6 +167,8 @@ export function useSensedEvents(enabled) {
 
   const refresh = useCallback(async () => {
     if (!enabled) { setPending([]); return; }
+    // Le visite in palestra registrate ad app chiusa diventano allenamenti da valutare.
+    try { await (await import('@/lib/gymLocation')).syncGymVisits(); } catch { /* ignore */ }
     setPending(await syncEvents());
   }, [enabled]);
 

@@ -13,6 +13,9 @@ import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
 import GymToday from '@/components/gym/GymToday';
+import GymLocationCard from '@/components/bodyfuel/GymLocationCard';
+import StepsCard from '@/components/bodyfuel/StepsCard';
+import { isSenseEnabled, getSleepFromHealth } from '@/lib/healthSense';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import SubscriptionGate from '@/components/SubscriptionGate';
@@ -61,6 +64,7 @@ export default function BodyFuel() {
   const [savingFood, setSavingFood] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sleepAuto, setSleepAuto] = useState(false);
   // Le aggiunte/rimozioni/modifiche cibo sono asincrone; senza questa coda,
   // due tap ravvicinati potevano generare due salvataggi in parallelo e
   // quello piu' lento a rispondere sovrascriveva l'altro nella cache
@@ -101,6 +105,23 @@ export default function BodyFuel() {
       setHeight(todayEntry.height?.toString() || '');
     }
   }, [entries, today, todayEntry]);
+
+  // Sonno rilevato da Salute: se stanotte non e' ancora stato inserito, orari di addormentamento
+  // e risveglio si compilano da soli (si possono sempre correggere a mano).
+  const autoSleepRef = useRef(false);
+  useEffect(() => {
+    if (!sub.canUseProfiles || entries === undefined || autoSleepRef.current || !isSenseEnabled()) return;
+    if (todayEntry?.sleep_bedtime) return;
+    autoSleepRef.current = true;
+    (async () => {
+      const nights = await getSleepFromHealth(2);
+      const night = nights.filter((n) => n.date === today).sort((a, b) => b.minutes - a.minutes)[0];
+      if (!night) return;
+      const hhmm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+      setSleepAuto(true);
+      handleSleepChange(hhmm(night.bedtime), hhmm(night.wake));
+    })();
+  }, [todayEntry?.id, entries === undefined, sub.canUseProfiles]);
 
   if (!sub.canUseProfiles) {
     return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Flame} />;
@@ -272,7 +293,9 @@ export default function BodyFuel() {
       </header>
 
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_train')}</h2>
-      <GymToday className="mb-2" />
+      <GymToday className="mb-3" />
+      <GymLocationCard className="mb-3" />
+      <StepsCard />
 
       <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_food')}</h2>
       {/* Calorie plan (BMR/TDEE calculator) */}
@@ -384,6 +407,7 @@ export default function BodyFuel() {
               className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
             />
           </div>
+          {sleepAuto && <p className="text-[11px] text-muted-foreground">{t('bf_sleep_auto')}</p>}
           {(sleepHours > 0 || sleepMinutes > 0) && (
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">{t('bf_sleep_duration')}</p>

@@ -60,6 +60,7 @@ final class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(FocusedWidgetSyncPlugin())
         bridge?.registerPluginInstance(FocusedSpeechPlugin())
         bridge?.registerPluginInstance(FocusedHealthPlugin())
+        bridge?.registerPluginInstance(FocusedLocationPlugin())
         if #available(iOS 16.0, *) {
             bridge?.registerPluginInstance(FocusedScreenTimePlugin())
         }

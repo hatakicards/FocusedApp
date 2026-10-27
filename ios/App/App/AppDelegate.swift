@@ -7,7 +7,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Il monitor della palestra deve esistere anche quando iOS sveglia l'app in background.
+        GymRegionMonitor.shared.restoreIfNeeded()
         return true
     }
 

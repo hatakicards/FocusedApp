@@ -14,6 +14,10 @@
 	<string>Focused legge i tuoi allenamenti, il sonno e i passi da Salute per capire cosa hai fatto e chiederti come e' andata, senza che tu debba scriverlo. I dati di Salute non vengono salvati sui nostri server; Focusy ne usa solo un breve riassunto per consigliarti.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Focused non scrive dati in Salute. Questa voce e' richiesta da iOS perche' l'app usa HealthKit per leggere i tuoi allenamenti.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Focused usa la tua posizione solo per salvare dove si trova la tua palestra.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Focused riconosce da solo quando arrivi in palestra e quando esci, cosi' ti chiede com'e' andato l'allenamento. La posizione resta sul telefono e non viene salvata sui nostri server.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Focused usa il movimento per riconoscere quando hai corso o camminato e chiederti come e' andata. I dati di movimento non vengono salvati sui nostri server.</string>
 	<key>CFBundleDisplayName</key>
