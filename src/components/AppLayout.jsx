@@ -18,12 +18,13 @@ import TrialExpiredModal from './TrialExpiredModal';
 import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate, useRatings } from '@/lib/useAppData';
 import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
-import { useDailyReminder, useGymNudges } from '@/lib/dailyReminder';
+import { useDailyReminder, useGymNudges, useLessonReminders } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
 import ActiveFocusHost from './ActiveFocusHost';
 import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
+import WelcomeIntro from './welcome/WelcomeIntro';
 import { TUTORIALS } from '@/lib/tutorials';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
@@ -48,6 +49,26 @@ export default function AppLayout() {
       return on;
     } catch { return false; }
   });
+  // Benvenuto nuovo: una volta sola anche per chi era gia' dentro (senza login, che ha gia' fatto).
+  const [welcomeNeeded, setWelcomeNeeded] = useState(() => {
+    try { return !firstRun && localStorage.getItem('welcome_v2_done') !== '1'; } catch { return false; }
+  });
+  const finishWelcome = async (d) => {
+    try {
+      localStorage.setItem('welcome_v2_done', '1');
+      if (d.skipTutorial) Object.keys(TUTORIALS).forEach((id) => localStorage.setItem('tutorial_seen_' + id, '1'));
+    } catch { /* ignore */ }
+    setWelcomeNeeded(false);
+    try {
+      if (d.name && user && !user.isGuest) await base44.auth.updateMe({ full_name: d.name });
+      if (settings?.id) {
+        const patch = {};
+        if (d.dream) patch.dream = d.dream;
+        if (d.birthDate) patch.birth_date = d.birthDate;
+        if (Object.keys(patch).length) await optimisticSettingsUpdate(patch);
+      }
+    } catch (e) { console.warn('Welcome save failed', e); }
+  };
   const holdTimerRef = useRef(null);
   const heldRef = useRef(false);
   const location = useLocation();
@@ -60,6 +81,7 @@ export default function AppLayout() {
   useSyncInit();
   const { data: ratings } = useRatings();
   useDailyReminder(settings, ratings);
+  useLessonReminders();
   useGymNudges(ratings);
   useFocusScheduler();
 
@@ -244,6 +266,13 @@ export default function AppLayout() {
       <TrialWelcomeModal open={trialWelcome && !firstRun} onClose={closeTrialWelcome} />
       <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />
       {firstRun && <FirstRunFlow onDone={() => setFirstRun(false)} />}
+      {welcomeNeeded && !firstRun && settings && (
+        <WelcomeIntro
+          existing
+          initial={{ name: (user?.full_name || '').trim().split(' ')[0], dream: settings?.dream || '', birthDate: settings?.birth_date || '' }}
+          onDone={finishWelcome}
+        />
+      )}
     </div>
   );
 }

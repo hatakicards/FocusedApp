@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
-import { useActivities, useGymSessions, useSubscription } from '@/lib/useAppData';
+import { useActivities, useGymSessions, useSubscription, useTimetable } from '@/lib/useAppData';
+import { useAuth } from '@/lib/AuthContext';
 import { getRecentEvents, typicalHour } from '@/lib/healthSense';
-import { useAppStreak } from '@/lib/appStreak';
 
 // Promemoria serale: una notifica locale all'orario scelto dall'utente. iOS non
 // permette di condizionare una notifica ripetuta, quindi se ne programmano le
@@ -96,8 +96,7 @@ export async function requestNotificationPermission() {
   }
 }
 
-// messages: elenco di { title, body } che ruotano un giorno dopo l'altro; se manca, si usa title/body.
-export async function syncDailyReminder({ enabled, time, ratedToday, title, body, messages }) {
+export async function syncDailyReminder({ enabled, time, ratedToday, title, body }) {
   const LN = await loadPlugin();
   if (!LN) return;
   try {
@@ -116,11 +115,10 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
       at.setHours(hour, minute, 0, 0);
       if (at.getTime() <= now + 5000) continue;
       if (i === 0 && ratedToday) continue;
-      const m = messages?.length ? messages[(at.getDate() + at.getMonth()) % messages.length] : { title, body };
       notifications.push({
         id: BASE_ID + i,
-        title: m.title,
-        body: m.body,
+        title,
+        body,
         schedule: { at, allowWhileIdle: true },
       });
     }
@@ -133,28 +131,83 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
 
 export function useDailyReminder(settings, ratings) {
   const t = useT();
-  const title = t('notif_title');
-  const body = t('notif_body');
+  const { user } = useAuth();
+  const firstName = (user?.full_name || '').trim().split(' ')[0];
+  const title = firstName ? t('notif_evening_title').replace('{name}', firstName) : t('notif_evening_title_anon');
+  const body = t('notif_evening_body');
   const enabled = settings?.reminder_enabled ?? true;
   const time = settings?.reminder_time;
   const ready = !!settings && ratings !== undefined;
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const ratedToday = (ratings || []).some((r) => r.date === todayKey);
-  const { streak, doneToday } = useAppStreak();
-  const dream = (settings?.dream || '').trim();
 
-  // Messaggi che cambiano di giorno in giorno e parlano di te (serie, sogno, Focus Time):
-  // una notifica sempre uguale smette di essere letta dopo tre giorni.
-  const nudgeStreak = streak > 0 && !doneToday ? t('nudge_streak').replace('{n}', String(streak)) : '';
-  const nudgeDream = dream ? t('nudge_dream').replace('{dream}', dream.length > 60 ? `${dream.slice(0, 57)}...` : dream) : '';
-  const nudgeFocus = t('nudge_focus');
-  const messagesKey = [title, body, nudgeStreak, nudgeDream, nudgeFocus].join('|');
-
+  // A fine giornata, all'orario scelto (di default le 21): "Ei Marco, com'e' andato oggi?".
+  // Se oggi hai gia' valutato la giornata, quella di stasera salta.
   useEffect(() => {
     if (!ready) return;
-    const messages = [body, nudgeStreak, nudgeDream, nudgeFocus].filter(Boolean).map((b) => ({ title, body: b }));
-    syncDailyReminder({ enabled, time, ratedToday, title, body, messages });
-  }, [ready, enabled, time, ratedToday, messagesKey]);
+    syncDailyReminder({ enabled, time, ratedToday, title, body });
+  }, [ready, enabled, time, ratedToday, title, body]);
+}
+
+// Promemoria prima di ogni lezione dell'orario scolastico: 5 minuti prima esce
+// "Pronto per Matematica? Inizia tra 5 minuti. Appena finisci valutala su Focused!".
+// iOS tiene al massimo 64 notifiche programmate: per le lezioni ne bastano i prossimi giorni
+// e si riprogrammano a ogni apertura.
+const LESSON_BASE_ID = 7400;
+const LESSON_DAYS = 5;
+const LESSON_MAX = 36;
+const LESSON_LEAD_MIN = 5;
+
+export async function syncLessonReminders({ slots, titleFor, body }) {
+  const LN = await loadPlugin();
+  if (!LN) return;
+  try {
+    await LN.cancel({
+      notifications: Array.from({ length: LESSON_MAX }, (_, i) => ({ id: LESSON_BASE_ID + i })),
+    });
+    if (!slots?.length) return;
+    if (!(await ensurePermission(LN))) return;
+
+    const now = Date.now();
+    const planned = [];
+    for (let i = 0; i < LESSON_DAYS; i += 1) {
+      const day = new Date();
+      day.setDate(day.getDate() + i);
+      const weekday = day.getDay() === 0 ? 7 : day.getDay(); // 1 = lunedi ... 7 = domenica
+      for (const slot of slots) {
+        if (slot.weekday !== weekday || !slot.start_time) continue;
+        const [hh, mm] = String(slot.start_time).slice(0, 5).split(':').map((n) => parseInt(n, 10));
+        if (!Number.isFinite(hh) || !Number.isFinite(mm)) continue;
+        const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm - LESSON_LEAD_MIN, 0, 0);
+        if (at.getTime() <= now + 5000) continue;
+        planned.push({ at, subject: slot.subject });
+      }
+    }
+    planned.sort((a, b) => a.at - b.at);
+    const notifications = planned.slice(0, LESSON_MAX).map((p, i) => ({
+      id: LESSON_BASE_ID + i,
+      title: titleFor(p.subject),
+      body,
+      schedule: { at: p.at, allowWhileIdle: true },
+    }));
+    if (notifications.length) await LN.schedule({ notifications });
+  } catch (e) {
+    console.warn('Lesson reminder sync failed', e);
+    noteError('lezioni', e);
+  }
+}
+
+export function useLessonReminders() {
+  const t = useT();
+  const { data: slots } = useTimetable();
+  const titleTpl = t('notif_lesson_title');
+  const body = t('notif_lesson_body');
+  const key = (slots || []).map((s) => `${s.weekday}${s.start_time}${s.subject}`).join('|');
+
+  useEffect(() => {
+    if (slots === undefined) return;
+    syncLessonReminders({ slots, titleFor: (subject) => titleTpl.replace('{subject}', subject || ''), body });
+  }, [key, titleTpl, body, slots === undefined]);
 }
 
 // Notifica di fine sessione Focus Time: serve quando l'utente esce da Focused per

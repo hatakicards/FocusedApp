@@ -5,11 +5,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { getDB, unlockGuestSubscription } from '@/lib/guestDB';
 import { safeReturnTo } from '@/lib/authReturnTo';
-import { Image } from '@/components/ui/image';
-import { LOGO_URL } from '@/lib/constants';
-import Step1Name from '@/components/welcome/Step1Name';
-import Step2Dream from '@/components/welcome/Step2Dream';
-import Step3Reminder from '@/components/welcome/Step3Reminder';
+import { TUTORIALS } from '@/lib/tutorials';
+import WelcomeIntro from '@/components/welcome/WelcomeIntro';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
 import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
@@ -82,12 +79,8 @@ export default function Welcome() {
 
   const updateData = (partial) => setData((prev) => ({ ...prev, ...partial }));
 
-  const handleNext = (newData) => {
-    updateData(newData);
-    setStep((s) => s + 1);
-  };
-
-  const handleBack = () => setStep((s) => Math.max(1, s - 1));
+  // Dal login si torna al benvenuto.
+  const handleBack = () => setStep(1);
 
   const handleAuthRedirect = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -114,8 +107,16 @@ export default function Welcome() {
       console.error('Error setting onboarded:', e);
     }
     localStorage.removeItem(STORAGE_KEY);
-    // Il primo avvio guidato parte appena si entra nell'app (AppLayout -> FirstRunFlow).
-    try { localStorage.setItem('first_run_pending', '1'); } catch { /* ignore */ }
+    // Il benvenuto e' fatto. Il primo avvio guidato parte appena si entra nell'app (AppLayout ->
+    // FirstRunFlow), a meno che l'utente abbia scelto "Salta il tutorial".
+    try {
+      localStorage.setItem('welcome_v2_done', '1');
+      if (data.skipTutorial) {
+        Object.keys(TUTORIALS).forEach((id) => localStorage.setItem(`tutorial_seen_${id}`, '1'));
+      } else {
+        localStorage.setItem('first_run_pending', '1');
+      }
+    } catch { /* ignore */ }
 
     if (choice === 'free') {
       navigate(safeReturnTo(), { replace: true });
@@ -181,30 +182,19 @@ export default function Welcome() {
     return null;
   }
 
+  // Il benvenuto a schermo intero: logo, nome, lingua, sogno, permessi, domande e giro dell'app.
+  if (step === 1) {
+    return (
+      <WelcomeIntro
+        initial={data}
+        onDone={(d) => { updateData(d); setStep(4); }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background safe-top">
       <div className="flex flex-col items-center px-6 py-8 min-h-screen max-w-md mx-auto">
-        {/* Logo */}
-        <div className="w-14 h-14 mb-6">
-          <Image src={LOGO_URL} alt="Focused" fittingType="fit" className="w-full h-full object-contain" />
-        </div>
-
-        {/* Progress dots */}
-        <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className={`h-1.5 rounded-full transition-all ${
-                i === step
-                  ? 'w-6 bg-foreground'
-                  : i < step
-                  ? 'w-1.5 bg-foreground/50'
-                  : 'w-1.5 bg-foreground/20'
-              }`}
-            />
-          ))}
-        </div>
-
         {/* Steps */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -215,9 +205,6 @@ export default function Welcome() {
             transition={{ duration: 0.25 }}
             className="flex-1 w-full"
           >
-            {step === 1 && <Step1Name data={data} onNext={handleNext} />}
-            {step === 2 && <Step2Dream data={data} onNext={handleNext} onBack={handleBack} />}
-            {step === 3 && <Step3Reminder data={data} onNext={handleNext} onBack={handleBack} />}
             {step === 4 && <Step4Auth data={data} onAuthRedirect={handleAuthRedirect} onGuest={handleGuestContinue} onBack={handleBack} />}
             {step === 5 && <Step5Premium data={data} onFinish={handleFinish} />}
           </motion.div>

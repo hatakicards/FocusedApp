@@ -85,9 +85,16 @@ export default function FirstRunFlow({ onDone }) {
       const list = ['notifications'];
       if (await isSenseAvailable()) list.push('health');
       if (isScreenTimeSupported() && (await getAuthorizationStatus()) !== 'unsupported') list.push('screentime');
-      setPerms(list);
+      // Se il benvenuto li ha gia' chiesti, qui non si ripetono.
+      let asked = false;
+      try { asked = localStorage.getItem('welcome_v2_done') === '1'; } catch { /* ignore */ }
+      setPerms(asked ? [] : list);
     })();
   }, []);
+
+  useEffect(() => {
+    if (stage === 'perms' && perms && perms.length === 0) setStage('tour');
+  }, [stage, perms]);
 
   // Dopo questo giro i tutorial a comparsa per pagina non servono piu'.
   const finish = () => {
