@@ -52,14 +52,14 @@ function Card({ icon: Icon, title, text, children }) {
 // Primo avvio dopo il login: arrivo animato, permessi spiegati uno per uno, giro
 // dell'app con i punti illuminati, poi si crea insieme la prima attivita', il primo
 // obiettivo, il primo task in agenda e si lancia il primo Focus Time.
-export default function FirstRunFlow({ onDone }) {
+export default function FirstRunFlow({ onDone, replay = false }) {
   const t = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuth();
   const { data: settings } = useUserSettings();
   const [perms, setPerms] = useState(null); // elenco permessi da chiedere su questo dispositivo
-  const [stage, setStage] = useState('arrival');
+  const [stage, setStage] = useState(replay ? 'tour' : 'arrival');
   const [permIdx, setPermIdx] = useState(0);
   const [busy, setBusy] = useState(false);
 
@@ -88,7 +88,7 @@ export default function FirstRunFlow({ onDone }) {
       // Se il benvenuto li ha gia' chiesti, qui non si ripetono.
       let asked = false;
       try { asked = localStorage.getItem('welcome_v2_done') === '1'; } catch { /* ignore */ }
-      setPerms(asked ? [] : list);
+      setPerms(asked || replay ? [] : list);
     })();
   }, []);
 

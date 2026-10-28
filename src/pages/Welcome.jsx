@@ -5,7 +5,6 @@ import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
 import { getDB, unlockGuestSubscription } from '@/lib/guestDB';
 import { safeReturnTo } from '@/lib/authReturnTo';
-import { TUTORIALS } from '@/lib/tutorials';
 import WelcomeIntro from '@/components/welcome/WelcomeIntro';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
@@ -111,11 +110,9 @@ export default function Welcome() {
     // FirstRunFlow), a meno che l'utente abbia scelto "Salta il tutorial".
     try {
       localStorage.setItem('welcome_v2_done', '1');
-      if (data.skipTutorial) {
-        Object.keys(TUTORIALS).forEach((id) => localStorage.setItem(`tutorial_seen_${id}`, '1'));
-      } else {
-        localStorage.setItem('first_run_pending', '1');
-      }
+      // Anche chi salta le slide fa il percorso guidato (prima attivita', obiettivo, agenda, focus):
+      // e' quello che fa capire come funziona davvero l'app.
+      localStorage.setItem('first_run_pending', '1');
     } catch { /* ignore */ }
 
     if (choice === 'free') {

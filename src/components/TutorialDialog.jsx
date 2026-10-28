@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n';
 import { TUTORIALS } from '@/lib/tutorials';
 import { cn } from '@/lib/utils';
 import { useUserSettings } from '@/lib/useAppData';
+import { OPEN_TUTORIAL_EVENT, REPLAY_FIRST_RUN_EVENT } from '@/components/HelpButton';
 
 const STORAGE_PREFIX = 'tutorial_seen_';
 
@@ -34,6 +35,16 @@ export default function TutorialDialog({ pageId }) {
     window.addEventListener('trial-welcome-dismissed', check);
     return () => window.removeEventListener('trial-welcome-dismissed', check);
   }, [pageId, tutorial, settings?.trial_start]);
+
+  useEffect(() => {
+    const onOpen = (e) => {
+      if (e.detail?.pageId !== pageId || !tutorial) return;
+      setStep(0);
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_TUTORIAL_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_TUTORIAL_EVENT, onOpen);
+  }, [pageId, tutorial]);
 
   if (!tutorial) return null;
 
@@ -93,6 +104,16 @@ export default function TutorialDialog({ pageId }) {
               />
             ))}
           </div>
+
+          {isLast && (
+            <button
+              type="button"
+              onClick={() => { close(); window.dispatchEvent(new Event(REPLAY_FIRST_RUN_EVENT)); }}
+              className="mx-auto -mt-1 text-xs font-medium text-muted-foreground underline underline-offset-4"
+            >
+              {t('help_replay')}
+            </button>
+          )}
 
           <DialogFooter className="flex-row items-center justify-between sm:justify-between">
             <Button variant="ghost" size="sm" onClick={close}>

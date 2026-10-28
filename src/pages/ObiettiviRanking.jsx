@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n';
 import RankBadge from '@/components/RankBadge';
 import GoalHistoryModal from '@/components/GoalHistoryModal';
 import TutorialDialog from '@/components/TutorialDialog';
+import HelpButton from '@/components/HelpButton';
 import MilestoneGrid from '@/components/MilestoneGrid';
 import LifeStatsTab from '@/components/obiettivi/LifeStatsTab';
 import GoalsListTab from '@/components/obiettivi/GoalsListTab';
@@ -41,9 +42,12 @@ export default function ObiettiviRanking() {
 
   return (
     <div className="px-5 safe-top pb-4">
-      <header className="mb-5">
-        <h1 className="text-3xl font-bold tracking-tight">LifeGame</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('lg_sub')}</p>
+      <header className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight">LifeGame</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('lg_sub')}</p>
+        </div>
+        <HelpButton pageId="obiettivi" className="mt-1" />
       </header>
 
       <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">

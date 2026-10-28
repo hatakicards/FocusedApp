@@ -50,13 +50,18 @@ export default function AppLayout() {
     } catch { return false; }
   });
   // Benvenuto nuovo: una volta sola anche per chi era gia' dentro (senza login, che ha gia' fatto).
+  const [replayFirstRun, setReplayFirstRun] = useState(false);
+  useEffect(() => {
+    const onReplay = () => { setReplayFirstRun(true); setFirstRun(true); };
+    window.addEventListener('replay-first-run', onReplay);
+    return () => window.removeEventListener('replay-first-run', onReplay);
+  }, []);
   const [welcomeNeeded, setWelcomeNeeded] = useState(() => {
     try { return !firstRun && localStorage.getItem('welcome_v2_done') !== '1'; } catch { return false; }
   });
   const finishWelcome = async (d) => {
     try {
       localStorage.setItem('welcome_v2_done', '1');
-      if (d.skipTutorial) Object.keys(TUTORIALS).forEach((id) => localStorage.setItem('tutorial_seen_' + id, '1'));
     } catch { /* ignore */ }
     setWelcomeNeeded(false);
     try {
@@ -265,7 +270,7 @@ export default function AppLayout() {
       <PromoExpiredModal open={promoExpired} onClose={() => setPromoExpired(false)} />
       <TrialWelcomeModal open={trialWelcome && !firstRun} onClose={closeTrialWelcome} />
       <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />
-      {firstRun && <FirstRunFlow onDone={() => setFirstRun(false)} />}
+      {firstRun && <FirstRunFlow replay={replayFirstRun} onDone={() => { setFirstRun(false); setReplayFirstRun(false); }} />}
       {welcomeNeeded && !firstRun && settings && (
         <WelcomeIntro
           existing

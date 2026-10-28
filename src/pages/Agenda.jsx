@@ -8,6 +8,7 @@ import {
 } from '@/lib/useAppData';
 import GymSessionDialog from '@/components/gym/GymSessionDialog';
 import TutorialDialog from '@/components/TutorialDialog';
+import HelpButton from '@/components/HelpButton';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
 import { computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
@@ -164,6 +165,7 @@ export default function Agenda() {
             <p className="text-xs font-medium capitalize text-muted-foreground">{now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             <h1 className="text-3xl font-bold tracking-tight">{t('nav_agenda')}</h1>
           </div>
+          <HelpButton pageId="agenda" className="mr-2 ml-auto" />
           <button
             onClick={() => setFormOpen(true)}
             aria-label={t('nuovo')}

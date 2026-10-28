@@ -19,6 +19,7 @@ import PremiumModal from '@/components/PremiumModal';
 import FocusyAssistant from '@/components/FocusyAssistant';
 import PullToRefresh from '@/components/PullToRefresh';
 import TutorialDialog from '@/components/TutorialDialog';
+import HelpButton from '@/components/HelpButton';
 import StreakCard from '@/components/StreakCard';
 import TodayActivities from '@/components/today/TodayActivities';
 import GreatDayCelebration from '@/components/GreatDayCelebration';
@@ -88,6 +89,7 @@ export default function Oggi() {
           />
         </div>
         <div className="absolute inset-0 flex flex-col px-4 pt-10 pb-4">
+          <HelpButton pageId="oggi" light className="pointer-events-auto absolute right-4 top-10 z-10" />
           <h1 className="text-xl font-bold tracking-tight text-center text-white leading-tight px-2">
             {firstName ? t('today_hello').replace('{name}', firstName) : t('today_hello_anon')}
           </h1>

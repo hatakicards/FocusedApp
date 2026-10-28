@@ -18,6 +18,7 @@ import StepsCard from '@/components/bodyfuel/StepsCard';
 import { isSenseEnabled, getSleepFromHealth } from '@/lib/healthSense';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
+import HelpButton from '@/components/HelpButton';
 import SubscriptionGate from '@/components/SubscriptionGate';
 
 function calculateSleepDuration(bedtime, wakeTime) {
@@ -287,9 +288,12 @@ export default function BodyFuel() {
 
   return (
     <div className="px-5 safe-top pb-4">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">{t('personal_athlete')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
+      <header className="mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight">{t('personal_athlete')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
+        </div>
+        <HelpButton pageId="bodyfuel" className="mt-1" />
       </header>
 
       <StepsCard className="mb-6" />

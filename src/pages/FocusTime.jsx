@@ -28,6 +28,7 @@ import {
   resolveBlockMode,
 } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
+import HelpButton from '@/components/HelpButton';
 import IphoneToggle from '@/components/IphoneToggle';
 import { recurringSchedules, describeDays } from '@/lib/focusSchedule';
 
@@ -192,9 +193,12 @@ export default function FocusTime() {
     <>
       <PullToRefresh onRefresh={invalidate}>
         <div className="mx-auto max-w-xl px-5 safe-top pb-4">
-          <header className="mb-6">
-            <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t('opt_sub')}</p>
+          <header className="mb-6 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{t('opt_sub')}</p>
+            </div>
+            <HelpButton pageId="focus" className="mt-1" />
           </header>
 
           <UsageReportCard className="mb-6" />
