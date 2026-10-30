@@ -14,13 +14,15 @@ export default function NotificationTest() {
   const refresh = () => notificationDiagnostics().then(setInfo);
   useEffect(() => { refresh(); }, []);
 
-  const test = async () => {
+  const test = async (seconds) => {
     setMsg('');
-    const r = await sendTestNotification(t('notif_title'), t('notif_test_body'));
-    if (r.ok) setMsg(t('notif_test_sent'));
-    else if (r.reason === 'denied') setMsg(t('notif_test_denied'));
-    else if (r.reason === 'web') setMsg(t('notif_test_web'));
-    else setMsg(`${t('notif_test_err')}: ${r.reason}`);
+    const r = await sendTestNotification(t('notif_title'), t('notif_test_body'), seconds);
+    let text;
+    if (r.ok) text = t('notif_test_sent');
+    else if (r.reason === 'denied') text = t('notif_test_denied');
+    else if (r.reason === 'web') text = t('notif_test_web');
+    else text = `${t('notif_test_err')}: ${r.reason}`;
+    setMsg(r.trace?.length ? `${text} (${r.trace.join(' · ')})` : text);
     refresh();
   };
 
@@ -45,7 +47,8 @@ export default function NotificationTest() {
           )}
         </>
       )}
-      <button onClick={test} className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold">{t('notif_test_btn')}</button>
+      <button onClick={() => test(6)} className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold">{t('notif_test_btn')}</button>
+      <button onClick={() => test(0)} className="mt-2 w-full rounded-xl border border-border py-2.5 text-sm font-semibold">{t('notif_test_now')}</button>
       {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
       {info?.lastError && <p className="mt-2 break-words text-[10px] text-muted-foreground/70">{info.lastError}</p>}
     </div>

@@ -24,7 +24,8 @@ async function loadPlugin() {
   try {
     const mod = await import('@capacitor/local-notifications');
     return mod.LocalNotifications;
-  } catch {
+  } catch (e) {
+    noteError('plugin', e);
     return null;
   }
 }
@@ -56,23 +57,31 @@ export async function notificationDiagnostics() {
   }
 }
 
+// Prova passo per passo: restituisce anche una traccia (permesso, coda, orario previsto) che la scheda
+// in Profilo mostra, cosi' si capisce a che punto si ferma. seconds = 0 manda la notifica subito.
 export async function sendTestNotification(title, body, seconds = 6) {
   const LN = await loadPlugin();
   if (!LN) return { ok: false, reason: 'web' };
+  const trace = [];
   try {
-    if (!(await ensurePermission(LN))) return { ok: false, reason: 'denied' };
-    await LN.schedule({
-      notifications: [{ id: 7999, title, body, schedule: { at: new Date(Date.now() + seconds * 1000) } }],
-    });
+    const before = await LN.checkPermissions();
+    trace.push(`permesso: ${before.display}`);
+    if (!(await ensurePermission(LN))) return { ok: false, reason: 'denied', trace };
+    const at = new Date(Date.now() + seconds * 1000);
+    const notification = { id: 7999, title, body };
+    if (seconds > 0) notification.schedule = { at };
+    const res = await LN.schedule({ notifications: [notification] });
+    trace.push(`schedule: ${JSON.stringify(res?.notifications ?? res)}`);
     const { notifications } = await LN.getPending();
-    if (!notifications.some((n) => n.id === 7999)) {
-      noteError('prova', 'iOS non l\'ha messa in coda');
-      return { ok: false, reason: 'not_queued' };
+    trace.push(`in coda: ${notifications.length}`);
+    if (seconds > 0 && !notifications.some((n) => n.id === 7999)) {
+      noteError('prova', 'non messa in coda da iOS');
+      return { ok: false, reason: 'not_queued', trace };
     }
-    return { ok: true };
+    return { ok: true, trace };
   } catch (e) {
     noteError('prova', e);
-    return { ok: false, reason: String(e?.message || e) };
+    return { ok: false, reason: String(e?.message || e), trace };
   }
 }
 
