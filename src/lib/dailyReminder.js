@@ -12,7 +12,12 @@ import { getRecentEvents, typicalHour } from '@/lib/healthSense';
 // quando cambia qualcosa. Cosi', se oggi hai gia' valutato la giornata, quella di
 // stasera salta e la streak non ti viene "ricordata" a sproposito.
 const BASE_ID = 7000;
-const DAYS_AHEAD = 14;
+// iOS tiene al massimo 64 notifiche programmate e butta le ultime: 10 sere + 10 palestra + 30 lezioni
+// + fine sessione e prova restano sotto il tetto anche con tutto attivo.
+const DAYS_AHEAD = 10;
+// Le versioni precedenti ne programmavano fino a 14 (sera/palestra) e 36 (lezioni): si cancellano tutte.
+const LEGACY_DAYS = 14;
+const LEGACY_LESSONS = 36;
 
 async function loadPlugin() {
   if (!Capacitor.isNativePlatform()) return null;
@@ -59,6 +64,11 @@ export async function sendTestNotification(title, body, seconds = 6) {
     await LN.schedule({
       notifications: [{ id: 7999, title, body, schedule: { at: new Date(Date.now() + seconds * 1000) } }],
     });
+    const { notifications } = await LN.getPending();
+    if (!notifications.some((n) => n.id === 7999)) {
+      noteError('prova', 'iOS non l\'ha messa in coda');
+      return { ok: false, reason: 'not_queued' };
+    }
     return { ok: true };
   } catch (e) {
     noteError('prova', e);
@@ -66,17 +76,34 @@ export async function sendTestNotification(title, body, seconds = 6) {
   }
 }
 
+// Le sincronizzazioni (sera, lezioni, palestra) partono insieme all'apertura dell'app: se il permesso
+// non e' ancora stato chiesto lo chiedono una volta sola, non tre popup in fila.
+let permissionPending = null;
 async function ensurePermission(LN) {
   let { display } = await LN.checkPermissions();
   if (display === 'prompt' || display === 'prompt-with-rationale') {
-    ({ display } = await LN.requestPermissions());
+    if (!permissionPending) {
+      permissionPending = LN.requestPermissions().finally(() => { permissionPending = null; });
+    }
+    ({ display } = await permissionPending);
   }
   return display === 'granted';
 }
 
+// Dopo aver programmato controlla che iOS le abbia davvero messe in coda: schedule() risponde ok
+// anche quando iOS poi rifiuta la singola notifica, e senza questo controllo non si vedrebbe mai.
+async function confirmQueued(LN, where, expected, idFrom, idTo) {
+  try {
+    const { notifications } = await LN.getPending();
+    const queued = notifications.filter((n) => n.id >= idFrom && n.id < idTo).length;
+    if (queued < expected) noteError(where, `in coda ${queued} su ${expected}`);
+    else localStorage.removeItem(ERR_KEY);
+  } catch { /* ignore */ }
+}
+
 async function cancelAll(LN) {
   await LN.cancel({
-    notifications: Array.from({ length: DAYS_AHEAD }, (_, i) => ({ id: BASE_ID + i })),
+    notifications: Array.from({ length: LEGACY_DAYS }, (_, i) => ({ id: BASE_ID + i })),
   });
 }
 
@@ -137,7 +164,10 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
         schedule: { at, allowWhileIdle: true },
       });
     }
-    if (notifications.length) await LN.schedule({ notifications });
+    if (notifications.length) {
+      await LN.schedule({ notifications });
+      await confirmQueued(LN, 'promemoria', notifications.length, BASE_ID, BASE_ID + DAYS_AHEAD);
+    }
   } catch (e) {
     console.warn('Daily reminder sync failed', e);
     noteError('promemoria', e);
@@ -170,7 +200,7 @@ export function useDailyReminder(settings, ratings) {
 // e si riprogrammano a ogni apertura.
 const LESSON_BASE_ID = 7400;
 const LESSON_DAYS = 5;
-const LESSON_MAX = 36;
+const LESSON_MAX = 30;
 const LESSON_LEAD_MIN = 5;
 
 export async function syncLessonReminders({ slots, titleFor, body }) {
@@ -178,7 +208,7 @@ export async function syncLessonReminders({ slots, titleFor, body }) {
   if (!LN) return;
   try {
     await LN.cancel({
-      notifications: Array.from({ length: LESSON_MAX }, (_, i) => ({ id: LESSON_BASE_ID + i })),
+      notifications: Array.from({ length: LEGACY_LESSONS }, (_, i) => ({ id: LESSON_BASE_ID + i })),
     });
     if (!slots?.length) return;
     if (!(await ensurePermission(LN))) return;
@@ -205,7 +235,10 @@ export async function syncLessonReminders({ slots, titleFor, body }) {
       body,
       schedule: { at: p.at, allowWhileIdle: true },
     }));
-    if (notifications.length) await LN.schedule({ notifications });
+    if (notifications.length) {
+      await LN.schedule({ notifications });
+      await confirmQueued(LN, 'lezioni', notifications.length, LESSON_BASE_ID, LESSON_BASE_ID + LESSON_MAX);
+    }
   } catch (e) {
     console.warn('Lesson reminder sync failed', e);
     noteError('lezioni', e);
@@ -264,7 +297,7 @@ export async function syncGymNudges({ enabled, sessions, doneToday, hour, titleF
   if (!LN) return;
   try {
     await LN.cancel({
-      notifications: Array.from({ length: DAYS_AHEAD }, (_, i) => ({ id: GYM_NUDGE_BASE_ID + i })),
+      notifications: Array.from({ length: LEGACY_DAYS }, (_, i) => ({ id: GYM_NUDGE_BASE_ID + i })),
     });
     if (!enabled || !sessions?.length) return;
     if (!(await ensurePermission(LN))) return;
@@ -286,7 +319,10 @@ export async function syncGymNudges({ enabled, sessions, doneToday, hour, titleF
         schedule: { at, allowWhileIdle: true },
       });
     }
-    if (notifications.length) await LN.schedule({ notifications });
+    if (notifications.length) {
+      await LN.schedule({ notifications });
+      await confirmQueued(LN, 'palestra', notifications.length, GYM_NUDGE_BASE_ID, GYM_NUDGE_BASE_ID + DAYS_AHEAD);
+    }
   } catch (e) {
     console.warn('Gym nudge sync failed', e);
     noteError('palestra', e);

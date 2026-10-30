@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
+import { openAppSettings } from '@/lib/permissions';
 import { useT } from '@/lib/i18n';
 import { notificationDiagnostics, sendTestNotification } from '@/lib/dailyReminder';
 
@@ -36,7 +37,14 @@ export default function NotificationTest() {
           {state}{info.native ? ` · ${info.pending} ${t('notif_pending')}` : ''}
         </p>
       )}
-      {info?.permission === 'denied' && <p className="mb-3 text-xs text-muted-foreground">{t('notif_test_denied')}</p>}
+      {info?.permission === 'denied' && (
+        <>
+          <p className="mb-3 text-xs text-muted-foreground">{t('notif_test_denied')}</p>
+          {info.native && (
+            <button onClick={openAppSettings} className="mb-3 w-full rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background">{t('notif_open_settings')}</button>
+          )}
+        </>
+      )}
       <button onClick={test} className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold">{t('notif_test_btn')}</button>
       {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
       {info?.lastError && <p className="mt-2 break-words text-[10px] text-muted-foreground/70">{info.lastError}</p>}
