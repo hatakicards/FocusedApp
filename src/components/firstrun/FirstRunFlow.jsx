@@ -229,7 +229,8 @@ export default function FirstRunFlow({ onDone, replay = false }) {
       </motion.button>
     );
   } else if (stage === 'perms') {
-    if (!perms) {
+    // Lista vuota = il benvenuto ha gia' chiesto tutto: si passa al giro (vedi l'effetto sopra).
+    if (!perms || perms.length === 0) {
       body = <div key="perms-wait" className="flex-1" />;
     } else {
       const meta = permMeta[perms[permIdx]];
