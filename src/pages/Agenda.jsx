@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Check, CalendarClock, Repeat, Timer, Circle, Dumbbell, CalendarCheck, Users, Clock, BookOpen } from 'lucide-react';
+import { Plus, Check, CalendarClock, Repeat, Timer, Circle, Dumbbell, CalendarCheck, Users, Clock, BookOpen, Trash2 } from 'lucide-react';
 import {
   useActivities, useRatings, useTasks, useGymSessions, useUserSettings, useInvalidateAll, useVerifiche,
   useOptimisticTaskSave, useOptimisticTaskToggle, useOptimisticTaskRate, useOptimisticTaskArchive,
@@ -12,6 +12,8 @@ import HelpButton from '@/components/HelpButton';
 import { useI18n, useT, weekdayShortByMonSun } from '@/lib/i18n';
 import { computeTaskStreak } from '@/lib/productivity';
 import { getDB } from '@/lib/guestDB';
+import { useOptimisticRemove } from '@/lib/optimisticHelpers';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import PullToRefresh from '@/components/PullToRefresh';
 import TaskForm from '@/components/TaskForm';
 import OrganizeCalendar from '@/components/organize/OrganizeCalendar';
@@ -43,12 +45,14 @@ export default function Agenda() {
   const optimisticTaskToggle = useOptimisticTaskToggle();
   const optimisticTaskRate = useOptimisticTaskRate();
   const optimisticTaskArchive = useOptimisticTaskArchive();
+  const removeTask = useOptimisticRemove('TaskItem', 'tasks');
   const { locale } = useI18n();
   const t = useT();
 
   const [formOpen, setFormOpen] = useState(false);
   const [rateTask, setRateTask] = useState(null);
   const [gymDialog, setGymDialog] = useState(null);
+  const [deleteTask, setDeleteTask] = useState(null);
 
   const { data: tasks, isLoading: loadingTasks } = useTasks();
   const { celebrate, celebrationElement } = useTaskCelebration();
@@ -64,7 +68,11 @@ export default function Agenda() {
     : null;
 
   const activeActivities = (activities || []).filter((a) => !a.archived && !a.is_gym && !a.preset_type);
-  const activeTasks = (tasks || []).filter((t) => t.status === 'active');
+  // Le attivita' settimanali non finiscono mai: restano in lista anche dopo averle spuntate (sono
+  // "fatte" solo per il giorno in cui le hai completate), cosi' tornano la settimana dopo.
+  const todayIso = new Date().toISOString().split('T')[0];
+  const activeTasks = (tasks || []).filter((t) => t.status === 'active' || (t.type === 'weekly' && t.status === 'done'));
+  const doneToday = (task) => task.status === 'done' && (task.type !== 'weekly' || task.completed_date === todayIso);
   const upcomingVerifiche = (verifiche || []).filter((v) => v.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date));
   const bookDeadlines = (books || []).filter((b) => b.status === 'reading' && b.target_date).sort((a, b) => a.target_date.localeCompare(b.target_date));
   const now = new Date();
@@ -72,7 +80,9 @@ export default function Agenda() {
   const isExpired = (task) => task.type === 'project' && task.expiry_date && new Date(task.expiry_date) < now;
 
   const handleToggle = async (task) => {
-    const updated = await optimisticTaskToggle(task);
+    // Una settimanale completata un altro giorno si completa di nuovo oggi, non si "riapre".
+    const current = task.type === 'weekly' && task.status === 'done' && !doneToday(task) ? { ...task, status: 'active' } : task;
+    const updated = await optimisticTaskToggle(current);
     if (updated.status === 'done') setRateTask(updated);
   };
 
@@ -106,6 +116,12 @@ export default function Agenda() {
     optimisticTaskArchive(task).catch(console.error);
   };
 
+  const confirmDelete = async () => {
+    const task = deleteTask;
+    setDeleteTask(null);
+    if (task) await removeTask(task.id);
+  };
+
   const handleSaveTask = async (payload) => {
     await optimisticTaskSave(payload);
   };
@@ -125,9 +141,9 @@ export default function Agenda() {
       <div key={task.id} className="rounded-2xl border border-border/70 bg-card px-4 py-3.5 flex items-center gap-3">
         <button
           onClick={() => handleToggle(task)}
-          className={`shrink-0 w-6 h-6 rounded-full border flex items-center justify-center ${task.status === 'done' ? 'bg-foreground border-foreground' : 'border-border'}`}
+          className={`shrink-0 w-6 h-6 rounded-full border flex items-center justify-center ${doneToday(task) ? 'bg-foreground border-foreground' : 'border-border'}`}
         >
-          {task.status === 'done' && <Check size={14} className="text-background" />}
+          {doneToday(task) && <Check size={14} className="text-background" />}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -149,6 +165,13 @@ export default function Agenda() {
             {t('ag_archivia')}
           </button>
         )}
+        <button
+          onClick={() => setDeleteTask(task)}
+          aria-label={t('elimina')}
+          className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground active:bg-foreground/10"
+        >
+          <Trash2 size={15} />
+        </button>
       </div>
     );
   };
@@ -178,6 +201,7 @@ export default function Agenda() {
         <OrganizeCalendar
           onToggle={handleToggle}
           onArchive={handleArchive}
+          onDelete={setDeleteTask}
           onSaveTask={handleSaveTask}
           listView={(
             <div>
@@ -302,6 +326,21 @@ export default function Agenda() {
         />
 
         <TaskForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={handleSaveTask} />
+
+        <Dialog open={!!deleteTask} onOpenChange={(o) => !o && setDeleteTask(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="pr-6 leading-snug">{t('ag_elimina_q')}</DialogTitle>
+              <DialogDescription>
+                {deleteTask?.title}{deleteTask?.type === 'weekly' ? ` - ${t('ag_elimina_weekly')}` : ''}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-2 flex gap-2">
+              <button onClick={() => setDeleteTask(null)} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold">{t('annulla')}</button>
+              <button onClick={confirmDelete} className="flex-1 rounded-xl bg-destructive py-2.5 text-sm font-semibold text-destructive-foreground">{t('elimina')}</button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <TaskRatingPrompt task={rateTask} onClose={handleSkipRate} onRate={handleRate} />
         {celebrationElement}

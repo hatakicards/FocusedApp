@@ -23,7 +23,7 @@ const startOfWeek = (d) => {
 // Organize: il calendario (giorno, settimana, mese come Google Calendar), le cose da
 // aggiungere e il pulsante Focusy che organizza tutto nella giornata. "Lista" e' l'elenco
 // per tipo di prima, per chi preferisce quello.
-export default function OrganizeCalendar({ listView, onToggle, onArchive, onSaveTask }) {
+export default function OrganizeCalendar({ listView, onToggle, onArchive, onDelete, onSaveTask }) {
   const t = useT();
   const { locale } = useI18n();
   const navigate = useNavigate();
@@ -207,6 +207,14 @@ export default function OrganizeCalendar({ listView, onToggle, onArchive, onSave
               >
                 {t('org_archivia')}
               </button>
+              {onDelete && (
+                <button
+                  onClick={() => { onDelete(eventOpen.task); setEventOpen(null); }}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold text-destructive"
+                >
+                  {t('elimina')}
+                </button>
+              )}
             </div>
           )}
         </DialogContent>
