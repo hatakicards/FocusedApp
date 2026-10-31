@@ -36,7 +36,7 @@ export default function NotificationTest() {
       </div>
       {info && (
         <p className="mb-3 text-xs text-muted-foreground">
-          {state}{info.native ? ` · ${info.pending} ${t('notif_pending')}` : ''}
+          {state}{info.native ? ` · ${info.pending} ${t('notif_pending')}` : ''} · {info.engine}
         </p>
       )}
       {info?.permission === 'denied' && (

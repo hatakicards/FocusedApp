@@ -69,17 +69,19 @@ export async function notificationDiagnostics() {
   const LN = await loadPlugin();
   let lastError = null;
   try { lastError = localStorage.getItem(ERR_KEY); } catch { /* ignore */ }
+  // 'native' = plugin di Focused (build 53 in poi), 'package' = quello del pacchetto (build vecchie).
+  const engine = Capacitor.isNativePlatform() ? (Capacitor.isPluginAvailable('FocusedNotifications') ? 'native' : 'package') : 'web';
   if (!LN) {
     const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
-    return { native: false, permission, pending: 0, lastError };
+    return { native: false, engine, permission, pending: 0, lastError };
   }
   try {
     const { display } = await LN.checkPermissions();
     const { notifications } = await LN.getPending();
-    return { native: true, permission: display, pending: notifications.length, lastError };
+    return { native: true, engine, permission: display, pending: notifications.length, lastError };
   } catch (e) {
     noteError('diagnostica', e);
-    return { native: true, permission: 'error', pending: 0, lastError: String(e?.message || e) };
+    return { native: true, engine, permission: 'error', pending: 0, lastError: String(e?.message || e) };
   }
 }
 
