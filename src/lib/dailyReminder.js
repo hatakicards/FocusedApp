@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
 import { useActivities, useGymSessions, useSubscription, useTimetable } from '@/lib/useAppData';
+import { useCalendarEvents } from '@/lib/calendarEvents';
 import { useAuth } from '@/lib/AuthContext';
 import { getRecentEvents, typicalHour } from '@/lib/healthSense';
 
@@ -13,8 +14,9 @@ import { getRecentEvents, typicalHour } from '@/lib/healthSense';
 // stasera salta e la streak non ti viene "ricordata" a sproposito.
 const BASE_ID = 7000;
 // iOS tiene al massimo 64 notifiche programmate e butta le ultime: 10 sere + 10 palestra + 30 lezioni
-// + fine sessione e prova restano sotto il tetto anche con tutto attivo.
-const DAYS_AHEAD = 10;
+// + fine sessione e prova restano sotto il tetto anche con tutto attivo
+// (7 sere + 7 palestra + 16 lezioni + 16 attivita' + 8 Focus + 2 = 56).
+const DAYS_AHEAD = 7;
 // Le versioni precedenti ne programmavano fino a 14 (sera/palestra) e 36 (lezioni): si cancellano tutte.
 const LEGACY_DAYS = 14;
 const LEGACY_LESSONS = 36;
@@ -38,7 +40,7 @@ const nativeNotifications = {
       })),
     });
     if (res?.errors?.length) noteError('programmazione', res.errors[0]);
-    return { notifications: notifications.map((n) => ({ id: n.id })) };
+    return { notifications: notifications.map((n) => ({ id: n.id })), native: res };
   },
   cancel: ({ notifications }) => FocusedNotifications.cancelIds({ ids: notifications.map((n) => n.id) }),
   getPending: () => FocusedNotifications.pendingList(),
@@ -76,9 +78,10 @@ export async function notificationDiagnostics() {
     return { native: false, engine, permission, pending: 0, lastError };
   }
   try {
-    const { display } = await LN.checkPermissions();
+    const status = await LN.checkPermissions();
     const { notifications } = await LN.getPending();
-    return { native: true, engine, permission: display, pending: notifications.length, lastError };
+    const details = status.alert ? `avvisi ${status.alert} · suono ${status.sound} · blocco ${status.lock} · centro ${status.center}` : null;
+    return { native: true, engine, permission: status.display, details, pending: notifications.length, lastError };
   } catch (e) {
     noteError('diagnostica', e);
     return { native: true, engine, permission: 'error', pending: 0, lastError: String(e?.message || e) };
@@ -99,7 +102,7 @@ export async function sendTestNotification(title, body, seconds = 6) {
     const notification = { id: 7999, title, body };
     if (seconds > 0) notification.schedule = { at };
     const res = await LN.schedule({ notifications: [notification] });
-    trace.push(`schedule: ${JSON.stringify(res?.notifications ?? res)}`);
+    trace.push(`schedule: ${JSON.stringify(res?.native ?? res?.notifications ?? res)}`);
     const { notifications } = await LN.getPending();
     trace.push(`in coda: ${notifications.length}`);
     if (seconds > 0 && !notifications.some((n) => n.id === 7999)) {
@@ -237,7 +240,7 @@ export function useDailyReminder(settings, ratings) {
 // e si riprogrammano a ogni apertura.
 const LESSON_BASE_ID = 7400;
 const LESSON_DAYS = 5;
-const LESSON_MAX = 30;
+const LESSON_MAX = 16;
 const LESSON_LEAD_MIN = 5;
 
 export async function syncLessonReminders({ slots, titleFor, body }) {
@@ -395,4 +398,73 @@ export function useGymNudges(ratings) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, isPro, doneToday, plannedKey, hour, template, genericBody]);
+}
+
+// Attivita', riunioni e scadenze con un orario: "Titolo, inizia tra 5 minuti" e, all'ora, "Titolo, appena
+// iniziata". Per i programmi Focus Time ricorrenti solo "Focus Session appena iniziata". Le lezioni hanno il
+// loro promemoria a parte. Si riprogramma a ogni apertura e quando cambia qualcosa.
+const EVENT_BASE_ID = 7600;
+const EVENT_MAX = 16;
+const FOCUS_BASE_ID = 7700;
+const FOCUS_MAX = 8;
+const EVENT_DAYS = 7;
+const EVENT_LEAD_MIN = 5;
+
+export async function syncEventReminders({ items, focusBody, soonBody, nowBody }) {
+  const LN = await loadPlugin();
+  if (!LN) return;
+  try {
+    await LN.cancel({ notifications: Array.from({ length: EVENT_MAX }, (_, i) => ({ id: EVENT_BASE_ID + i })) });
+    await LN.cancel({ notifications: Array.from({ length: FOCUS_MAX }, (_, i) => ({ id: FOCUS_BASE_ID + i })) });
+    if (!items.length) return;
+    if (!(await ensurePermission(LN))) return;
+
+    const now = Date.now();
+    const events = [];
+    const focus = [];
+    for (const it of items) {
+      if (it.kind === 'focus') {
+        if (it.at.getTime() > now + 5000) focus.push({ title: it.title, body: focusBody, at: it.at });
+        continue;
+      }
+      const lead = new Date(it.at.getTime() - EVENT_LEAD_MIN * 60000);
+      if (lead.getTime() > now + 5000) events.push({ title: it.title, body: soonBody, at: lead });
+      if (it.at.getTime() > now + 5000) events.push({ title: it.title, body: nowBody, at: it.at });
+    }
+    const byTime = (a, b) => a.at - b.at;
+    const toNotifications = (list, base, max) => list.sort(byTime).slice(0, max).map((n, i) => ({
+      id: base + i, title: n.title, body: n.body, schedule: { at: n.at, allowWhileIdle: true },
+    }));
+    const batch = [...toNotifications(events, EVENT_BASE_ID, EVENT_MAX), ...toNotifications(focus, FOCUS_BASE_ID, FOCUS_MAX)];
+    if (batch.length) await LN.schedule({ notifications: batch });
+  } catch (e) {
+    console.warn('Event reminder sync failed', e);
+    noteError('attivita', e);
+  }
+}
+
+export function useEventReminders() {
+  const t = useT();
+  const getEvents = useCalendarEvents();
+  const soonBody = t('notif_event_soon');
+  const nowBody = t('notif_event_now');
+  const focusBody = t('notif_focus_now');
+
+  const items = [];
+  for (let i = 0; i < EVENT_DAYS; i += 1) {
+    const day = new Date();
+    day.setDate(day.getDate() + i);
+    for (const ev of getEvents(day).timed) {
+      if (!ev.start || ev.kind === 'lesson' || ev.done) continue;
+      const [hh, mm] = ev.start.split(':').map((n) => parseInt(n, 10));
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) continue;
+      items.push({ kind: ev.kind === 'focus' ? 'focus' : 'event', title: ev.title, at: new Date(day.getFullYear(), day.getMonth(), day.getDate(), hh, mm, 0, 0) });
+    }
+  }
+  const key = items.map((x) => `${x.kind}|${x.title}|${x.at.getTime()}`).join(';');
+
+  useEffect(() => {
+    syncEventReminders({ items, focusBody, soonBody, nowBody });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, focusBody, soonBody, nowBody]);
 }

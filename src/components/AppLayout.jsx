@@ -18,7 +18,7 @@ import TrialExpiredModal from './TrialExpiredModal';
 import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate, useRatings } from '@/lib/useAppData';
 import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
-import { useDailyReminder, useGymNudges, useLessonReminders } from '@/lib/dailyReminder';
+import { useDailyReminder, useGymNudges, useLessonReminders, useEventReminders } from '@/lib/dailyReminder';
 import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
 import ActiveFocusHost from './ActiveFocusHost';
@@ -87,6 +87,7 @@ export default function AppLayout() {
   const { data: ratings } = useRatings();
   useDailyReminder(settings, ratings);
   useLessonReminders();
+  useEventReminders();
   useGymNudges(ratings);
   useFocusScheduler();
 

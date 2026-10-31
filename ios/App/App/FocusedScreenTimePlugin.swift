@@ -233,6 +233,7 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["registered": 0])
             return
         }
+        _ = exemptionToken() // lo mette da parte per l'estensione
         let center = DeviceActivityCenter()
         center.stopMonitoring(center.activities.filter { !$0.rawValue.hasPrefix("focus.session") })
         var modes = (sharedDefaults?.dictionary(forKey: "schedule_modes") as? [String: String] ?? [:])
@@ -278,15 +279,18 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let mode = call.getString("mode") ?? "selected"
         if mode == "all_except" {
-            // Focused deve restare apribile: senza il suo token non blocchiamo nulla.
-            guard let selfId = Bundle.main.bundleIdentifier,
-                  let selfToken = Application(bundleIdentifier: selfId).token else {
+            // Focused dovrebbe restare apribile. Se iOS non da' il suo token (succede spesso) non si
+            // rinuncia a bloccare: le sessioni da 15 minuti in su le chiude l'estensione FocusedMonitor
+            // anche con Focused bloccata; per quelle piu' brevi serve il token, altrimenti non si
+            // potrebbe piu' aprire l'app per fermarla.
+            let selfToken = exemptionToken()
+            if selfToken == nil && endAt.timeIntervalSinceNow < 15 * 60 {
                 call.reject("cannot_exempt_self")
                 return
             }
             let keep = loadSelection("keep") ?? FamilyActivitySelection()
             var keepApps = keep.applicationTokens
-            keepApps.insert(selfToken)
+            if let selfToken = selfToken { keepApps.insert(selfToken) }
             store.shield.applications = nil
             store.shield.applicationCategories = .all(except: keepApps)
             store.shield.webDomains = nil
@@ -305,6 +309,19 @@ public class FocusedScreenTimePlugin: CAPPlugin, CAPBridgedPlugin {
         scheduleEndTimer(for: endAt)
         monitorSession(endAt: endAt, mode: mode)
         call.resolve(["active": true])
+    }
+
+    // Token di Focused per escluderla da "tutte tranne". Quando iOS lo restituisce lo salviamo nel
+    // contenitore condiviso: l'estensione dei programmi ricorrenti lo ritrova li'.
+    private func exemptionToken() -> ApplicationToken? {
+        if let id = Bundle.main.bundleIdentifier, let token = Application(bundleIdentifier: id).token {
+            if let data = try? JSONEncoder().encode(token) { sharedDefaults?.set(data, forKey: "self_token") }
+            return token
+        }
+        if let data = sharedDefaults?.data(forKey: "self_token") {
+            return try? JSONDecoder().decode(ApplicationToken.self, from: data)
+        }
+        return nil
     }
 
     @objc func stopBlock(_ call: CAPPluginCall) {

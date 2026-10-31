@@ -46,9 +46,25 @@ public class FocusedNotificationsPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNoti
         }
     }
 
+    private func setting(_ value: UNNotificationSetting) -> String {
+        switch value {
+        case .enabled: return "on"
+        case .disabled: return "off"
+        default: return "n/a"
+        }
+    }
+
+    // Oltre al permesso restituisce le singole impostazioni di iOS: un'app puo' avere il permesso ma
+    // avvisi, banner o schermata di blocco spenti, e allora "non arriva niente" senza errori.
     @objc func status(_ call: CAPPluginCall) {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            call.resolve(["display": self.label(settings.authorizationStatus)])
+            call.resolve([
+                "display": self.label(settings.authorizationStatus),
+                "alert": self.setting(settings.alertSetting),
+                "sound": self.setting(settings.soundSetting),
+                "lock": self.setting(settings.lockScreenSetting),
+                "center": self.setting(settings.notificationCenterSetting),
+            ])
         }
     }
 

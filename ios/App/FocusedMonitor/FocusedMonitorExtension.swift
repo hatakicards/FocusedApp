@@ -32,11 +32,16 @@ final class FocusedMonitorExtension: DeviceActivityMonitor {
 
     private func applyShield(mode: String) {
         if mode == "all_except" {
-            // Focused deve restare apribile: senza il suo token non blocchiamo nulla.
-            guard let selfToken = Application(bundleIdentifier: "org.focusedapp.app").token else { return }
+            // Focused resta apribile se si trova il suo token (salvato dall'app o letto qui); altrimenti si
+            // blocca comunque tutto il resto: prima, senza token, non veniva bloccato niente.
             let keep = selection("app_selection_keep") ?? FamilyActivitySelection()
             var keepApps = keep.applicationTokens
-            keepApps.insert(selfToken)
+            if let data = defaults?.data(forKey: "self_token"),
+               let saved = try? JSONDecoder().decode(ApplicationToken.self, from: data) {
+                keepApps.insert(saved)
+            } else if let live = Application(bundleIdentifier: "org.focusedapp.app").token {
+                keepApps.insert(live)
+            }
             store.shield.applications = nil
             store.shield.applicationCategories = .all(except: keepApps)
             store.shield.webDomains = nil

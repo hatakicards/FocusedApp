@@ -16,6 +16,7 @@ import PremiumModal from '@/components/PremiumModal';
 import TutorialDialog from '@/components/TutorialDialog';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 import MotivationSection from '@/components/MotivationSection';
+import DreamCard from '@/components/DreamCard';
 import { useSubscription } from '@/lib/useAppData';
 import { redeemFreeCode } from '@/lib/promoCodes';
 import { isRevenueCatAvailable } from '@/lib/revenueCat';
@@ -208,6 +209,9 @@ export default function Profilo() {
           </p>
         </div>
       )}
+
+      {/* Il sogno, modificabile */}
+      <DreamCard />
 
       {/* Language selector */}
       <div className="rounded-2xl border border-border bg-card p-4 mb-6">
