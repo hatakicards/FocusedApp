@@ -59,6 +59,7 @@ final class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(FocusedWidgetSyncPlugin())
         bridge?.registerPluginInstance(FocusedSpeechPlugin())
+        bridge?.registerPluginInstance(FocusedNotificationsPlugin())
         bridge?.registerPluginInstance(FocusedHealthPlugin())
         bridge?.registerPluginInstance(FocusedLocationPlugin())
         if #available(iOS 16.0, *) {

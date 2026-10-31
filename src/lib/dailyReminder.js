@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
 import { useActivities, useGymSessions, useSubscription, useTimetable } from '@/lib/useAppData';
@@ -19,8 +19,34 @@ const DAYS_AHEAD = 10;
 const LEGACY_DAYS = 14;
 const LEGACY_LESSONS = 36;
 
+// Plugin nativo di Focused (build dalla 1.2 in poi): le notifiche non dipendono piu' dal pacchetto
+// @capacitor/local-notifications, che su alcuni telefoni non mostrava mai la richiesta di permesso.
+const FocusedNotifications = registerPlugin('FocusedNotifications');
+
+// Stessa interfaccia del plugin del pacchetto, cosi' il resto del file resta uguale. Le date vanno al
+// lato nativo in millisecondi.
+const nativeNotifications = {
+  checkPermissions: () => FocusedNotifications.status(),
+  requestPermissions: () => FocusedNotifications.ask(),
+  async schedule({ notifications }) {
+    const res = await FocusedNotifications.scheduleAll({
+      notifications: notifications.map((n) => ({
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        ...(n.schedule?.at ? { at: new Date(n.schedule.at).getTime() } : {}),
+      })),
+    });
+    if (res?.errors?.length) noteError('programmazione', res.errors[0]);
+    return { notifications: notifications.map((n) => ({ id: n.id })) };
+  },
+  cancel: ({ notifications }) => FocusedNotifications.cancelIds({ ids: notifications.map((n) => n.id) }),
+  getPending: () => FocusedNotifications.pendingList(),
+};
+
 async function loadPlugin() {
   if (!Capacitor.isNativePlatform()) return null;
+  if (Capacitor.isPluginAvailable('FocusedNotifications')) return nativeNotifications;
   try {
     const mod = await import('@capacitor/local-notifications');
     return mod.LocalNotifications;

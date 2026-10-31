@@ -26,7 +26,7 @@ export async function listPermissions() {
 
 export async function permissionState(id) {
   try {
-    if (id === 'notifications') return await getNotificationPermission();
+    if (id === 'notifications') return await withTimeout(getNotificationPermission(), 4000, 'prompt');
     // Salute non dice mai se la lettura e' stata concessa: vale quello che e' stato chiesto.
     if (id === 'health') return isSenseEnabled() ? 'granted' : 'prompt';
     if (id === 'location') {
@@ -41,9 +41,13 @@ export async function permissionState(id) {
   return 'prompt';
 }
 
+// Una richiesta che non risponde non deve bloccare il benvenuto: dopo un minuto si va avanti e si
+// rilegge lo stato.
+const withTimeout = (promise, ms, fallback) => Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
 export async function askPermission(id) {
   try {
-    if (id === 'notifications') await requestNotificationPermission();
+    if (id === 'notifications') await withTimeout(requestNotificationPermission(), 60000);
     else if (id === 'health') await enableSense();
     else if (id === 'location') await askLocationPermission();
     else if (id === 'screentime') await requestAuthorization();
