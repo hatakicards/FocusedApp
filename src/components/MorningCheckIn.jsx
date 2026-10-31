@@ -1,20 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Moon, CheckCircle, Calendar, Plus, Utensils, Briefcase } from 'lucide-react';
+import { X, Moon, CheckCircle, Calendar, Utensils, Briefcase, Check, Target } from 'lucide-react';
 import { useT, useI18n } from '@/lib/i18n';
 import {
   useActivities,
   useRatings,
   useDayEntries,
   useTasks,
+  useGoals,
+  useOptimisticGoalPeriod,
   useOptimisticRating,
   useOptimisticDayEntry,
   useSubscription,
 } from '@/lib/useAppData';
 import RatingPicker from '@/components/RatingPicker';
+import ActivityIcon from '@/components/ActivityIcon';
 
 const STORAGE_PREFIX = 'morning_checkin_';
+// Una volta nella vita il recap si apre con "Cosa hai completato ieri?"; dopo e' il solito riepilogo.
+const FIRST_KEY = 'morning_checkin_first_done';
+
+// Obiettivi giornalieri ancora da chiudere per ieri: solo quelli che esistevano gia' ieri e di
+// attivita' non archiviate.
+function dailyGoalsFor(goals, activities, day) {
+  const live = new Set((activities || []).filter((a) => !a.archived).map((a) => a.id));
+  return (goals || []).filter((g) => g.timeframe === 'daily'
+    && live.has(g.activity_id)
+    && (!g.created_date || String(g.created_date).slice(0, 10) <= day));
+}
 
 function yesterdayISO() {
   const d = new Date();
@@ -33,6 +47,8 @@ export default function MorningCheckIn() {
   const { data: ratings } = useRatings();
   const { data: dayEntries } = useDayEntries();
   const { data: tasks } = useTasks();
+  const { data: goals } = useGoals();
+  const optimisticGoalPeriod = useOptimisticGoalPeriod();
   const optimisticRating = useOptimisticRating();
   const optimisticDayEntry = useOptimisticDayEntry();
   const sub = useSubscription();
@@ -48,6 +64,7 @@ export default function MorningCheckIn() {
         const yesterdayRatings = (ratings || []).filter((r) => r.date === yesterday);
         const ratedIds = new Set(yesterdayRatings.map((r) => r.activity_id));
         const hasUnrated = activeActivities.some((a) => !ratedIds.has(a.id));
+        const hasOpenGoals = dailyGoalsFor(goals, activities, yesterday).some((g) => !(g.completed_periods || []).includes(yesterday));
         const yesterdayEntry = (dayEntries || []).find((e) => e.date === yesterday);
         const hasNoDayRating = !yesterdayEntry?.day_rating;
 
@@ -56,17 +73,22 @@ export default function MorningCheckIn() {
           localStorage.setItem(STORAGE_PREFIX + yesterday, '1');
           return;
         }
-        if (hasUnrated || hasNoDayRating) {
+        if (hasUnrated || hasNoDayRating || hasOpenGoals) {
           setOpen(true);
         } else {
           localStorage.setItem(STORAGE_PREFIX + yesterday, '1');
         }
       }
     } catch { /* ignore */ }
-  }, [activities, ratings, dayEntries, yesterday]);
+  }, [activities, ratings, dayEntries, goals, yesterday]);
+
+  const firstTime = (() => { try { return !localStorage.getItem(FIRST_KEY); } catch { return false; } })();
 
   const close = () => {
-    try { localStorage.setItem(STORAGE_PREFIX + yesterday, '1'); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(STORAGE_PREFIX + yesterday, '1');
+      localStorage.setItem(FIRST_KEY, '1');
+    } catch { /* ignore */ }
     setOpen(false);
   };
 
@@ -75,6 +97,7 @@ export default function MorningCheckIn() {
   const activeActivities = (activities || []).filter((a) => !a.archived);
   const yesterdayRatings = (ratings || []).filter((r) => r.date === yesterday);
   const yesterdayEntry = (dayEntries || []).find((e) => e.date === yesterday);
+  const yesterdayGoals = dailyGoalsFor(goals, activities, yesterday);
   const yesterdayTasks = (tasks || []).filter((task) => task.due_date === yesterday && task.status === 'active');
 
   const getActivityRating = (activityId) => {
@@ -115,7 +138,7 @@ export default function MorningCheckIn() {
             <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-foreground text-background mb-3">
               <Moon size={28} />
             </div>
-            <h1 className="text-xl font-bold mb-1">{t('mci_title')}</h1>
+            <h1 className="text-xl font-bold mb-1">{firstTime ? t('mci_first_q') : t('mci_title')}</h1>
             <p className="text-sm text-muted-foreground capitalize">{dateLabel}</p>
           </div>
 
@@ -143,7 +166,7 @@ export default function MorningCheckIn() {
                   return (
                     <div key={activity.id} className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-lg shrink-0">{activity.emoji || '⭐'}</span>
+                        <ActivityIcon name={activity.emoji} size={18} className="shrink-0 text-muted-foreground" />
                         <span className="text-sm truncate">{activity.name}</span>
                       </div>
                       <RatingPicker
@@ -157,6 +180,33 @@ export default function MorningCheckIn() {
               </div>
             )}
           </div>
+
+          {/* Obiettivi giornalieri di ieri */}
+          {yesterdayGoals.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={16} className="text-muted-foreground" />
+                <p className="text-sm font-semibold">{t('mci_goals')}</p>
+              </div>
+              <div className="space-y-2.5">
+                {yesterdayGoals.map((goal) => {
+                  const done = (goal.completed_periods || []).includes(yesterday);
+                  return (
+                    <button
+                      key={goal.id}
+                      onClick={() => optimisticGoalPeriod(goal, yesterday, !done)}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${done ? 'bg-foreground border-foreground' : 'border-border'}`}>
+                        {done && <Check size={14} className="text-background" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">{goal.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Events/tasks for that date */}
           {yesterdayTasks.length > 0 && (

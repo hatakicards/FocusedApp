@@ -330,12 +330,9 @@ export function computeCategoryRank(categoryId, activities, allRatings, goals) {
   }));
   const completedCount = requirements.filter((r) => r.completed).length;
 
-  let rank = null;
-  let rankIndex = -1;
-  if (completedCount > 0) {
-    rankIndex = Math.min(completedCount - 1, RANKS.length - 1);
-    rank = RANKS[rankIndex];
-  }
+  // Si parte da Bronzo (0 requisiti) e ogni requisito completato fa salire di un rank, fino a Elite.
+  const rankIndex = Math.min(completedCount, RANKS.length - 1);
+  const rank = RANKS[rankIndex];
 
   return {
     rank,

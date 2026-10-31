@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useT, useI18n, weekdayShortByMonSun } from '@/lib/i18n';
 import { useInvalidateAll } from '@/lib/useAppData';
 import { base44 } from '@/api/base44Client';
+import ActivityIcon, { iconKey } from '@/components/ActivityIcon';
 
 const PROJECT_PLAN_SCHEMA = {
   type: 'object',
@@ -69,7 +70,7 @@ REGOLE:
   4. Il suo livello di esperienza/partenza sull'argomento
 - Non proporre MAI il piano finale se non hai almeno una risposta chiara su tempo disponibile e giorni preferiti.
 - Quando hai abbastanza informazioni, imposta ready_to_propose:true e compila "plan" con:
-  - activity: un nome breve che rappresenti il progetto come abitudine ricorrente, più un emoji
+  - activity: un nome breve che rappresenti il progetto come abitudine ricorrente, più il nome di UN'icona tra: star, dumbbell, bookopen, brain, laptop, briefcase, target, pencil, graduation, palette, music, flame, heart, trophy (nel campo emoji)
   - goals: 2-4 obiettivi concreti collegati, con timeframe e difficulty
   - weekly_session: UNA sessione settimanale ricorrente basata su quanto dichiarato dall'utente (recurrence_per_week coerente col numero di weekdays)
   - project: title (breve) e objective (la descrizione estesa dell'obiettivo, riassunta bene)
@@ -153,7 +154,7 @@ export default function ProjectPlanner({ open, onClose }) {
         activity = await base44.entities.Activity.create({
           name: pendingPlan.activity.name,
           category: 'apprendimento',
-          emoji: pendingPlan.activity.emoji || '💼',
+          emoji: iconKey(pendingPlan.activity.emoji, 'briefcase'),
         });
         createdActivityRef.current = activity;
       }
@@ -247,7 +248,7 @@ export default function ProjectPlanner({ open, onClose }) {
 
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('wpp_plan_activity')}</p>
-              <p className="text-sm font-semibold">{pendingPlan.activity.emoji ? `${pendingPlan.activity.emoji} ` : ''}{pendingPlan.activity.name}</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold"><ActivityIcon name={iconKey(pendingPlan.activity.emoji, 'briefcase')} size={14} />{pendingPlan.activity.name}</p>
             </div>
 
             <div>

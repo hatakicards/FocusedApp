@@ -8,6 +8,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useT } from '@/lib/i18n';
 import { useTasks, useUserSettings, useHomeworks, useVerifiche, useGoals, useDayEntries } from '@/lib/useAppData';
 import { useCalendarEvents, dateKey } from '@/lib/calendarEvents';
+import { checkProposal, findSlot, nextDayKey, TRAVEL_MIN, MEALS } from '@/lib/focusyRules';
+import { toMinutes } from '@/lib/focusSchedule';
 
 const SCHEMA = {
   type: 'object',
@@ -124,7 +126,10 @@ export default function OrganizeFocusy({ open, onClose }) {
 Il tuo compito adesso e' ORGANIZZARE il tempo dell'utente nel calendario.
 
 REGOLE:
-- Non sovrapporre gli impegni gia' fissati e rispetta lezioni, lavoro e sonno: orari tra le 7:00 e le 23:00 salvo richiesta diversa.
+- Non sovrapporre gli impegni gia' fissati e rispetta lezioni, lavoro e sonno: orari tra le 7:30 e le 22:00 salvo richiesta diversa.
+- Dopo la scuola (fine di una lezione) lascia ALMENO ${TRAVEL_MIN} minuti per tornare a casa prima di qualsiasi cosa.
+- Non mettere niente nell'ora di pranzo (${MEALS[0].from}-${MEALS[0].to}) e di cena (${MEALS[1].from}-${MEALS[1].to}), salvo che l'utente dica orari diversi per i pasti.
+- Se nella giornata scelta non c'e' un posto adatto, non forzare: scegli il giorno dopo e spiegalo, oppure fai una domanda breve.
 - Priorita': scadenze e verifiche vicine, compiti pesanti, poi il resto. Se l'andamento recente e' basso (media sotto 3) pianifica meno cose e inserisci pause.
 - Se per decidere bene ti manca qualcosa (quanto durano le cose, quando rende di piu', cosa conta di piu'), FAI al massimo 3 domande brevi nel campo questions e lascia proposals vuoto. Non fare domande se la risposta e' gia' nel contesto o nella memoria.
 - Quando hai abbastanza informazioni compila proposals con orari concreti (start/end HH:MM, date YYYY-MM-DD) e spiega in 2-3 righe nel reply. Per cose gia' esistenti usa il task_id esatto dall'elenco; per cose nuove task_id vuoto.
@@ -136,7 +141,9 @@ CONVERSAZIONE:
 ${history}`;
       const res = await base44.integrations.Core.InvokeLLM({ prompt, model: 'gpt_5_4', response_json_schema: SCHEMA, max_output_tokens: 2200 });
 
-      const proposals = (res?.proposals || []).filter((p) => p?.title && DATE_RE.test(p.date || '') && TIME_RE.test(p.start || '') && TIME_RE.test(p.end || ''));
+      const proposals = (res?.proposals || [])
+        .filter((p) => p?.title && DATE_RE.test(p.date || '') && TIME_RE.test(p.start || '') && TIME_RE.test(p.end || ''))
+        .map((p) => checkProposal(p, getEvents));
       const notes = (res?.memory_notes || []).filter(Boolean);
       setMessages((m) => [...m, { role: 'assistant', content: res?.reply || '', questions: res?.questions || [], proposals, notes }]);
 
@@ -157,7 +164,7 @@ ${history}`;
   };
 
   const apply = async (idx) => {
-    const proposals = messages[idx]?.proposals || [];
+    const proposals = (messages[idx]?.proposals || []).filter((p) => !p.conflict);
     setApplied((a) => ({ ...a, [idx]: 'busy' }));
     try {
       for (const p of proposals) {
@@ -172,6 +179,30 @@ ${history}`;
       console.error(e);
       setApplied((a) => ({ ...a, [idx]: undefined }));
     }
+  };
+
+  // L'utente decide cosa fare di una proposta in conflitto: spostarla a domani (nel posto libero piu'
+  // vicino all'ora che si voleva) oppure tenerla comunque dov'e'.
+  const resolve = (msgIdx, propIdx, action) => {
+    setMessages((all) => all.map((m, i) => {
+      if (i !== msgIdx) return m;
+      const proposals = m.proposals.map((p, k) => {
+        if (k !== propIdx) return p;
+        if (action === 'keep') return { ...p, conflict: null };
+        const dur = Math.max(15, toMinutes(p.end) - toMinutes(p.start));
+        const day = nextDayKey(p.date);
+        const slot = findSlot(day, dur, toMinutes(p.start), getEvents, p.task_id);
+        if (!slot) return { ...p, conflict: { type: 'noslot' } };
+        return { ...p, date: day, start: slot.start, end: slot.end, conflict: null, moved: true };
+      });
+      return { ...m, proposals };
+    }));
+  };
+
+  const conflictText = (p) => {
+    if (p.conflict.type === 'meal') return t(p.conflict.meal === 'lunch' ? 'org_conf_lunch' : 'org_conf_dinner').replace('{time}', p.start);
+    if (p.conflict.type === 'noslot') return t('org_conf_noslot');
+    return t('org_conf_busy').replace('{time}', p.start);
   };
 
   if (!open) return null;
@@ -237,13 +268,26 @@ ${history}`;
                                 <span className="truncate text-sm font-medium">{p.title}</span>
                                 <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{p.date.slice(5)} {p.start}–{p.end}</span>
                               </div>
-                              {p.reason && <p className="mt-0.5 text-[11px] text-muted-foreground">{p.reason}</p>}
+                              {p.reason && !p.conflict && <p className="mt-0.5 text-[11px] text-muted-foreground">{p.reason}</p>}
+                              {!p.conflict && p.shifted && <p className="mt-0.5 text-[11px] text-muted-foreground">{t('org_travel_note').replace('{min}', TRAVEL_MIN)}</p>}
+                              {!p.conflict && p.moved && <p className="mt-0.5 text-[11px] text-muted-foreground">{t('org_moved_note')}</p>}
+                              {p.conflict && (
+                                <div className="mt-1.5">
+                                  <p className="text-[11px] leading-snug text-muted-foreground">{conflictText(p)}</p>
+                                  <div className="mt-2 flex gap-2">
+                                    {p.conflict.type !== 'noslot' && (
+                                      <button onClick={() => resolve(i, k, 'tomorrow')} className="flex-1 rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background">{t('org_move_tomorrow')}</button>
+                                    )}
+                                    <button onClick={() => resolve(i, k, 'keep')} className="flex-1 rounded-lg border border-border px-3 py-1.5 text-[11px] font-semibold">{t('org_keep_here')}</button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
                         <button
                           onClick={() => apply(i)}
-                          disabled={!!applied[i]}
+                          disabled={!!applied[i] || m.proposals.every((p) => p.conflict)}
                           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background disabled:opacity-60"
                         >
                           {applied[i] === 'done' ? <><Check size={15} /> {t('org_applied')}</> : applied[i] === 'busy' ? <Loader2 size={15} className="animate-spin" /> : t('org_apply')}

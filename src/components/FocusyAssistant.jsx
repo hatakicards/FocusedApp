@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { iconKey } from '@/components/ActivityIcon';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, X, Bot, User, Loader2, Lock, CheckCircle, Mic, Square } from 'lucide-react';
@@ -253,7 +254,7 @@ Compiti totali pendenti: ${pendingHomework.length} (impegnativi:${difficultyCoun
 
 === AZIONI DISPONIBILI ===
 Se l'utente chiede di creare qualcosa, compila "actions" con UN oggetto:
-1. create_activity: { "type":"create_activity", "name":"...", "category":"fitness|mente|apprendimento|custom", "emoji":"..." }
+1. create_activity: { "type":"create_activity", "name":"...", "category":"fitness|mente|apprendimento|custom", "emoji":"<UNA tra: star, dumbbell, footprints, bike, waves, target, bookopen, pencil, graduation, brain, laptop, briefcase, coins, palette, music, guitar, flame, moon, sun, sprout, droplet, apple, heart, book, trophy>" }
 2. create_goal: { "type":"create_goal", "title":"...", "timeframe":"daily|weekly|monthly|annual|lifetime", "difficulty":"easy|medium|hard", "activity_name":"<nome esatto da ATTIVITÀ ESISTENTI>" }
 3. create_task: { "type":"create_task", "title":"...", "task_type":"todo", "due_date":"YYYY-MM-DD (opzionale)", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
 4. create_event: { "type":"create_event", "title":"...", "task_type":"meeting|deadline", "due_date":"YYYY-MM-DD", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
@@ -510,7 +511,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
         await base44.entities.Activity.create({
           name: action.name,
           category: action.category || 'custom',
-          emoji: action.emoji || '⭐',
+          emoji: iconKey(action.emoji),
         });
         qc.invalidateQueries({ queryKey: ['activities'] });
         return { ok: true, label: t('focusy_action_created_activity') };

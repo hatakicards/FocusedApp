@@ -434,6 +434,33 @@ export function useOptimisticGoalToggle() {
   }, [qc, user?.id]);
 }
 
+// Segna (o toglie) un obiettivo ricorrente come completato in un periodo preciso, non per forza quello
+// di adesso: serve ai recap ("cosa hai completato ieri?", "quali obiettivi della settimana scorsa?").
+export function useOptimisticGoalPeriod() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useCallback(async (goal, periodKeyValue, done) => {
+    const key = ['goals', user?.id];
+    const periods = goal.completed_periods || [];
+    const next = done
+      ? (periods.includes(periodKeyValue) ? periods : [...periods, periodKeyValue])
+      : periods.filter((p) => p !== periodKeyValue);
+    const payload = { completed_periods: next };
+
+    await qc.cancelQueries({ queryKey: key });
+    qc.setQueryData(key, (cur) => (cur || []).map((g) => (g.id === goal.id ? { ...g, ...payload } : g)));
+
+    try {
+      await getDB().Goal.update(goal.id, payload);
+      refreshWidgets();
+    } catch (e) {
+      addToQueue({ type: 'update', entity: 'Goal', serverId: goal.id, payload });
+      console.error('Sync queued:', e);
+    }
+  }, [qc, user?.id]);
+}
+
 export function useOptimisticGymSessionSave() {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -672,20 +699,20 @@ export function usePromotionCheck() {
     const stateKey = settings.id + '|' + JSON.stringify(currentRanks);
     if (processedRef.current === stateKey) return;
 
+    // v2: da Bronzo si parte con 0 requisiti (prima il primo requisito dava Bronzo). Chi ha ancora la
+    // numerazione vecchia viene riallineato in silenzio, senza falsi popup di promozione.
     const lastRanks = settings.last_ranks || {};
-    const currentStr = JSON.stringify(currentRanks);
-    const lastStr = JSON.stringify(lastRanks);
-
-    if (currentStr === lastStr) {
-      processedRef.current = stateKey;
-      return;
-    }
+    const migrated = lastRanks.v2 === true;
+    const unchanged = migrated && CATEGORIES.every((cat) => lastRanks[cat.id] === currentRanks[cat.id]);
 
     processedRef.current = stateKey;
+    if (unchanged) return;
 
+    const stored = { ...currentRanks, v2: true };
     let promoted = null;
     CATEGORIES.forEach((cat) => {
-      const lastIndex = lastRanks[cat.id] ?? -1;
+      if (!migrated) return;
+      const lastIndex = lastRanks[cat.id] ?? 0;
       const currentIndex = currentRanks[cat.id];
       if (currentIndex > lastIndex) {
         promoted = {
@@ -703,9 +730,9 @@ export function usePromotionCheck() {
 
     // Update settings cache directly instead of invalidating all queries
     const key = ['userSettings', user?.id];
-    qc.setQueryData(key, (cur) => (cur ? { ...cur, last_ranks: currentRanks } : cur));
+    qc.setQueryData(key, (cur) => (cur ? { ...cur, last_ranks: stored } : cur));
     getDB().UserSettings
-      .update(settings.id, { last_ranks: currentRanks })
+      .update(settings.id, { last_ranks: stored })
       .catch(console.error);
   }, [activities, ratings, goals, settings, lessonGrades, qc, user?.id]);
 

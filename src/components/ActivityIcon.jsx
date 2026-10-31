@@ -12,6 +12,12 @@ const ICON_MAP = {
   trophy: Trophy, medal: Medal, puzzle: Puzzle, flask: FlaskConical,
 };
 
+// Le attivita' salvano il nome di un'icona ('dumbbell', 'star'...). Se arriva altro (un emoji scritto da
+// Focusy, un nome sconosciuto) si ripiega su un'icona valida invece di mostrare testo.
+export function iconKey(value, fallback = 'star') {
+  return ICON_MAP[value] ? value : fallback;
+}
+
 export function getActivityIcon(name) {
   return ICON_MAP[name] || Star;
 }
