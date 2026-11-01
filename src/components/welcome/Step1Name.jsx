@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, Info, X } from 'lucide-react';
+import { birthDateBounds, isPlausibleBirthDate } from '@/lib/ageCheck';
 
 export default function Step1Name({ data, onNext }) {
   const [name, setName] = useState(data.name || '');
@@ -10,7 +11,7 @@ export default function Step1Name({ data, onNext }) {
 
   const handleContinue = () => {
     if (!canContinue) return;
-    onNext({ name: name.trim(), birthDate });
+    onNext({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '' });
   };
 
   return (
@@ -48,7 +49,8 @@ export default function Step1Name({ data, onNext }) {
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
+              min={birthDateBounds().min}
+              max={birthDateBounds().max}
               className="w-full rounded-2xl border border-border bg-card px-4 py-4 text-foreground text-base font-medium outline-none focus:border-foreground/50 transition-colors [color-scheme:dark]"
             />
           </div>

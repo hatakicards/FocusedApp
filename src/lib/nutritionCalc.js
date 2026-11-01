@@ -1,3 +1,5 @@
+import { isPlausibleBirthDate } from '@/lib/ageCheck';
+
 // Professional BMR/TDEE/BMI calculation library
 // Uses Harris-Benedict for normal/underweight, Mifflin-St. Jeor for overweight/obese
 
@@ -38,7 +40,7 @@ export function getBMICategory(bmi) {
 }
 
 export function getAgeFromBirthDate(birthDate) {
-  if (!birthDate) return null;
+  if (!birthDate || !isPlausibleBirthDate(birthDate)) return null;
   const birth = new Date(birthDate + 'T00:00:00');
   if (isNaN(birth.getTime())) return null;
   const now = new Date();

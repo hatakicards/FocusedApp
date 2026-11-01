@@ -1,7 +1,7 @@
 import { Moon, Dumbbell, AlertCircle, CheckCircle, TrendingDown, TrendingUp } from 'lucide-react';
 import { useUserSettings, useGymSessions, useBodyFuelEntries } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
-import { calculateAge } from '@/lib/ageCheck';
+import { usableAge } from '@/lib/ageCheck';
 import { computeCumulativeSleepDebt, isGymDay } from '@/lib/sleepData';
 import { todayISO } from '@/lib/productivity';
 import { ExternalLink } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function SleepDebtTracker() {
 
   const today = todayISO();
   const todayEntry = (entries || []).find((e) => e.date === today);
-  const age = calculateAge(settings?.birth_date);
+  const age = usableAge(settings?.birth_date);
   const gymDay = isGymDay(gymSessions);
   const todayActual = todayEntry ? (todayEntry.sleep_hours || 0) + (todayEntry.sleep_minutes || 0) / 60 : 0;
 

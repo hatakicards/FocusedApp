@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Cake } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import { birthDateBounds, isPlausibleBirthDate } from '@/lib/ageCheck';
 
 /**
  * Full-screen blocking modal that asks for the user's date of birth.
@@ -27,6 +28,10 @@ export default function AgeVerificationModal({ onSave }) {
     }
     if (date > new Date()) {
       setError(t('age_future'));
+      return;
+    }
+    if (!isPlausibleBirthDate(birthDate)) {
+      setError(t('age_invalid'));
       return;
     }
     setSaving(true);
@@ -56,7 +61,8 @@ export default function AgeVerificationModal({ onSave }) {
             type="date"
             value={birthDate}
             onChange={(e) => { setBirthDate(e.target.value); setError(''); }}
-            max={today}
+            min={birthDateBounds().min}
+            max={birthDateBounds().max}
             className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:border-foreground/30"
           />
           {error && <p className="text-xs text-destructive">{error}</p>}
