@@ -14,6 +14,7 @@ import Agenda from '@/pages/Agenda';
 import FocusTime from '@/pages/FocusTime';
 import Focusy from '@/pages/Focusy';
 import Profilo from '@/pages/Profilo';
+import AutoActivityDetail from '@/pages/AutoActivityDetail';
 import GymTracker from '@/pages/GymTracker';
 import RemoveAdsSuccess from '@/pages/RemoveAdsSuccess';
 import BodyFuel from '@/pages/BodyFuel';
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
         <Route path="/home" element={<Oggi />} />
         <Route path="/abitudini" element={<Navigate to="/home" replace />} />
         <Route path="/attivita/:id" element={<ActivityDetail />} />
+        <Route path="/abitudine/:id" element={<AutoActivityDetail />} />
         <Route path="/attivita" element={<Navigate to="/home" replace />} />
         <Route path="/riepilogo" element={<Navigate to="/home" replace />} />
         <Route path="/obiettivi" element={<ObiettiviRanking />} />

@@ -160,6 +160,7 @@ export default function BodyFuel() {
       await saveEntry({
         food_log: newFoodLog,
         calories_consumed: newTotals.kcal,
+        calories_goal: calorieGoal || null,
         protein_consumed: newTotals.protein,
         carbs_consumed: newTotals.carbs,
         lipids_consumed: newTotals.lipids,
@@ -263,6 +264,7 @@ export default function BodyFuel() {
         sleep_quality: rating || null,
         food_log: editEntry.food_log || [],
         calories_consumed: editTotals.kcal,
+        calories_goal: editEntry.calories_goal || calorieGoal || null,
         protein_consumed: editTotals.protein,
         carbs_consumed: editTotals.carbs,
         lipids_consumed: editTotals.lipids,

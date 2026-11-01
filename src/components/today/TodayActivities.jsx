@@ -98,7 +98,7 @@ export default function TodayActivities() {
             icon={a.icon}
             name={t(a.nameKey)}
             streak={a.streak}
-            onOpen={() => navigate('/body-fuel')}
+            onOpen={() => navigate(`/abitudine/${a.id.replace('auto-', '')}`)}
             left={a.todayRating == null ? (
               <span className="flex h-8 min-w-8 items-center justify-center rounded-full border border-dashed border-border text-xs text-muted-foreground">-</span>
             ) : (
