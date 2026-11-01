@@ -40,6 +40,12 @@ export default function NotificationTest() {
         </p>
       )}
       {info?.details && <p className="mb-3 text-[11px] text-muted-foreground">{info.details}</p>}
+      {info?.next?.length > 0 && <p className="mb-3 text-[11px] text-muted-foreground">{t('notif_next')}: {info.next.join(' · ')}</p>}
+      {info?.lastSync && (
+        <p className="mb-3 text-[11px] text-muted-foreground">
+          {t('notif_last_sync')}: {new Date(info.lastSync).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
       {info?.permission === 'denied' && (
         <>
           <p className="mb-3 text-xs text-muted-foreground">{t('notif_test_denied')}</p>

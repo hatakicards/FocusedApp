@@ -40,6 +40,7 @@ const nativeNotifications = {
       })),
     });
     if (res?.errors?.length) noteError('programmazione', res.errors[0]);
+    try { localStorage.setItem(SYNC_KEY, new Date().toISOString()); } catch { /* ignore */ }
     return { notifications: notifications.map((n) => ({ id: n.id })), native: res };
   },
   cancel: ({ notifications }) => FocusedNotifications.cancelIds({ ids: notifications.map((n) => n.id) }),
@@ -61,6 +62,8 @@ async function loadPlugin() {
 // L'ultimo errore delle notifiche resta salvato: la scheda di prova in Profilo lo mostra, cosi'
 // si vede cosa non va anche senza i log del telefono.
 const ERR_KEY = 'notif_last_error';
+// Ora dell'ultima volta che l'app ha riprogrammato le notifiche (qualunque tipo).
+const SYNC_KEY = 'notif_last_sync';
 function noteError(where, e) {
   try { localStorage.setItem(ERR_KEY, `${where}: ${e?.message || e}`); } catch { /* ignore */ }
 }
@@ -81,7 +84,15 @@ export async function notificationDiagnostics() {
     const status = await LN.checkPermissions();
     const { notifications } = await LN.getPending();
     const details = status.alert ? `avvisi ${status.alert} · suono ${status.sound} · blocco ${status.lock} · centro ${status.center}` : null;
-    return { native: true, engine, permission: status.display, details, pending: notifications.length, lastError };
+    // Prossime tre notifiche in coda con l'ora in cui iOS le farebbe partire (solo quelle a data fissa).
+    const next = notifications
+      .filter((n) => n.at)
+      .sort((a, b) => a.at - b.at)
+      .slice(0, 3)
+      .map((n) => new Date(n.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }));
+    let lastSync = null;
+    try { lastSync = localStorage.getItem(SYNC_KEY); } catch { /* ignore */ }
+    return { native: true, engine, permission: status.display, details, pending: notifications.length, next, lastSync, lastError };
   } catch (e) {
     noteError('diagnostica', e);
     return { native: true, engine, permission: 'error', pending: 0, lastError: String(e?.message || e) };
@@ -214,6 +225,35 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
   }
 }
 
+// Richiamo per chi smette di aprire l'app: le notifiche della sera durano solo DAYS_AHEAD giorni e si
+// riprogrammano all'apertura, quindi un utente che sparisce dopo due volte non riceverebbe piu' niente.
+// Questa serie parte dopo 2, 4, 7, 11, 16 e 25 giorni e si sposta in avanti a ogni apertura: se usi
+// l'app non esce mai, se sparisci arriva. Rispetta l'interruttore dei promemoria.
+const WINBACK_BASE_ID = 7800;
+const WINBACK_DAYS = [2, 4, 7, 11, 16, 25];
+const WINBACK_HOUR = 18;
+const WINBACK_MINUTE = 30;
+
+export async function syncWinBack({ enabled, bodies, title }) {
+  const LN = await loadPlugin();
+  if (!LN) return;
+  try {
+    await LN.cancel({ notifications: WINBACK_DAYS.map((_, i) => ({ id: WINBACK_BASE_ID + i })) });
+    if (!enabled) return;
+    if (!(await ensurePermission(LN))) return;
+    const notifications = WINBACK_DAYS.map((days, i) => {
+      const at = new Date();
+      at.setDate(at.getDate() + days);
+      at.setHours(WINBACK_HOUR, WINBACK_MINUTE, 0, 0);
+      return { id: WINBACK_BASE_ID + i, title, body: bodies[i], schedule: { at, allowWhileIdle: true } };
+    });
+    await LN.schedule({ notifications });
+  } catch (e) {
+    console.warn('Win-back sync failed', e);
+    noteError('richiamo', e);
+  }
+}
+
 export function useDailyReminder(settings, ratings) {
   const t = useT();
   const { user } = useAuth();
@@ -232,6 +272,12 @@ export function useDailyReminder(settings, ratings) {
     if (!ready) return;
     syncDailyReminder({ enabled, time, ratedToday, title, body });
   }, [ready, enabled, time, ratedToday, title, body]);
+
+  const wbKey = [1, 2, 3, 4, 5, 6].map((n) => t(`notif_wb_${n}`)).join('|');
+  useEffect(() => {
+    if (!ready) return;
+    syncWinBack({ enabled, title: 'Focused', bodies: wbKey.split('|') });
+  }, [ready, enabled, wbKey]);
 }
 
 // Promemoria prima di ogni lezione dell'orario scolastico: 5 minuti prima esce
