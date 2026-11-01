@@ -19,7 +19,7 @@ import { isSenseEnabled, getSleepFromHealth } from '@/lib/healthSense';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
-import SubscriptionGate from '@/components/SubscriptionGate';
+import LockedPreview from '@/components/LockedPreview';
 
 function calculateSleepDuration(bedtime, wakeTime) {
   if (!bedtime || !wakeTime) return { hours: 0, minutes: 0 };
@@ -34,7 +34,7 @@ function calculateSleepDuration(bedtime, wakeTime) {
   return { hours: Math.floor(diff / 60), minutes: diff % 60 };
 }
 
-export default function BodyFuel() {
+function BodyFuelInner() {
   const qc = useQueryClient();
   const { user } = useAuth();
   const { data: entries } = useBodyFuelEntries();
@@ -123,10 +123,6 @@ export default function BodyFuel() {
       handleSleepChange(hhmm(night.bedtime), hhmm(night.wake));
     })();
   }, [todayEntry?.id, entries === undefined, sub.canUseProfiles]);
-
-  if (!sub.canUseProfiles) {
-    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Flame} />;
-  }
 
   const totals = computeFoodLogTotals(foodLog, customFoods);
   const sleepRating = computeSleepRating(sleepHours, sleepMinutes);
@@ -652,5 +648,14 @@ export default function BodyFuel() {
       <CalorieCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
       <TutorialDialog pageId="bodyfuel" />
     </div>
+  );
+}
+
+export default function BodyFuel() {
+  const sub = useSubscription();
+  return (
+    <LockedPreview locked={!sub.canUseProfiles} tier="premium" descKey="gate_personal_desc">
+      <BodyFuelInner />
+    </LockedPreview>
   );
 }

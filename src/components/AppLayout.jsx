@@ -2,7 +2,7 @@
 import { useOutlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { differenceInCalendarDays } from 'date-fns';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Dumbbell, GraduationCap, Briefcase } from 'lucide-react';
 import BottomNav from './BottomNav';
 import FocusyAssistant from './FocusyAssistant';
 import Sidebar from './Sidebar';
@@ -28,6 +28,27 @@ import WelcomeIntro from './welcome/WelcomeIntro';
 import { TUTORIALS } from '@/lib/tutorials';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
+
+// Le tre pagine di Personal: con Premium si passa dall'una all'altra scorrendo con il dito, e il profilo
+// scelto resta quello dell'ultima pagina aperta.
+const PERSONAL_PAGES = [
+  { id: 'atleta', to: '/body-fuel', icon: Dumbbell },
+  { id: 'studente', to: '/lezioni', icon: GraduationCap },
+  { id: 'professionista', to: '/workspace', icon: Briefcase },
+];
+
+// Un gesto che parte dentro un elenco scorrevole in orizzontale (grafici, carosello) o dentro un campo
+// non deve cambiare pagina.
+function startsInsideHorizontalScroll(target) {
+  for (let el = target; el && el !== document.body; el = el.parentElement) {
+    if (el.matches?.('input, textarea, select, [role="slider"], [data-no-swipe]')) return true;
+    if (el.scrollWidth > el.clientWidth + 4) {
+      const ox = getComputedStyle(el).overflowX;
+      if (ox === 'auto' || ox === 'scroll') return true;
+    }
+  }
+  return false;
+}
 
 export default function AppLayout() {
   const { data: settings, isLoading, isError, refetch } = useUserSettings();
@@ -70,7 +91,7 @@ export default function AppLayout() {
         const patch = {};
         if (d.dream) patch.dream = d.dream;
         if (d.birthDate) patch.birth_date = d.birthDate;
-        if (Object.keys(patch).length) await optimisticSettingsUpdate(patch);
+        if (Object.keys(patch).length) await optimisticSettingsUpdate(settings.id, patch);
       }
     } catch (e) { console.warn('Welcome save failed', e); }
   };
@@ -189,6 +210,26 @@ export default function AppLayout() {
   const outletMap = useRef({});
   outletMap.current[location.pathname] = outlet;
 
+  const personalIdx = PERSONAL_PAGES.findIndex((p) => p.to === location.pathname);
+  const swipeEnabled = personalIdx >= 0 && sub.canUseProfiles;
+  const swipeStart = useRef(null);
+  const onSwipeStart = (e) => {
+    if (!swipeEnabled || e.touches.length !== 1 || startsInsideHorizontalScroll(e.target)) { swipeStart.current = null; return; }
+    swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  };
+  const onSwipeEnd = (e) => {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start || !swipeEnabled) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - start.t > 800) return;
+    const next = PERSONAL_PAGES[personalIdx + (dx < 0 ? 1 : -1)];
+    if (!next) return;
+    if (settings?.id) optimisticSettingsUpdate(settings.id, { profile_type: next.id });
+    navigate(next.to);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -222,7 +263,18 @@ export default function AppLayout() {
         className="fixed inset-0 pointer-events-none z-0"
         style={{ background: PROFILE_GRADIENTS[settings?.profile_type || 'base'] }}
       />
-      <main className="relative z-10 mx-auto max-w-lg md:max-w-4xl min-h-screen overflow-x-hidden pb-36 md:pb-10 md:px-8">
+      <main
+        className="relative z-10 mx-auto max-w-lg md:max-w-4xl min-h-screen overflow-x-hidden pb-36 md:pb-10 md:px-8"
+        onTouchStart={onSwipeStart}
+        onTouchEnd={onSwipeEnd}
+      >
+        {swipeEnabled && (
+          <div className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+8px)] z-20 flex -translate-x-1/2 items-center gap-2 md:hidden">
+            {PERSONAL_PAGES.map((p, i) => (
+              <p.icon key={p.id} size={i === personalIdx ? 15 : 12} strokeWidth={i === personalIdx ? 2.25 : 1.75} className={i === personalIdx ? 'text-foreground' : 'text-muted-foreground/50'} />
+            ))}
+          </div>
+        )}
         <motion.div
           key={location.pathname}
           initial={{ opacity: 0, y: 6 }}

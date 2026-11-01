@@ -8,11 +8,13 @@ import { TUTORIALS } from '@/lib/tutorials';
 import { cn } from '@/lib/utils';
 import { useUserSettings } from '@/lib/useAppData';
 import { OPEN_TUTORIAL_EVENT, REPLAY_FIRST_RUN_EVENT } from '@/components/HelpButton';
+import { useInLockedPreview } from '@/components/LockedPreview';
 
 const STORAGE_PREFIX = 'tutorial_seen_';
 
 export default function TutorialDialog({ pageId }) {
   const t = useT();
+  const inLockedPreview = useInLockedPreview();
   const { data: settings } = useUserSettings();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -46,7 +48,7 @@ export default function TutorialDialog({ pageId }) {
     return () => window.removeEventListener(OPEN_TUTORIAL_EVENT, onOpen);
   }, [pageId, tutorial]);
 
-  if (!tutorial) return null;
+  if (!tutorial || inLockedPreview) return null;
 
   const steps = tutorial.steps;
   const current = steps[step];

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Target } from 'lucide-react';
 import { useActivities, useRatings, useGoals, useOptimisticGoalToggle, useSubscription, useLessonGrades, useLifeStats, useUserSettings, useBodyFuelEntries, useWorkDayLogs } from '@/lib/useAppData';
-import SubscriptionGate from '@/components/SubscriptionGate';
+import LockedPreview from '@/components/LockedPreview';
 import { CATEGORIES } from '@/lib/constants';
 import { computeCategoryRank } from '@/lib/productivity';
 import { useT } from '@/lib/i18n';
@@ -14,7 +14,7 @@ import MilestoneGrid from '@/components/MilestoneGrid';
 import LifeStatsTab from '@/components/obiettivi/LifeStatsTab';
 import GoalsListTab from '@/components/obiettivi/GoalsListTab';
 
-export default function ObiettiviRanking() {
+function ObiettiviRankingInner() {
   const { data: activities } = useActivities();
   const { data: ratings } = useRatings();
   const { data: goals } = useGoals();
@@ -32,10 +32,6 @@ export default function ObiettiviRanking() {
   const [tab, setTab] = useState(
     initialTab === 'lifestats' ? 'lifestats' : initialTab === 'goals' ? 'goals' : 'ranking'
   );
-
-  if (!sub.canUseRankings) {
-    return <SubscriptionGate title="LifeGame" description={t('gate_goals_desc')} icon={Target} />;
-  }
 
   const handleToggleGoal = (goal) => optimisticToggleGoal(goal);
   const calendarGoal = (goals || []).find((g) => g.id === calendarGoalId) || null;
@@ -92,5 +88,14 @@ export default function ObiettiviRanking() {
       />
       <TutorialDialog pageId="obiettivi" />
     </div>
+  );
+}
+
+export default function ObiettiviRanking() {
+  const sub = useSubscription();
+  return (
+    <LockedPreview locked={!sub.canUseRankings} tier="pro" descKey="gate_goals_desc">
+      <ObiettiviRankingInner />
+    </LockedPreview>
   );
 }

@@ -16,9 +16,9 @@ import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
 import SubjectPicker from '@/components/lezioni/SubjectPicker';
 import TimetableTab from '@/components/lezioni/TimetableTab';
 import ReadingSection from '@/components/ReadingSection';
-import SubscriptionGate from '@/components/SubscriptionGate';
+import LockedPreview from '@/components/LockedPreview';
 
-export default function Lezioni() {
+function LezioniInner() {
   const navigate = useNavigate();
   const { data: grades } = useLessonGrades();
   const { data: verifiche } = useVerifiche();
@@ -50,10 +50,6 @@ export default function Lezioni() {
   const [vGrade, setVGrade] = useState('');
   const [vSystem, setVSystem] = useState('scale10');
   const [materieOpen, setMaterieOpen] = useState(false);
-
-  if (!sub.canUseProfiles) {
-    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={GraduationCap} />;
-  }
 
   const allGrades = grades || [];
   const allVerifiche = verifiche || [];
@@ -453,5 +449,14 @@ export default function Lezioni() {
       <SubjectManagement open={materieOpen} onClose={() => setMaterieOpen(false)} />
       <TutorialDialog pageId="lezioni" />
     </div>
+  );
+}
+
+export default function Lezioni() {
+  const sub = useSubscription();
+  return (
+    <LockedPreview locked={!sub.canUseProfiles} tier="premium" descKey="gate_personal_desc">
+      <LezioniInner />
+    </LockedPreview>
   );
 }

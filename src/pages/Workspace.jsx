@@ -10,7 +10,7 @@ import WorkspaceUpcoming from '@/components/WorkspaceUpcoming';
 import WorkspaceAddItem from '@/components/WorkspaceAddItem';
 import ProjectsList from '@/components/workspace/ProjectsList';
 import ProjectPlanner from '@/components/workspace/ProjectPlanner';
-import SubscriptionGate from '@/components/SubscriptionGate';
+import LockedPreview from '@/components/LockedPreview';
 
 const CURRENCY = '€';
 
@@ -25,7 +25,7 @@ function formatMoney(n) {
 
 // Projects & Businesses: da una parte l'attivita' (quanto hai guadagnato, scadenze e
 // riunioni, andamento dei guadagni), dall'altra i progetti (ancora in beta).
-export default function Workspace() {
+function WorkspaceInner() {
   const { data: logs } = useWorkDayLogs();
   const { data: settings } = useUserSettings();
   const optimisticSave = useOptimisticWorkDayLog();
@@ -54,10 +54,6 @@ export default function Workspace() {
   useEffect(() => {
     if (todayLog) setEarnings(todayLog.earnings != null ? todayLog.earnings.toString() : '');
   }, [todayLog]);
-
-  if (!sub.canUseProfiles) {
-    return <SubscriptionGate title={t('nav_personal')} description={t('gate_personal_desc')} icon={Briefcase} />;
-  }
 
   const monthlyGoal = settings?.monthly_earnings_goal || 0;
   const sorted = [...(logs || [])].filter((l) => l.earnings).sort((a, b) => b.date.localeCompare(a.date));
@@ -335,5 +331,14 @@ export default function Workspace() {
       <ProjectPlanner open={plannerOpen} onClose={() => setPlannerOpen(false)} />
       <TutorialDialog pageId="workspace" />
     </div>
+  );
+}
+
+export default function Workspace() {
+  const sub = useSubscription();
+  return (
+    <LockedPreview locked={!sub.canUseProfiles} tier="premium" descKey="gate_personal_desc">
+      <WorkspaceInner />
+    </LockedPreview>
   );
 }
