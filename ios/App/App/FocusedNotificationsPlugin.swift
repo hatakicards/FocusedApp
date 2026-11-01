@@ -16,7 +16,6 @@ public class FocusedNotificationsPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNoti
         CAPPluginMethod(name: "scheduleAll", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancelIds", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingList", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deliveredList", returnType: CAPPluginReturnPromise),
     ]
 
     private static let prefix = "focused.n."
@@ -59,37 +58,13 @@ public class FocusedNotificationsPlugin: CAPPlugin, CAPBridgedPlugin, UNUserNoti
     // avvisi, banner o schermata di blocco spenti, e allora "non arriva niente" senza errori.
     @objc func status(_ call: CAPPluginCall) {
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            var out: [String: Any] = [
+            call.resolve([
                 "display": self.label(settings.authorizationStatus),
                 "alert": self.setting(settings.alertSetting),
                 "sound": self.setting(settings.soundSetting),
                 "lock": self.setting(settings.lockScreenSetting),
                 "center": self.setting(settings.notificationCenterSetting),
-            ]
-            // Con lo stile "Nessuno" non compare nessun banner anche se gli avvisi risultano attivi.
-            switch settings.alertStyle {
-            case .banner: out["style"] = "banner"
-            case .alert: out["style"] = "alert"
-            default: out["style"] = "none"
-            }
-            // "Riepilogo programmato" trattiene le notifiche e le consegna a orari fissi.
-            if #available(iOS 15.0, *) {
-                out["summary"] = self.setting(settings.scheduledDeliverySetting)
-            }
-            call.resolve(out)
-        }
-    }
-
-    // Notifiche di Focused gia' consegnate e ancora nel Centro notifiche: se la prova e' "consegnata" ma
-    // non si e' vista, e' iOS (Focus, riepilogo, stile) a nasconderla; se non c'e', non e' mai partita.
-    @objc func deliveredList(_ call: CAPPluginCall) {
-        UNUserNotificationCenter.current().getDeliveredNotifications { list in
-            let ids = list.compactMap { n -> Int? in
-                let raw = n.request.identifier
-                guard raw.hasPrefix(FocusedNotificationsPlugin.prefix) else { return nil }
-                return Int(raw.dropFirst(FocusedNotificationsPlugin.prefix.count))
-            }
-            call.resolve(["ids": ids])
+            ])
         }
     }
 
