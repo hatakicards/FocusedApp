@@ -45,6 +45,7 @@ const nativeNotifications = {
   },
   cancel: ({ notifications }) => FocusedNotifications.cancelIds({ ids: notifications.map((n) => n.id) }),
   getPending: () => FocusedNotifications.pendingList(),
+  getDelivered: () => FocusedNotifications.deliveredList(),
 };
 
 async function loadPlugin() {
@@ -83,7 +84,12 @@ export async function notificationDiagnostics() {
   try {
     const status = await LN.checkPermissions();
     const { notifications } = await LN.getPending();
-    const details = status.alert ? `avvisi ${status.alert} · suono ${status.sound} · blocco ${status.lock} · centro ${status.center}` : null;
+    const details = status.alert
+      ? `avvisi ${status.alert} · stile ${status.style ?? '?'} · suono ${status.sound} · blocco ${status.lock} · centro ${status.center} · riepilogo ${status.summary ?? '?'}`
+      : null;
+    // Vecchie build senza deliveredList: la diagnostica funziona lo stesso.
+    let delivered = null;
+    try { delivered = LN.getDelivered ? (await LN.getDelivered()).ids.length : null; } catch { /* ignore */ }
     // Prossime tre notifiche in coda con l'ora in cui iOS le farebbe partire (solo quelle a data fissa).
     const next = notifications
       .filter((n) => n.at)
@@ -92,7 +98,7 @@ export async function notificationDiagnostics() {
       .map((n) => new Date(n.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }));
     let lastSync = null;
     try { lastSync = localStorage.getItem(SYNC_KEY); } catch { /* ignore */ }
-    return { native: true, engine, permission: status.display, details, pending: notifications.length, next, lastSync, lastError };
+    return { native: true, engine, permission: status.display, details, pending: notifications.length, delivered, next, lastSync, lastError };
   } catch (e) {
     noteError('diagnostica', e);
     return { native: true, engine, permission: 'error', pending: 0, lastError: String(e?.message || e) };
