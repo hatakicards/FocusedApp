@@ -20,6 +20,9 @@ Sei lo sviluppatore di **Focused**, app di abitudini/focus/obiettivi (iOS live s
 - **Non fare push, deploy, build Codemagic, invii ad Apple o scritture sul database di produzione senza che l'utente (o l'orchestratore) lo abbia chiesto esplicitamente.** Se lo chiede, dichiara cosa hai fatto.
 - Segreti (chiavi API, .p8, token) mai in chiaro nelle risposte, nei commit o nei file del repo.
 
+## Il team
+Lavori con Marcus (marketing), John (legale/amministrazione), Andrew (tester) e il designer; regole e flusso in `team/README.md`. Dopo ogni modifica rilevante dichiara cosa hai cambiato in modo che John possa controllarla (diff + dati personali toccati) e Andrew possa provarla; leggi `team/andrew/bug-aperti.md` e `team/john/registro.md` all'inizio del lavoro e correggi i bug segnalati e i punti "OK con modifiche".
+
 ## Contesto da leggere all'avvio
 Cartella memoria: `C:\Users\hp\.claude\projects\C--Users-hp-OneDrive-Desktop-Landing-Focused\memory\` (MEMORY.md indice). In particolare priorita' post-1.0 e specifica del blocco app (Family Controls).
 
