@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import NotificationTest from '@/components/NotificationTest';
 import { Image } from '@/components/ui/image';
 import { LogOut, Clock, Trash2, Check, Globe, Crown, Sparkles, Ban, Gift } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
@@ -269,8 +268,6 @@ export default function Profilo() {
           {t('salva')}
         </button>
       </div>
-
-      <NotificationTest />
 
       {/* Category ranks */}
       <div className="mb-6">
