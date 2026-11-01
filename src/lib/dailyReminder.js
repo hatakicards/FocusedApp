@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { format } from 'date-fns';
 import { useT } from '@/lib/i18n';
@@ -195,7 +195,55 @@ export async function getNotificationPermission() {
   }
 }
 
-export async function syncDailyReminder({ enabled, time, ratedToday, title, body }) {
+// Chi salva un nuovo orario in Profilo vuole vederlo funzionare subito: per oggi il promemoria parte
+// comunque, anche se la giornata e' gia' valutata. Si ricorda "giorno|orario" cosi' vale solo per oggi
+// e solo per l'orario appena scelto.
+const FORCE_KEY = 'notif_force_today';
+export function forceReminderToday(time) {
+  try { localStorage.setItem(FORCE_KEY, `${format(new Date(), 'yyyy-MM-dd')}|${time}`); } catch { /* ignore */ }
+  // Anche se l'orario e' lo stesso di prima le impostazioni non cambiano: si avvisa l'hook di riprogrammare.
+  try { window.dispatchEvent(new Event('focused-reminder-saved')); } catch { /* ignore */ }
+}
+function isForcedToday(time) {
+  try { return localStorage.getItem(FORCE_KEY) === `${format(new Date(), 'yyyy-MM-dd')}|${time}`; } catch { return false; }
+}
+
+function parseTime(time) {
+  const [hh, mm] = String(time || '21:00').split(':').map((n) => parseInt(n, 10));
+  return { hour: Number.isFinite(hh) ? hh : 21, minute: Number.isFinite(mm) ? mm : 0 };
+}
+
+// Le sere in cui il promemoria e' in programma, come date: serve sia a programmarle sia a dire
+// all'utente quando arriva la prossima.
+function eveningTimes({ time, ratedToday }) {
+  const { hour, minute } = parseTime(time);
+  const now = Date.now();
+  const list = [];
+  for (let i = 0; i < DAYS_AHEAD; i += 1) {
+    const at = new Date();
+    at.setDate(at.getDate() + i);
+    at.setHours(hour, minute, 0, 0);
+    if (at.getTime() <= now + 5000) continue;
+    if (i === 0 && ratedToday && !isForcedToday(time)) continue;
+    list.push({ id: BASE_ID + i, at });
+  }
+  return list;
+}
+
+export function nextReminderAt({ enabled, time, ratedToday }) {
+  if (!enabled) return null;
+  return eveningTimes({ time, ratedToday })[0]?.at || null;
+}
+
+// Le sincronizzazioni partono una dopo l'altra: l'effetto riparte ogni volta che arriva il nome, il
+// permesso o un dato, e due giri in parallelo potevano lasciare in coda notifiche appena disattivate.
+let eveningQueue = Promise.resolve();
+export function syncDailyReminder(args) {
+  eveningQueue = eveningQueue.then(() => runDailyReminder(args), () => runDailyReminder(args));
+  return eveningQueue;
+}
+
+async function runDailyReminder({ enabled, time, ratedToday, title, body }) {
   const LN = await loadPlugin();
   if (!LN) return;
   try {
@@ -203,24 +251,12 @@ export async function syncDailyReminder({ enabled, time, ratedToday, title, body
     if (!enabled) return;
     if (!(await ensurePermission(LN))) return;
 
-    const [hh, mm] = String(time || '21:00').split(':').map((n) => parseInt(n, 10));
-    const hour = Number.isFinite(hh) ? hh : 21;
-    const minute = Number.isFinite(mm) ? mm : 0;
-    const now = Date.now();
-    const notifications = [];
-    for (let i = 0; i < DAYS_AHEAD; i += 1) {
-      const at = new Date();
-      at.setDate(at.getDate() + i);
-      at.setHours(hour, minute, 0, 0);
-      if (at.getTime() <= now + 5000) continue;
-      if (i === 0 && ratedToday) continue;
-      notifications.push({
-        id: BASE_ID + i,
-        title,
-        body,
-        schedule: { at, allowWhileIdle: true },
-      });
-    }
+    const notifications = eveningTimes({ time, ratedToday }).map(({ id, at }) => ({
+      id,
+      title,
+      body,
+      schedule: { at, allowWhileIdle: true },
+    }));
     if (notifications.length) {
       await LN.schedule({ notifications });
       await confirmQueued(LN, 'promemoria', notifications.length, BASE_ID, BASE_ID + DAYS_AHEAD);
@@ -260,7 +296,7 @@ export async function syncWinBack({ enabled, bodies, title }) {
   }
 }
 
-export function useDailyReminder(settings, ratings) {
+export function useDailyReminder(settings, dayEntries) {
   const t = useT();
   const { user } = useAuth();
   const firstName = (user?.full_name || '').trim().split(' ')[0];
@@ -268,16 +304,25 @@ export function useDailyReminder(settings, ratings) {
   const body = t('notif_evening_body');
   const enabled = settings?.reminder_enabled ?? true;
   const time = settings?.reminder_time;
-  const ready = !!settings && ratings !== undefined;
+  const ready = !!settings && dayEntries !== undefined;
   const todayKey = format(new Date(), 'yyyy-MM-dd');
-  const ratedToday = (ratings || []).some((r) => r.date === todayKey);
+  // Il promemoria chiede "com'e' andata oggi?": salta solo se la giornata e' gia' valutata, non appena
+  // si vota una singola abitudine.
+  const ratedToday = (dayEntries || []).some((d) => d.date === todayKey && d.day_rating);
+
+  const [saveTick, setSaveTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setSaveTick((n) => n + 1);
+    window.addEventListener('focused-reminder-saved', bump);
+    return () => window.removeEventListener('focused-reminder-saved', bump);
+  }, []);
 
   // A fine giornata, all'orario scelto (di default le 21): "Ei Marco, com'e' andato oggi?".
   // Se oggi hai gia' valutato la giornata, quella di stasera salta.
   useEffect(() => {
     if (!ready) return;
     syncDailyReminder({ enabled, time, ratedToday, title, body });
-  }, [ready, enabled, time, ratedToday, title, body]);
+  }, [ready, enabled, time, ratedToday, title, body, saveTick]);
 
   const wbKey = [1, 2, 3, 4, 5, 6].map((n) => t(`notif_wb_${n}`)).join('|');
   useEffect(() => {

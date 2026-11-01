@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Image } from '@/components/ui/image';
 import { LogOut, Clock, Trash2, Check, Globe, Crown, Sparkles, Ban, Gift } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { useActivities, useRatings, useGoals, useUserSettings, useTasks, useInvalidateAll, useLessonGrades } from '@/lib/useAppData';
+import { useActivities, useRatings, useGoals, useUserSettings, useTasks, useInvalidateAll, useLessonGrades, useDayEntries } from '@/lib/useAppData';
+import { forceReminderToday, nextReminderAt, getNotificationPermission } from '@/lib/dailyReminder';
 import { base44 } from '@/api/base44Client';
 import { getDB } from '@/lib/guestDB';
 import { LOGO_URL, CATEGORIES } from '@/lib/constants';
@@ -41,10 +43,28 @@ export default function Profilo() {
   const { data: tasks } = useTasks();
   const { data: lessonGrades } = useLessonGrades();
   const invalidate = useInvalidateAll();
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, locale } = useI18n();
   const t = useT();
+  const { data: dayEntries } = useDayEntries();
   const [reminderTime, setReminderTime] = useState(settings?.reminder_time || '21:00');
   const [reminderEnabled, setReminderEnabled] = useState(settings?.reminder_enabled ?? true);
+  // 'idle' | 'saving' | 'saved' | 'error': il pulsante Salva mostra sempre cosa e' successo.
+  const [reminderState, setReminderState] = useState('idle');
+  const [notifPermission, setNotifPermission] = useState('granted');
+  const reminderLoaded = useRef(false);
+
+  // Le impostazioni arrivano dopo il primo disegno della pagina: senza questo restava l'orario di
+  // default (21:00) e un Salva lo scriveva sopra a quello vero.
+  useEffect(() => {
+    if (!settings || reminderLoaded.current) return;
+    reminderLoaded.current = true;
+    setReminderTime(settings.reminder_time || '21:00');
+    setReminderEnabled(settings.reminder_enabled ?? true);
+  }, [settings]);
+
+  useEffect(() => {
+    getNotificationPermission().then(setNotifPermission).catch(() => {});
+  }, [reminderState]);
   const [deleting, setDeleting] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
 
@@ -157,13 +177,31 @@ export default function Profilo() {
   const lastGoalActivity = lastGoal ? (activities || []).find((a) => a.id === lastGoal.activity_id) : null;
 
   const handleSaveReminder = async () => {
-    if (!settings) return;
-    await getDB().UserSettings.update(settings.id, {
-      reminder_time: reminderTime,
-      reminder_enabled: reminderEnabled,
-    });
-    invalidate();
+    if (!settings || reminderState === 'saving') return;
+    setReminderState('saving');
+    try {
+      await getDB().UserSettings.update(settings.id, {
+        reminder_time: reminderTime,
+        reminder_enabled: reminderEnabled,
+      });
+      // Chi cambia l'orario vuole vederlo arrivare: per oggi parte anche se la giornata e' gia' valutata.
+      if (reminderEnabled) forceReminderToday(reminderTime);
+      invalidate();
+      setReminderState('saved');
+      setTimeout(() => setReminderState((cur) => (cur === 'saved' ? 'idle' : cur)), 2500);
+    } catch (e) {
+      console.error('Save reminder failed', e);
+      setReminderState('error');
+    }
   };
+
+  const savedReminderTime = settings?.reminder_time || '21:00';
+  const ratedToday = (dayEntries || []).some((d) => d.date === new Date().toLocaleDateString('sv-SE') && d.day_rating);
+  const nextReminder = nextReminderAt({ enabled: settings?.reminder_enabled ?? true, time: savedReminderTime, ratedToday });
+  const nextReminderText = nextReminder
+    ? nextReminder.toLocaleString(locale, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+  const reminderDirty = !!settings && (reminderTime !== savedReminderTime || reminderEnabled !== (settings.reminder_enabled ?? true));
 
   const handleLogout = () => {
     logout();
@@ -249,12 +287,13 @@ export default function Profilo() {
           <input
             type="time"
             value={reminderTime}
-            onChange={(e) => setReminderTime(e.target.value)}
+            onChange={(e) => { setReminderTime(e.target.value); setReminderState('idle'); }}
             className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-foreground text-sm font-medium outline-none [color-scheme:dark]"
           />
           <button
             onClick={() => {
               setReminderEnabled(!reminderEnabled);
+              setReminderState('idle');
             }}
             className={`rounded-xl px-3 py-2.5 text-xs font-medium transition-colors ${
               reminderEnabled ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
@@ -265,10 +304,24 @@ export default function Profilo() {
         </div>
         <button
           onClick={handleSaveReminder}
-          className="mt-3 w-full rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background"
+          disabled={reminderState === 'saving'}
+          className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-colors ${
+            reminderState === 'saved' ? 'bg-emerald-500 text-white' : 'bg-foreground text-background'
+          } ${!reminderDirty && reminderState === 'idle' ? 'opacity-90' : ''}`}
         >
-          {t('salva')}
+          {reminderState === 'saved' && <Check size={15} />}
+          {reminderState === 'saving' ? t('salvataggio') : reminderState === 'saved' ? t('oggi_salvato') : t('salva')}
         </button>
+        {reminderState === 'error' && <p className="mt-2 text-xs text-destructive">{t('profilo_rem_error')}</p>}
+        {notifPermission === 'denied' && Capacitor.isNativePlatform() ? (
+          <p className="mt-2 text-xs text-destructive">{t('profilo_rem_denied')}</p>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {settings && !(settings.reminder_enabled ?? true)
+              ? t('profilo_rem_off')
+              : nextReminderText ? t('profilo_rem_next').replace('{when}', nextReminderText) : ''}
+          </p>
+        )}
       </div>
 
       {/* Category ranks */}

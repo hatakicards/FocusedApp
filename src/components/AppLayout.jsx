@@ -15,7 +15,7 @@ import FullScreenAd from './FullScreenAd';
 import PromoExpiredModal from './PromoExpiredModal';
 import TrialWelcomeModal from './TrialWelcomeModal';
 import TrialExpiredModal from './TrialExpiredModal';
-import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate, useRatings } from '@/lib/useAppData';
+import { useUserSettings, usePromotionCheck, useLifeStats, useSubscription, useSyncInit, useOptimisticSettingsUpdate, useRatings, useDayEntries } from '@/lib/useAppData';
 import MorningCheckIn from './MorningCheckIn';
 import { useAuth } from '@/lib/AuthContext';
 import { useDailyReminder, useGymNudges, useLessonReminders, useEventReminders } from '@/lib/dailyReminder';
@@ -85,7 +85,8 @@ export default function AppLayout() {
   const optimisticSettingsUpdate = useOptimisticSettingsUpdate();
   useSyncInit();
   const { data: ratings } = useRatings();
-  useDailyReminder(settings, ratings);
+  const { data: dayEntries } = useDayEntries();
+  useDailyReminder(settings, dayEntries);
   useLessonReminders();
   useEventReminders();
   useGymNudges(ratings);
