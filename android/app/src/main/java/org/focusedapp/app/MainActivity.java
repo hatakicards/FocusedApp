@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FocusedWidgetSyncPlugin.class);
         registerPlugin(FocusedScreenTimePlugin.class);
+        registerPlugin(FocusedReviewPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

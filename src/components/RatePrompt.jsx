@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Heart, MessageSquareText } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useT } from '@/lib/i18n';
+import { isReviewAvailable, requestReview } from '@/lib/review';
 
 const STATE_KEY = 'rate_prompt_state';
 const FIRST_SEEN_KEY = 'rate_first_seen';
@@ -11,8 +12,6 @@ const SHOW_DELAY_MS = 20000;
 // Dopo "Non ora" si richiede presto, dopo "Non proprio" molto piu' tardi, dopo il voto mai piu'.
 const RETRY_DAYS = { later: 7, no: 60 };
 
-const APP_STORE_REVIEW_URL = 'https://apps.apple.com/app/id6807147341?action=write-review';
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=org.focusedapp.app';
 const SUPPORT_EMAIL = 'focusedappp@gmail.com';
 const DAY_MS = 86400000;
 
@@ -34,21 +33,23 @@ function isDue() {
   return !!wait && now - state.at >= wait * DAY_MS;
 }
 
-// "Ti sta piacendo Focused?": chi risponde di si' va a lasciare la valutazione sullo store,
-// chi risponde "non proprio" scrive una mail per dirci cosa non va (cosi' non finisce in una recensione bassa).
+// "Ti sta piacendo Focused?": chi risponde di si' vede la finestra di valutazione di sistema (App Store /
+// Google Play, plugin nativo FocusedReview), chi risponde "non proprio" ci scrive una mail con cosa non va.
+// Compare solo se la build ha il plugin nativo: Apple vuole la finestra di sistema, non una nostra.
 export default function RatePrompt({ enabled, onOpenChange }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState('ask');
   const native = Capacitor.isNativePlatform();
-  const android = Capacitor.getPlatform() === 'android';
 
   useEffect(() => {
-    let preview = false;
-    try { preview = localStorage.getItem('rate_prompt_preview') === '1'; } catch { /* ignore */ }
-    if (!enabled || (!native && !preview) || !isDue()) return;
-    const timer = setTimeout(() => { setStep('ask'); setOpen(true); }, SHOW_DELAY_MS);
-    return () => clearTimeout(timer);
+    if (!enabled || !native || !isDue()) return;
+    let timer;
+    let cancelled = false;
+    isReviewAvailable().then((ok) => {
+      if (ok && !cancelled) timer = setTimeout(() => { setStep('ask'); setOpen(true); }, SHOW_DELAY_MS);
+    });
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [enabled, native]);
 
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
@@ -60,7 +61,7 @@ export default function RatePrompt({ enabled, onOpenChange }) {
 
   const rate = () => {
     answer('yes');
-    window.open(android ? PLAY_STORE_URL : APP_STORE_REVIEW_URL, '_blank');
+    requestReview();
   };
 
   const mail = () => {
@@ -84,18 +85,9 @@ export default function RatePrompt({ enabled, onOpenChange }) {
             <>
               <h2 className="mb-5 text-xl font-bold">{t('rate_title')}</h2>
               <div className="flex flex-col gap-2">
-                <button onClick={() => setStep('yes')} className={primary}>{t('rate_yes')}</button>
+                <button onClick={rate} className={primary}>{t('rate_yes')}</button>
                 <button onClick={() => setStep('no')} className={secondary}>{t('rate_no')}</button>
               </div>
-              <button onClick={() => answer('later')} className="mt-3 text-xs text-muted-foreground">{t('rate_later')}</button>
-            </>
-          )}
-
-          {step === 'yes' && (
-            <>
-              <h2 className="mb-2 text-xl font-bold">{t('rate_yes_title')}</h2>
-              <p className="mb-6 text-sm text-muted-foreground">{t('rate_yes_sub')}</p>
-              <button onClick={rate} className={primary}>{t(android ? 'rate_cta_android' : 'rate_cta_ios')}</button>
               <button onClick={() => answer('later')} className="mt-3 text-xs text-muted-foreground">{t('rate_later')}</button>
             </>
           )}
