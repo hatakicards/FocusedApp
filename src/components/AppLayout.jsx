@@ -12,6 +12,7 @@ import StatsSetupModal from './stats/StatsSetupModal';
 import WeeklyReviewModal from './stats/WeeklyReviewModal';
 import MilestoneChecker from './MilestoneChecker';
 import FullScreenAd from './FullScreenAd';
+import RatePrompt from './RatePrompt';
 import PromoExpiredModal from './PromoExpiredModal';
 import TrialWelcomeModal from './TrialWelcomeModal';
 import TrialExpiredModal from './TrialExpiredModal';
@@ -60,6 +61,7 @@ export default function AppLayout() {
   const [trialWelcome, setTrialWelcome] = useState(false);
   const [trialExpiredModal, setTrialExpiredModal] = useState(false);
   const [focusyOpen, setFocusyOpen] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
   const [holdToTalk, setHoldToTalk] = useState(false);
   // Primo avvio dopo il login: arrivo, permessi, giro dell'app e prima attivita' guidata.
   const [firstRun, setFirstRun] = useState(() => {
@@ -304,7 +306,7 @@ export default function AppLayout() {
         aria-label="Focusy"
         data-tour="focusy"
         style={{ touchAction: 'none', WebkitTouchCallout: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
-        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg transition-transform md:hidden ${holdToTalk ? 'scale-125 animate-pulse' : 'active:scale-95'}`}
+        className={`fixed right-4 bottom-[calc(var(--bottom-nav-h,4.5rem)+0.75rem)] z-40 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black shadow-lg transition-transform md:hidden ${holdToTalk ? 'scale-125 animate-pulse' : 'active:scale-95'}`}
       >
         <Sparkles size={18} />
       </button>
@@ -320,7 +322,8 @@ export default function AppLayout() {
       <MilestoneChecker />
       <MorningCheckIn />
       <SensedActivityPrompt />
-      <FullScreenAd enabled={!sub.adsRemoved && !firstRun} onCTA={() => navigate('/work-with-us')} />
+      <FullScreenAd enabled={!sub.adsRemoved && !firstRun && !rateOpen} />
+      <RatePrompt enabled={!firstRun && !welcomeNeeded && !trialWelcome && !trialExpiredModal && !promoExpired} onOpenChange={setRateOpen} />
       <PromoExpiredModal open={promoExpired} onClose={() => setPromoExpired(false)} />
       <TrialWelcomeModal open={trialWelcome && !firstRun} onClose={closeTrialWelcome} />
       <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />

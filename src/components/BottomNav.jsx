@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Target, ListTodo, Flame, GraduationCap, Briefcase, Lock, Clock } from 'lucide-react';
@@ -35,6 +35,19 @@ export default function BottomNav() {
     { to: personalTab.to, key: 'personal', icon: personalTab.icon, end: false, locked: !sub.canUseProfiles },
   ];
 
+  // Altezza reale della barra (con banner e area sicura): i pulsanti flottanti, come Focusy, ci si appoggiano sopra.
+  const navRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty('--bottom-nav-h', `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => { observer.disconnect(); root.style.removeProperty('--bottom-nav-h'); };
+  }, []);
+
   const tabHistory = useRef({});
 
   useEffect(() => {
@@ -57,7 +70,7 @@ export default function BottomNav() {
   };
 
   return createPortal(
-    <nav id="bottom-nav" className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
+    <nav ref={navRef} id="bottom-nav" className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
       {!sub.adsRemoved && <AdBanner />}
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))]">
         {tabs.map(({ to, key, icon: Icon, end, locked }) => {
