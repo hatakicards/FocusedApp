@@ -6,6 +6,8 @@ import { base44 } from '@/api/base44Client';
 import { getDB, unlockGuestSubscription } from '@/lib/guestDB';
 import { safeReturnTo } from '@/lib/authReturnTo';
 import WelcomeIntro from '@/components/welcome/WelcomeIntro';
+import AgeBlockedScreen from '@/components/AgeBlockedScreen';
+import { isAgeBlocked } from '@/lib/ageCheck';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
 import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
@@ -25,6 +27,8 @@ export default function Welcome() {
     reminderEnabled: true,
   });
   const dataSaved = useRef(false);
+  // Sotto l'eta' minima non si crea nessun account: il blocco resta ricordato in locale per 24 ore.
+  const [ageBlocked, setAgeBlocked] = useState(() => isAgeBlocked());
   const [celebrateTier, setCelebrateTier] = useState(null);
 
   // On mount / auth change: if returning from auth with saved data, go to step 5
@@ -174,6 +178,8 @@ export default function Welcome() {
     );
   }
 
+  if (ageBlocked && !isAuthenticated) return <AgeBlockedScreen />;
+
   // If authenticated but not yet on step 5 (shouldn't normally happen), redirect
   if (isAuthenticated && step < 5 && !localStorage.getItem(STORAGE_KEY)) {
     return null;
@@ -184,6 +190,7 @@ export default function Welcome() {
     return (
       <WelcomeIntro
         initial={data}
+        onBlocked={() => setAgeBlocked(true)}
         onDone={(d) => { updateData(d); setStep(4); }}
       />
     );

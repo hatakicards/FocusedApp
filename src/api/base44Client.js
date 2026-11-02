@@ -426,6 +426,24 @@ function logout() {
   });
 }
 
+// Cancellazione vera: la function server annulla l'abbonamento web, toglie i file, i voti e l'utente
+// auth (le tabelle seguono col cascade). Se fallisce lancia l'errore vero e NON tocca la sessione.
+// Solo a cancellazione riuscita si chiude la sessione in locale (senza chiamare il server: l'utente
+// non esiste piu') e si svuota il localStorage, chiave di cifratura del registro fumo compresa.
+// keepKeys: chiavi da non toccare (il blocco per eta' deve sopravvivere alla cancellazione).
+async function deleteAccount({ keepKeys = [] } = {}) {
+  const { data } = await invoke('delete-account', { confirm: true });
+  // Se la function non c'e' (sito non aggiornato) il fallback SPA risponde 200 con HTML: non e' una cancellazione.
+  if (data?.success !== true) throw new Error('Risposta non valida dal server');
+  try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* sessione gia' invalida */ }
+  try {
+    const keep = {};
+    keepKeys.forEach((k) => { const v = localStorage.getItem(k); if (v !== null) keep[k] = v; });
+    localStorage.clear();
+    Object.entries(keep).forEach(([k, v]) => localStorage.setItem(k, v));
+  } catch { /* storage non disponibile */ }
+}
+
 const auth = {
   me,
   isAuthenticated,
@@ -440,6 +458,7 @@ const auth = {
   updateMe,
   redirectToLogin,
   logout,
+  deleteAccount,
 };
 
 // ---------------------------------------------------------------------------

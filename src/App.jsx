@@ -35,6 +35,7 @@ import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
+import DeleteAccount from '@/pages/DeleteAccount';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { initCapacitor } from '@/lib/capacitorInit';
@@ -66,6 +67,7 @@ const AuthenticatedApp = () => {
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />

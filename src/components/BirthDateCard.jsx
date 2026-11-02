@@ -3,7 +3,7 @@ import { Pencil } from 'lucide-react';
 import { getDB } from '@/lib/guestDB';
 import { useInvalidateAll, useUserSettings } from '@/lib/useAppData';
 import { useI18n, useT } from '@/lib/i18n';
-import { birthDateBounds, isPlausibleBirthDate } from '@/lib/ageCheck';
+import { birthDateBounds, isPlausibleBirthDate, meetsMinAge } from '@/lib/ageCheck';
 
 // Data di nascita in Profilo, modificabile: da qui dipendono le ore di sonno consigliate, le calorie e
 // le regole per i minorenni. Una data sbagliata (per esempio quella di oggi, che la rotella dell'iPhone
@@ -25,7 +25,8 @@ export default function BirthDateCard() {
   const start = () => { setValue(valid ? stored : ''); setError(''); setEditing(true); };
   const save = async () => {
     if (!settings?.id) return;
-    if (!isPlausibleBirthDate(value)) {
+    // Dal profilo non si puo' scendere sotto l'eta' minima: l'app si bloccherebbe al prossimo avvio.
+    if (!meetsMinAge(value)) {
       setError(t('age_invalid'));
       return;
     }

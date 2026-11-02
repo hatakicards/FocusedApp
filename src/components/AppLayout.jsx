@@ -26,6 +26,9 @@ import ActiveFocusHost from './ActiveFocusHost';
 import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
 import WelcomeIntro from './welcome/WelcomeIntro';
+import AgeVerificationModal from './AgeVerificationModal';
+import AgeBlockedScreen from './AgeBlockedScreen';
+import { ageGateStatus, isAgeBlocked } from '@/lib/ageCheck';
 import { TUTORIALS } from '@/lib/tutorials';
 import { base44 } from '@/api/base44Client';
 import { PROFILE_GRADIENTS } from '@/lib/constants';
@@ -79,6 +82,10 @@ export default function AppLayout() {
     window.addEventListener('replay-first-run', onReplay);
     return () => window.removeEventListener('replay-first-run', onReplay);
   }, []);
+  // Eta' minima: true dopo che qualcuno ha dichiarato di essere sotto soglia; ageGiven evita un lampo del
+  // modulo data subito dopo che il benvenuto l'ha appena chiesta (il salvataggio arriva un attimo dopo).
+  const [ageBlocked, setAgeBlocked] = useState(false);
+  const [ageGiven, setAgeGiven] = useState(false);
   const [welcomeNeeded, setWelcomeNeeded] = useState(() => {
     try { return !firstRun && localStorage.getItem('welcome_v2_done') !== '1'; } catch { return false; }
   });
@@ -87,6 +94,7 @@ export default function AppLayout() {
       localStorage.setItem('welcome_v2_done', '1');
     } catch { /* ignore */ }
     setWelcomeNeeded(false);
+    if (d.birthDate) setAgeGiven(true);
     try {
       if (d.name && user && !user.isGuest) await base44.auth.updateMe({ full_name: d.name });
       if (settings?.id) {
@@ -258,6 +266,22 @@ export default function AppLayout() {
     return <OnboardingReminder />;
   }
 
+  // Eta' minima (14): chi ha gia' una data valida resta com'e'; chi non ce l'ha (o ne ha una non credibile)
+  // la inserisce una volta; chi e' sotto soglia non entra. Il benvenuto la chiede da solo (welcomeNeeded).
+  if (ageBlocked) return <AgeBlockedScreen />;
+  if (!welcomeNeeded && !firstRun && !ageGiven) {
+    const gate = ageGateStatus(settings.birth_date);
+    if (gate === 'blocked' || (gate === 'ask' && isAgeBlocked())) return <AgeBlockedScreen />;
+    if (gate === 'ask') {
+      return (
+        <AgeVerificationModal
+          onBlocked={() => setAgeBlocked(true)}
+          onSave={(birthDate) => optimisticSettingsUpdate(settings.id, { birth_date: birthDate })}
+        />
+      );
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background md:pl-64">
       <Sidebar />
@@ -332,6 +356,7 @@ export default function AppLayout() {
         <WelcomeIntro
           existing
           initial={{ name: (user?.full_name || '').trim().split(' ')[0], dream: settings?.dream || '', birthDate: settings?.birth_date || '' }}
+          onBlocked={() => setAgeBlocked(true)}
           onDone={finishWelcome}
         />
       )}

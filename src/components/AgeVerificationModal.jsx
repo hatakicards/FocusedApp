@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Cake } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { birthDateBounds, isPlausibleBirthDate } from '@/lib/ageCheck';
+import { birthDateBounds, isPlausibleBirthDate, meetsMinAge, markAgeBlocked } from '@/lib/ageCheck';
 
 /**
  * Full-screen blocking modal that asks for the user's date of birth.
- * Shown after login if birth_date is not yet set in UserSettings.
- * Cannot be dismissed until the user enters a valid date.
+ * Shown after login if birth_date is not yet set (or not credible) in UserSettings.
+ * Cannot be dismissed until the user enters a valid date. Under the minimum age nothing is
+ * saved: the block is remembered locally and onBlocked() is called.
  */
-export default function AgeVerificationModal({ onSave }) {
+export default function AgeVerificationModal({ onSave, onBlocked }) {
   const t = useT();
   const [birthDate, setBirthDate] = useState('');
   const [error, setError] = useState('');
@@ -32,6 +33,11 @@ export default function AgeVerificationModal({ onSave }) {
     }
     if (!isPlausibleBirthDate(birthDate)) {
       setError(t('age_invalid'));
+      return;
+    }
+    if (!meetsMinAge(birthDate)) {
+      markAgeBlocked();
+      onBlocked?.();
       return;
     }
     setSaving(true);

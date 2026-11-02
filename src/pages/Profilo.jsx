@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Image } from '@/components/ui/image';
-import { LogOut, Clock, Trash2, Check, Globe, Crown, Sparkles, Ban, Gift } from 'lucide-react';
+import { LogOut, Clock, Trash2, Check, Globe, Crown, Sparkles, Ban, Gift, Info } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useActivities, useRatings, useGoals, useUserSettings, useTasks, useInvalidateAll, useLessonGrades, useDayEntries } from '@/lib/useAppData';
 import { forceReminderToday, nextReminderAt, getNotificationPermission } from '@/lib/dailyReminder';
@@ -66,6 +66,9 @@ export default function Profilo() {
     getNotificationPermission().then(setNotifPermission).catch(() => {});
   }, [reminderState]);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => {
@@ -207,21 +210,36 @@ export default function Profilo() {
     logout();
   };
 
+  // Abbonamenti: quello del sito (Stripe) lo annulla la cancellazione; quello di App Store / Google Play no.
+  const hasWebSub = !!settings?.stripe_subscription_id;
+  const hasStoreSub = ['pro', 'premium'].includes(settings?.subscription_tier) && !hasWebSub;
+  const deleteWord = t('del_word');
+  const deleteConfirmed = user?.isGuest || deleteText.trim().toLowerCase() === deleteWord.toLowerCase();
+
+  const openDeleteDialog = (open) => {
+    if (deleting) return;
+    setDeleteOpen(open);
+    if (!open) { setDeleteText(''); setDeleteError(''); }
+  };
+
+  // Ospite: i dati sono solo sul telefono, il logout li cancella. Con account: la function server cancella
+  // davvero tutto; si esce solo se ci riesce, altrimenti si mostra l'errore e l'account resta com'e'.
   const handleDeleteAccount = async () => {
-    if (!user) return;
+    if (!user || deleting || !deleteConfirmed) return;
+    if (user.isGuest) {
+      logout();
+      return;
+    }
     setDeleting(true);
+    setDeleteError('');
     try {
-      await getDB().UserSettings.deleteMany({ created_by_id: user.id });
-      await getDB().DailyRating.deleteMany({ created_by_id: user.id });
-      await getDB().Activity.deleteMany({ created_by_id: user.id });
-      await getDB().Goal.deleteMany({ created_by_id: user.id });
-      await getDB().DayEntry.deleteMany({ created_by_id: user.id });
-      await getDB().GymSession.deleteMany({ created_by_id: user.id });
-      await getDB().LifeStat.deleteMany({ created_by_id: user.id });
+      await base44.auth.deleteAccount();
+      logout();
     } catch (e) {
       console.error('Delete account error:', e);
+      setDeleteError(`${t('del_error')}${e?.message ? ` (${e.message})` : ''}`);
+      setDeleting(false);
     }
-    logout();
   };
 
   return (
@@ -464,36 +482,61 @@ export default function Profilo() {
         <LogOut size={16} /> {t('esci')}
       </button>
 
-      {/* Account deletion */}
-      {!user?.isGuest && (
+      {/* Account deletion (ospite: solo dati locali) */}
       <div className="mt-6">
-        <AlertDialog>
+        <AlertDialog open={deleteOpen} onOpenChange={openDeleteDialog}>
           <AlertDialogTrigger asChild>
             <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
-              <Trash2 size={16} /> {t('profilo_elimina')}
+              <Trash2 size={16} /> {user?.isGuest ? t('del_local_btn') : t('profilo_elimina')}
             </button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{t('profilo_elimina')}</AlertDialogTitle>
+              <AlertDialogTitle>{user?.isGuest ? t('del_local_btn') : t('profilo_elimina')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {t('profilo_elimina_desc')}
+                {user?.isGuest ? t('del_local_desc') : t('profilo_elimina_desc')}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {hasStoreSub && (
+              <p className="flex items-start gap-2 rounded-xl border border-foreground/20 bg-foreground/5 p-3 text-xs leading-snug text-foreground">
+                <Info size={14} className="mt-0.5 shrink-0" /> {t('del_store_sub')}
+              </p>
+            )}
+            {hasWebSub && !user?.isGuest && (
+              <p className="text-xs text-muted-foreground">{t('del_web_sub')}</p>
+            )}
+            {!user?.isGuest && (
+              <div className="space-y-2">
+                <label htmlFor="delete-confirm" className="text-xs text-muted-foreground">
+                  {t('del_confirm').replace('{word}', deleteWord)}
+                </label>
+                <input
+                  id="delete-confirm"
+                  type="text"
+                  value={deleteText}
+                  onChange={(e) => setDeleteText(e.target.value)}
+                  placeholder={deleteWord}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  disabled={deleting}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground/40"
+                />
+              </div>
+            )}
+            {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deleting}>{t('annulla')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
-                disabled={deleting}
+                disabled={deleting || !deleteConfirmed}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleting ? t('profilo_elimina_eliminazione') : t('profilo_elimina_def')}
+                {deleting ? t('profilo_elimina_eliminazione') : user?.isGuest ? t('del_local_btn') : t('profilo_elimina_def')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
-      )}
       <TutorialDialog pageId="profilo" />
     </div>
   );
