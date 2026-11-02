@@ -32,8 +32,9 @@ function Page({ children }) {
 }
 
 // data: { name, birthDate, dream }; onDone({ name, birthDate, dream, skipTutorial, permsAsked })
-// La data di nascita e' obbligatoria: sotto l'eta' minima non si prosegue, si ricorda il blocco e si chiama
-// onBlocked() (nessun dato esce da qui).
+// La data di nascita qui e' facoltativa (gli ospiti non la devono dare; e' obbligatoria solo alla creazione
+// dell'account, in Step4Auth). Se viene inserita ed e' sotto l'eta' minima non si prosegue, si ricorda il
+// blocco e si chiama onBlocked() (nessun dato esce da qui).
 export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing = false }) {
   const t = useT();
   const { lang, setLang } = useI18n();
@@ -95,8 +96,8 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
   const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '', dream: dream.trim(), skipTutorial, permsAsked: true });
 
   const continueFromName = () => {
-    if (!name.trim() || !isPlausibleBirthDate(birthDate)) return;
-    if (!meetsMinAge(birthDate)) {
+    if (!name.trim()) return;
+    if (isPlausibleBirthDate(birthDate) && !meetsMinAge(birthDate)) {
       markAgeBlocked();
       onBlocked?.();
       return;
@@ -178,7 +179,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
             className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-4 text-base font-medium outline-none [color-scheme:dark] focus:border-white/40"
           />
         </div>
-        <button onClick={continueFromName} disabled={!name.trim() || !isPlausibleBirthDate(birthDate)} className={`${titaniumBtn} mt-8`}>{t('wl_continue')}</button>
+        <button onClick={continueFromName} disabled={!name.trim()} className={`${titaniumBtn} mt-8`}>{t('wl_continue')}</button>
       </Page>
     );
   } else if (stage === 'lang') {

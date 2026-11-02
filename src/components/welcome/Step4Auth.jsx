@@ -3,12 +3,15 @@ import { ArrowLeft, Mail, Lock, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useT } from '@/lib/i18n';
 import { setGuestMode } from '@/lib/guestDB';
+import { birthDateBounds, isPlausibleBirthDate, meetsMinAge, markAgeBlocked } from '@/lib/ageCheck';
 import GoogleIcon from '@/components/GoogleIcon';
 import AppleIcon from '@/components/AppleIcon';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
-export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
+export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack, onBlocked }) {
   const t = useT();
+  // Per creare un account serve la data di nascita (eta' minima); gli ospiti non la devono dare.
+  const [birthDate, setBirthDate] = useState(data?.birthDate || '');
   const [resent, setResent] = useState(false);
   const [mode, setMode] = useState('register'); // 'register' | 'login'
   const [email, setEmail] = useState('');
@@ -18,12 +21,24 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const needsBirth = mode === 'register' && !isPlausibleBirthDate(data?.birthDate);
+
+  // true se si puo' procedere con la creazione dell'account; salva la data scelta qui nei dati del benvenuto.
+  const birthOk = () => {
+    if (mode !== 'register') return true;
+    const date = isPlausibleBirthDate(data?.birthDate) ? data.birthDate : birthDate;
+    if (!isPlausibleBirthDate(date)) { setError(t('auth_birth_required')); return false; }
+    if (!meetsMinAge(date)) { markAgeBlocked(); onBlocked?.(); return false; }
+    return true;
+  };
+  const redirectData = () => onAuthRedirect(needsBirth ? { birthDate } : {});
 
   const handleGoogle = async () => {
     setError('');
+    if (!birthOk()) return;
     setGuestMode(false);
     setLoading(true);
-    onAuthRedirect(); // salva i dati onboarding in localStorage prima del redirect nativo
+    redirectData(); // salva i dati onboarding in localStorage prima del redirect nativo
     try {
       await base44.auth.loginWithProvider('google', '/welcome');
     } catch (err) {
@@ -35,9 +50,10 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
 
   const handleApple = async () => {
     setError('');
+    if (!birthOk()) return;
     setGuestMode(false);
     setLoading(true);
-    onAuthRedirect(); // salva i dati onboarding in localStorage prima del redirect nativo
+    redirectData(); // salva i dati onboarding in localStorage prima del redirect nativo
     try {
       await base44.auth.loginWithProvider('apple', '/welcome');
     } catch (err) {
@@ -54,8 +70,9 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
       setError('Passwords do not match');
       return;
     }
+    if (!birthOk()) return;
     setLoading(true);
-    onAuthRedirect();
+    redirectData();
     setGuestMode(false);
     try {
       if (mode === 'login') {
@@ -145,6 +162,21 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack }) {
         <p className="text-muted-foreground text-sm mb-8">
           {mode === 'register' ? 'Sign up to start your journey' : 'Log in to continue'}
         </p>
+
+        {needsBirth && (
+          <div className="mb-5">
+            <label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">{t('wl_birth')}</label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => { setBirthDate(e.target.value); setError(''); }}
+              min={birthDateBounds().min}
+              max={birthDateBounds().max}
+              className="w-full rounded-2xl border border-border bg-card px-4 py-3.5 text-foreground text-sm font-medium outline-none focus:border-foreground/50 transition-colors"
+            />
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">{t('auth_birth_note')}</p>
+          </div>
+        )}
 
         <button
           onClick={handleApple}

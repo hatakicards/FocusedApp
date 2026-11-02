@@ -267,9 +267,10 @@ export default function AppLayout() {
   }
 
   // Eta' minima (14): chi ha gia' una data valida resta com'e'; chi non ce l'ha (o ne ha una non credibile)
-  // la inserisce una volta; chi e' sotto soglia non entra. Il benvenuto la chiede da solo (welcomeNeeded).
+  // la inserisce una volta (solo gli account, non gli ospiti); chi e' sotto soglia non entra.
   if (ageBlocked) return <AgeBlockedScreen />;
-  if (!welcomeNeeded && !firstRun && !ageGiven) {
+  // Gli ospiti non devono dare la data: serve solo a chi ha un account.
+  if (!welcomeNeeded && !firstRun && !ageGiven && !user?.isGuest) {
     const gate = ageGateStatus(settings.birth_date);
     if (gate === 'blocked' || (gate === 'ask' && isAgeBlocked())) return <AgeBlockedScreen />;
     if (gate === 'ask') {

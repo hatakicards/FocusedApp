@@ -85,8 +85,9 @@ export default function Welcome() {
   // Dal login si torna al benvenuto.
   const handleBack = () => setStep(1);
 
-  const handleAuthRedirect = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const handleAuthRedirect = (extra = {}) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, ...extra }));
+    if (Object.keys(extra).length) updateData(extra);
   };
 
   // Apple Guideline 5.1.1(v): la registrazione deve essere opzionale, non un
@@ -209,7 +210,7 @@ export default function Welcome() {
             transition={{ duration: 0.25 }}
             className="flex-1 w-full"
           >
-            {step === 4 && <Step4Auth data={data} onAuthRedirect={handleAuthRedirect} onGuest={handleGuestContinue} onBack={handleBack} />}
+            {step === 4 && <Step4Auth data={data} onBlocked={() => setAgeBlocked(true)} onAuthRedirect={handleAuthRedirect} onGuest={handleGuestContinue} onBack={handleBack} />}
             {step === 5 && <Step5Premium data={data} onFinish={handleFinish} />}
           </motion.div>
         </AnimatePresence>
