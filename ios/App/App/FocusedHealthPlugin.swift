@@ -142,7 +142,23 @@ public class FocusedHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                         "minutes": Int((sess.seconds / 60).rounded()),
                     ]
                 }
-            call.resolve(["nights": nights])
+            // Pisolini: sonno di giorno (inizio tra le 9 e le 20) da 10 minuti a meno di 3 ore.
+            let timeFormatter = DateFormatter()
+            timeFormatter.dateFormat = "HH:mm"
+            let naps: [[String: Any]] = sessions
+                .filter { sess in
+                    let hour = Calendar.current.component(.hour, from: sess.start)
+                    return sess.seconds >= 10 * 60 && sess.seconds < 180 * 60 && hour >= 9 && hour < 20
+                }
+                .map { sess in
+                    [
+                        "date": dayFormatter.string(from: sess.start),
+                        "start": timeFormatter.string(from: sess.start),
+                        "end": timeFormatter.string(from: sess.end),
+                        "minutes": Int((sess.seconds / 60).rounded()),
+                    ]
+                }
+            call.resolve(["nights": nights, "naps": naps])
         }
         store.execute(query)
     }

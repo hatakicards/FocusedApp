@@ -1,5 +1,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { useEffect } from 'react';
 import { addSensedEvent, markSenseEnabled } from '@/lib/healthSense';
+import { useI18n } from '@/lib/i18n';
 
 // Posizione della palestra per lo "smart tracking": l'utente la salva una volta, poi iOS (plugin
 // FocusedLocation, ios/App/App/FocusedHealthPlugin.swift) sveglia l'app quando entra o esce
@@ -35,10 +37,38 @@ export async function askLocationPermission() {
 }
 
 // Registra il monitoraggio dell'area e ricorda il posto. strings: testi delle notifiche (arrivo/uscita).
+// strings.lang: la lingua di quei testi, cosi' se l'utente la cambia si possono riscrivere.
 async function storePlace(lat, lon, strings) {
   await FocusedLocation.setGymRegion({ lat, lon, radius: RADIUS, ...strings });
-  localStorage.setItem(PLACE_KEY, JSON.stringify({ lat, lon, radius: RADIUS, savedAt: Date.now() }));
+  localStorage.setItem(PLACE_KEY, JSON.stringify({ lat, lon, radius: RADIUS, savedAt: Date.now(), lang: strings?.lang }));
   markSenseEnabled();
+}
+
+// I testi di arrivo/uscita stanno sul telefono (App Group) e iOS li manda da solo ad app chiusa:
+// se l'utente cambia lingua vanno riscritti, altrimenti restano in quella in cui ha salvato la palestra.
+export async function refreshGymStrings(strings) {
+  const place = getGymPlace();
+  if (!isGymLocationSupported() || !place || place.lang === strings.lang) return;
+  try {
+    await storePlace(place.lat, place.lon, strings);
+  } catch { /* ignore */ }
+}
+
+// Testi delle notifiche di arrivo/uscita nella lingua attuale.
+export function gymNotifStrings(t, lang) {
+  return {
+    lang,
+    gym_notif_enter_title: t('gym_notif_enter_title'),
+    gym_notif_enter_body: t('gym_notif_enter_body'),
+    gym_notif_exit_title: t('gym_notif_exit_title'),
+    gym_notif_exit_body: t('gym_notif_exit_body'),
+  };
+}
+
+// Montato in AppLayout: a ogni apertura, se la lingua e' cambiata, riscrive i testi sul telefono.
+export function useGymStringsSync() {
+  const { t, lang } = useI18n();
+  useEffect(() => { refreshGymStrings(gymNotifStrings(t, lang)); }, [t, lang]);
 }
 
 const withTimeout = (promise, ms, fallback) => Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(fallback), ms))]);

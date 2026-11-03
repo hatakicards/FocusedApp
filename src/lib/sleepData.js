@@ -1,3 +1,5 @@
+import { computeSleepRating } from '@/lib/foodDatabase';
+
 /**
  * Sleep need calculation based on age ranges.
  * Source: National Sleep Foundation recommended sleep durations.
@@ -84,7 +86,7 @@ export function computeCumulativeSleepDebt(age, entries, gymSessions) {
   let daysCounted = 0;
 
   for (const entry of entries || []) {
-    const actualHours = (entry.sleep_hours || 0) + (entry.sleep_minutes || 0) / 60;
+    const actualHours = entrySleepMinutes(entry) / 60;
     if (actualHours <= 0) continue;
 
     const entryDate = new Date(entry.date + 'T00:00:00');
@@ -107,4 +109,72 @@ export function computeCumulativeSleepDebt(age, entries, gymSessions) {
     avgDebt: daysCounted > 0 ? Math.round((totalDebt / daysCounted) * 10) / 10 : 0,
     isRested: totalDebt <= 0,
   };
+}
+/**
+ * Pisolini (naps). Ogni pisolino e' { start: 'HH:MM', end: 'HH:MM', auto?: true } e sta nel campo
+ * `naps` della BodyFuelEntry del giorno in cui lo fai. Regole, con le fonti mostrate nell'app:
+ * - Contano nel sonno delle 24 ore, quindi tolgono minuti al debito (le raccomandazioni NSF sono
+ *   ore di sonno per 24 ore). Con un debito alto pero' recuperano solo in parte (Leger et al. 2020).
+ * - 10-30 minuti: solo sonno leggero (N1-N2), niente intontimento al risveglio; e' la durata che
+ *   recupera di piu' dopo una notte corta (Brooks & Lack, Sleep 2006; Mayo Clinic).
+ * - 30-60 minuti: si entra nel sonno profondo (N3) e svegliarsi li' lascia intontiti per un po'
+ *   (inerzia del sonno). Il pisolino da 30 minuti peggiorava alcune misure in Brooks & Lack.
+ * - 60-90 minuti: un ciclo completo, con sonno profondo e REM; il REM nei pisolini arriva di solito
+ *   dopo circa un'ora (Mednick et al., Nature Neuroscience 2003).
+ * - Oltre 90 minuti: piu' di un ciclo; i pisolini abituali di 60 minuti o piu' sono associati a piu'
+ *   rischio cardiovascolare (Yamada et al., Sleep 2015) e rubano sonno alla notte.
+ * - Dopo le 15 rendono piu' difficile addormentarsi la sera (Mayo Clinic).
+ */
+export const NAP_SOURCES = [
+  { label: 'Brooks & Lack, Sleep 2006', url: 'https://doi.org/10.1093/sleep/29.6.831' },
+  { label: 'Mednick et al., Nature Neuroscience 2003', url: 'https://doi.org/10.1038/nn864' },
+  { label: 'Yamada et al., Sleep 2015', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC4667384/' },
+  { label: 'Mayo Clinic, Napping: do\'s and don\'ts', url: 'https://www.mayoclinic.org/healthy-lifestyle/adult-health/in-depth/napping/art-20048319' },
+  { label: 'Léger et al., Sleep Medicine 2020', url: 'https://www.santepubliquefrance.fr/sommeil/article/napping-and-weekend-catchup-sleep-do-not-fully-compensate-high-rates-sleep-debt-and-short-sleep-a' },
+];
+
+const NAP_LATE_HOUR = 15;
+const NAP_LONG_MIN = 90;
+
+const toMin = (hhmm) => {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+};
+
+export function napMinutes(nap) {
+  const s = toMin(nap?.start);
+  const e = toMin(nap?.end);
+  if (s == null || e == null) return 0;
+  return e > s ? e - s : 0;
+}
+
+// kind: 'micro' (<10) | 'power' (10-30) | 'deep' (31-60) | 'cycle' (61-90) | 'long' (>90)
+export function classifyNap(nap) {
+  const minutes = napMinutes(nap);
+  const kind = minutes < 10 ? 'micro' : minutes <= 30 ? 'power' : minutes <= 60 ? 'deep' : minutes <= NAP_LONG_MIN ? 'cycle' : 'long';
+  const late = (toMin(nap?.start) ?? 0) >= NAP_LATE_HOUR * 60;
+  return { minutes, kind, late };
+}
+
+export function totalNapMinutes(naps) {
+  return (naps || []).reduce((sum, n) => sum + napMinutes(n), 0);
+}
+
+// Sonno della giornata: notte + pisolini, in minuti.
+export function entrySleepMinutes(entry) {
+  const night = (Number(entry?.sleep_hours) || 0) * 60 + (Number(entry?.sleep_minutes) || 0);
+  return night + totalNapMinutes(entry?.naps);
+}
+
+// Voto del sonno (1-5) sulle 24 ore: notte + pisolini. Un pisolino oltre i 90 minuti o iniziato
+// dopo le 15 toglie un punto, perche' rovina la notte successiva. 0 = nessun dato.
+export function entrySleepRating(entry) {
+  const total = entrySleepMinutes(entry);
+  if (total <= 0) return 0;
+  const base = computeSleepRating(Math.floor(total / 60), total % 60);
+  const penalty = (entry?.naps || []).some((n) => {
+    const c = classifyNap(n);
+    return c.minutes >= 10 && (c.kind === 'long' || c.late);
+  });
+  return penalty ? Math.max(1, base - 1) : base;
 }

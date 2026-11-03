@@ -22,6 +22,7 @@ import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
 import StreakCard from '@/components/StreakCard';
 import TodayActivities from '@/components/today/TodayActivities';
+import TodayGoals from '@/components/today/TodayGoals';
 import GreatDayCelebration from '@/components/GreatDayCelebration';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -121,6 +122,7 @@ export default function Oggi() {
       <div className="relative z-10 mt-2 mb-6 space-y-4">
         <StreakCard />
         <TodayActivities />
+        <TodayGoals />
       </div>
 
       {/* === Chat con Focusy: sale a coprire la base della statua, niente taglio netto === */}

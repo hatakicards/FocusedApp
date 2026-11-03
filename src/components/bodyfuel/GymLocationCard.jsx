@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { MapPin, ChevronRight, Check } from 'lucide-react';
-import { useT } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import { openAppSettings } from '@/lib/permissions';
 import {
-  isGymLocationSupported, getGymPlace, pickGymPlace, clearGymPlace, syncGymVisits,
+  isGymLocationSupported, getGymPlace, pickGymPlace, clearGymPlace, syncGymVisits, gymNotifStrings,
 } from '@/lib/gymLocation';
 
 // "Posizione palestra", in piccolo: tocchi, si apre la mappa (Apple Maps), scegli dov'e' la palestra
 // e da quel momento Focused riconosce da solo quando arrivi e quando esci (smart tracking).
 export default function GymLocationCard({ className = '' }) {
-  const t = useT();
+  const { t, lang } = useI18n();
   const [place, setPlace] = useState(() => getGymPlace());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -23,12 +23,7 @@ export default function GymLocationCard({ className = '' }) {
     setMsg('');
     setDenied(false);
     const r = await pickGymPlace(
-      {
-        gym_notif_enter_title: t('gym_notif_enter_title'),
-        gym_notif_enter_body: t('gym_notif_enter_body'),
-        gym_notif_exit_title: t('gym_notif_exit_title'),
-        gym_notif_exit_body: t('gym_notif_exit_body'),
-      },
+      gymNotifStrings(t, lang),
       { title: t('bf_gymloc_t'), hint: t('gym_map_hint'), search: t('gym_map_search'), confirm: t('gym_map_confirm') },
     );
     setBusy(false);

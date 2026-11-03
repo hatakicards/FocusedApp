@@ -9,17 +9,22 @@ const DIFFICULTY_ORDER = ['easy', 'medium', 'hard'];
 // Lista piatta di tutti gli obiettivi (di ogni categoria/attivita'), ordinati
 // dal piu' facile al piu' difficile — a differenza del tab Ranking, dove gli
 // obiettivi sono nascosti dentro ogni categoria espandibile.
-export default function GoalsListTab({ onOpenHistory }) {
-  const t = useT();
-  const { data: activities } = useActivities();
-  const { data: goals } = useGoals();
-  const optimisticToggleGoal = useOptimisticGoalToggle();
-
-  const sorted = [...(goals || [])].sort((a, b) => {
+export function sortGoals(goals) {
+  return [...(goals || [])].sort((a, b) => {
     const diffDelta = DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty);
     if (diffDelta !== 0) return diffDelta;
     return (a.title || '').localeCompare(b.title || '');
   });
+}
+
+// goals: lista gia' pronta (Oggi passa la sua, nel suo ordine); senza, tutti gli obiettivi per difficolta'.
+export default function GoalsListTab({ onOpenHistory, goals: goalsProp }) {
+  const t = useT();
+  const { data: activities } = useActivities();
+  const { data: allGoals } = useGoals();
+  const optimisticToggleGoal = useOptimisticGoalToggle();
+
+  const sorted = goalsProp || sortGoals(allGoals);
 
   if (sorted.length === 0) {
     return (

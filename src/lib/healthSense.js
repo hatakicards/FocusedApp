@@ -84,6 +84,12 @@ export async function getSleepFromHealth(days = 3) {
   try { return (await FocusedHealth.getSleep({ sinceDays: days })).nights || []; } catch { return []; }
 }
 
+// Pisolini da Salute ({ date, start: 'HH:MM', end: 'HH:MM', minutes }). Vuoto con le build senza pisolini.
+export async function getNapsFromHealth(days = 1) {
+  if (!isIOS()) return [];
+  try { return (await FocusedHealth.getSleep({ sinceDays: days })).naps || []; } catch { return []; }
+}
+
 export function declineSense() {
   write(ASKED_KEY, true);
   write(ENABLED_KEY, false);

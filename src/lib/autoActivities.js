@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useBodyFuelEntries, useUserSettings } from '@/lib/useAppData';
 import { computeStreak } from '@/lib/productivity';
-import { computeCalorieRating, computeSleepRating } from '@/lib/foodDatabase';
+import { computeCalorieRating } from '@/lib/foodDatabase';
+import { entrySleepRating } from '@/lib/sleepData';
 
 // "Eating well" e "Sleeping well": con Premium compaiono da sole in Today e prendono il
 // voto dai dati che l'utente gia' inserisce in BodyFuel/Athlete (cibo e sonno), senza
@@ -15,7 +16,7 @@ export function eatingRating(entry, fallbackGoal) {
 }
 
 export function sleepRating(entry) {
-  return computeSleepRating(Number(entry?.sleep_hours) || 0, Number(entry?.sleep_minutes) || 0) || null;
+  return entrySleepRating(entry) || null;
 }
 
 export const AUTO_ACTIVITIES = [

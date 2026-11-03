@@ -18,6 +18,9 @@ export const RANKS = [
   { id: 'elite', name: 'Elite', image: '/images/elite.png' },
 ];
 
+// Rank con l'effetto olografico animato (medaglione 3D e badge).
+export const HOLO_RANKS = new Set(['pro', 'elite']);
+
 export const LOGO_URL = '/images/logo_senza_sfondo_x_video.png';
 
 export const RATING_INFO = {

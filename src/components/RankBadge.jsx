@@ -1,5 +1,6 @@
 import { Image } from '@/components/ui/image';
-import { RANKS } from '@/lib/constants';
+import { RANKS, HOLO_RANKS } from '@/lib/constants';
+import RankHolo from '@/components/RankHolo';
 import { cn } from '@/lib/utils';
 
 export default function RankBadge({ rankId, size = 'md', showName = true }) {
@@ -26,6 +27,7 @@ export default function RankBadge({ rankId, size = 'md', showName = true }) {
           fittingType="fit"
           className="w-full h-full object-contain"
         />
+        {HOLO_RANKS.has(rank.id) && <RankHolo image={rank.image} />}
       </div>
       {showName && (
         <span className={cn('font-medium tracking-tight', size === 'xl' ? 'text-lg' : size === 'lg' ? 'text-base' : 'text-xs')}>

@@ -24,6 +24,7 @@ import SensedActivityPrompt from './SensedActivityPrompt';
 import { pingActivity } from '@/lib/activityPing';
 import ActiveFocusHost from './ActiveFocusHost';
 import { useFocusScheduler } from '@/lib/useFocusScheduler';
+import { useGymStringsSync } from '@/lib/gymLocation';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
 import WelcomeIntro from './welcome/WelcomeIntro';
 import AgeVerificationModal from './AgeVerificationModal';
@@ -122,6 +123,7 @@ export default function AppLayout() {
   useEventReminders();
   useGymNudges(ratings);
   useFocusScheduler();
+  useGymStringsSync();
 
   // Track unique app usage â€” 1 event per person per session
   useEffect(() => {

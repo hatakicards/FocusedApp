@@ -1,21 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Flame, Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight, ChevronDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete, useSubscription } from '@/lib/useAppData';
 import { useAuth } from '@/lib/AuthContext';
 import { todayISO } from '@/lib/productivity';
 import { useT, useI18n } from '@/lib/i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { computeFoodLogTotals, computeSleepRating, computeCalorieRating, getFoodById, computeFoodMacros } from '@/lib/foodDatabase';
+import { computeFoodLogTotals, computeCalorieRating, getFoodById } from '@/lib/foodDatabase';
 import FoodTracker from '@/components/bodyfuel/FoodTracker';
 import MacroChartDialog from '@/components/bodyfuel/MacroChartDialog';
 import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
+import NapsCard from '@/components/bodyfuel/NapsCard';
+import { entrySleepRating, entrySleepMinutes } from '@/lib/sleepData';
 import GymActions from '@/components/gym/GymActions';
 import GymLocationCard from '@/components/bodyfuel/GymLocationCard';
 import StepsCard from '@/components/bodyfuel/StepsCard';
-import { isSenseEnabled, getSleepFromHealth } from '@/lib/healthSense';
+import { isSenseEnabled, getSleepFromHealth, getNapsFromHealth } from '@/lib/healthSense';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
@@ -57,6 +59,7 @@ function BodyFuelInner() {
   const [sleepMinutes, setSleepMinutes] = useState(0);
   const [sleepBedtime, setSleepBedtime] = useState('');
   const [sleepWakeTime, setSleepWakeTime] = useState('');
+  const [naps, setNaps] = useState([]);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
   const [chartDialog, setChartDialog] = useState(null);
@@ -102,6 +105,7 @@ function BodyFuelInner() {
       setSleepMinutes(todayEntry.sleep_minutes || 0);
       setSleepBedtime(todayEntry.sleep_bedtime || '');
       setSleepWakeTime(todayEntry.sleep_wake_time || '');
+      setNaps(todayEntry.naps || []);
       setWeight(todayEntry.weight?.toString() || '');
       setHeight(todayEntry.height?.toString() || '');
     }
@@ -124,8 +128,20 @@ function BodyFuelInner() {
     })();
   }, [todayEntry?.id, entries === undefined, sub.canUseProfiles]);
 
+  // Pisolini rilevati da Salute: se oggi non ne hai ancora inseriti, compaiono da soli.
+  const autoNapsRef = useRef(false);
+  useEffect(() => {
+    if (!sub.canUseProfiles || entries === undefined || autoNapsRef.current || !isSenseEnabled()) return;
+    if (todayEntry?.naps?.length) return;
+    autoNapsRef.current = true;
+    (async () => {
+      const found = (await getNapsFromHealth(1)).filter((n) => n.date === today);
+      if (found.length) handleNapsChange(found.map((n) => ({ start: n.start, end: n.end, auto: true })));
+    })();
+  }, [todayEntry?.id, entries === undefined, sub.canUseProfiles]);
+
   const totals = computeFoodLogTotals(foodLog, customFoods);
-  const sleepRating = computeSleepRating(sleepHours, sleepMinutes);
+  const sleepRating = entrySleepRating({ sleep_hours: sleepHours, sleep_minutes: sleepMinutes, naps });
   const calorieGoal = settings?.daily_calories_goal || 0;
   const calorieRating = computeCalorieRating(totals.kcal, calorieGoal);
 
@@ -194,8 +210,14 @@ function BodyFuelInner() {
     const { hours, minutes } = calculateSleepDuration(bedtime, wakeTime);
     setSleepHours(hours);
     setSleepMinutes(minutes);
-    const rating = computeSleepRating(hours, minutes);
+    const rating = entrySleepRating({ sleep_hours: hours, sleep_minutes: minutes, naps });
     await saveEntry({ sleep_bedtime: bedtime, sleep_wake_time: wakeTime, sleep_hours: hours, sleep_minutes: minutes, sleep_quality: rating || null });
+  };
+
+  const handleNapsChange = async (next) => {
+    setNaps(next);
+    const rating = entrySleepRating({ sleep_hours: sleepHours, sleep_minutes: sleepMinutes, naps: next });
+    await saveEntry({ naps: next, sleep_quality: rating || null });
   };
 
   const handleBodySave = async () => {
@@ -224,12 +246,12 @@ function BodyFuelInner() {
       }));
 
   const sleepChartData = [...(entries || [])]
-    .filter((e) => (e.sleep_hours || 0) > 0 || (e.sleep_minutes || 0) > 0)
+    .filter((e) => entrySleepMinutes(e) > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-14)
     .map((e) => ({
       date: new Date(e.date + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' }),
-      hours: (e.sleep_hours || 0) + (e.sleep_minutes || 0) / 60,
+      hours: entrySleepMinutes(e) / 60,
     }));
 
   const weightEntries = (entries || []).filter((e) => e.weight).sort((a, b) => a.date.localeCompare(b.date));
@@ -248,7 +270,7 @@ function BodyFuelInner() {
     if (!editEntry) return;
     setSaving(true);
     try {
-      const rating = computeSleepRating(editEntry.sleep_hours || 0, editEntry.sleep_minutes || 0);
+      const rating = entrySleepRating(editEntry);
       const editTotals = computeFoodLogTotals(editEntry.food_log || [], customFoods);
       await optimisticSave(editEntry, {
         weight: editEntry.weight || null,
@@ -422,6 +444,8 @@ function BodyFuelInner() {
           )}
         </div>
       </div>
+
+      <NapsCard naps={naps} onChange={handleNapsChange} />
 
       {/* Sleep trend chart */}
       {sleepChartData.length >= 1 && (
@@ -600,7 +624,7 @@ function BodyFuelInner() {
                         const bedtime = e.target.value;
                         const wakeTime = editEntry.sleep_wake_time || '';
                         const { hours, minutes } = calculateSleepDuration(bedtime, wakeTime);
-                        const rating = computeSleepRating(hours, minutes);
+                        const rating = entrySleepRating({ ...editEntry, sleep_hours: hours, sleep_minutes: minutes });
                         setEditEntry({ ...editEntry, sleep_bedtime: bedtime, sleep_hours: hours, sleep_minutes: minutes, sleep_quality: rating || null });
                       }}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
@@ -615,7 +639,7 @@ function BodyFuelInner() {
                         const bedtime = editEntry.sleep_bedtime || '';
                         const wakeTime = e.target.value;
                         const { hours, minutes } = calculateSleepDuration(bedtime, wakeTime);
-                        const rating = computeSleepRating(hours, minutes);
+                        const rating = entrySleepRating({ ...editEntry, sleep_hours: hours, sleep_minutes: minutes });
                         setEditEntry({ ...editEntry, sleep_wake_time: wakeTime, sleep_hours: hours, sleep_minutes: minutes, sleep_quality: rating || null });
                       }}
                       className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"

@@ -128,3 +128,28 @@
     mix-blend-mode: multiply;
   }
 }
+/* Rank olografici (Pro, Elite): arcobaleno che scorre + lampo di luce, ritagliati sul medaglione (RankHolo.jsx). */
+.rank-holo {
+  background: linear-gradient(115deg, #ff3cac 0%, #ffd23f 18%, #3cffd0 36%, #3c9bff 54%, #b43cff 72%, #ff3cac 90%);
+  background-size: 300% 300%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.45;
+  animation: rank-holo-shift 6s linear infinite;
+}
+.rank-holo-glint {
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.75) 50%, transparent 62%);
+  background-size: 300% 100%;
+  mix-blend-mode: overlay;
+  animation: rank-holo-glint 3.2s ease-in-out infinite;
+}
+@keyframes rank-holo-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+@keyframes rank-holo-glint {
+  0%, 15% { background-position: 150% 0; }
+  60%, 100% { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rank-holo, .rank-holo-glint { animation: none; }
+}
