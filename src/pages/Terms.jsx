@@ -52,7 +52,7 @@ export default function Terms() {
         </Section>
 
         <Section title="Your account">
-          <p>You must provide accurate information and are responsible for keeping your login credentials secure. You must meet the minimum age required in your country to create an account.</p>
+          <p>You must provide accurate information and are responsible for keeping your login credentials secure. You must be at least 14 years old to use Focused. If you are under 18, you should use the app with the permission of a parent or guardian.</p>
           <p>You can delete your account at any time from Profile → Delete account. This permanently removes your data as described in our Privacy Policy.</p>
         </Section>
 

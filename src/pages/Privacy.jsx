@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 const CONTACT_EMAIL = 'focusedappp@gmail.com';
-const LAST_UPDATED = '31 August 2026';
+const LAST_UPDATED = '3 November 2026';
 
 function Section({ title, children }) {
   return (
@@ -45,7 +45,7 @@ export default function Privacy() {
             sensitive health data and store with extra care.
           </p>
           <p>Anything you type to Focusy, our AI assistant, plus the app data needed to answer you (see "AI processing" below).</p>
-          <p>Your date of birth, collected once to confirm you meet the minimum age to use the app.</p>
+          <p>Your date of birth, required when you create an account to confirm you are at least 14, and also used to personalise calculations such as sleep and calorie targets. In guest mode it is optional.</p>
           <p>Messages you send us through the Contact form.</p>
         </Section>
 
@@ -82,7 +82,7 @@ export default function Privacy() {
 
         <Section title="Your choices and rights">
           <p>You can edit or delete any piece of content (activities, ratings, goals, logs) directly in the app at any time.</p>
-          <p>You can permanently delete your account and all associated data from Profile → Delete account. This is immediate and cannot be undone.</p>
+          <p>You can permanently delete your account and the associated data from Profile → Delete account, or by following the steps at <Link to="/delete-account" className="underline">focused-app.pages.dev/delete-account</Link> (also by email if you can no longer sign in). Deleting your account does not cancel a subscription bought through the App Store or Google Play: cancel it in the store first. Deletion cannot be undone.</p>
           <p>
             If you are in the EU/UK, you have the right to access, correct, export, or erase your personal data,
             and to object to certain processing, under GDPR. Contact us at {CONTACT_EMAIL} to exercise these rights.
@@ -90,15 +90,15 @@ export default function Privacy() {
         </Section>
 
         <Section title="Data retention">
-          <p>We keep your data for as long as your account is active. If you delete your account, your personal data is deleted from our systems, except where we are legally required to retain limited records (e.g. payment records for tax purposes).</p>
+          <p>We keep your data for as long as your account is active. If you delete your account, your account and its data are deleted from our systems, including uploaded files. Payment records held by Google Play, Apple or Stripe, and the minimum we must keep for tax purposes, are kept by those providers under their own policies.</p>
         </Section>
 
         <Section title="Children's privacy">
           <p>
-            Focused verifies your date of birth during sign-up and is not directed at children below the minimum
-            age required by applicable law in your country. We do not knowingly collect personal data from
-            children under that age. If you believe a child has provided us with personal data, contact us and
-            we will delete it.
+            Focused is for people aged 14 and over. We ask for your date of birth when you create an account and
+            do not create accounts for anyone younger. We do not knowingly collect personal data from children
+            under 14. If you believe a child under 14 has provided us with personal data, contact us and we will
+            delete it.
           </p>
         </Section>
 
