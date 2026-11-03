@@ -124,6 +124,11 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        # Gruppo esterno su App Store Connect (TestFlight > Test esterni): Codemagic manda la build
+        # alla verifica beta di Apple e, appena approvata, i tester del gruppo ricevono la mail.
+        # Le note "Cosa testare" arrivano da release_notes.json nella cartella principale.
+        beta_groups:
+          - Developer program
 
   android-debug:
     name: Android - Debug APK (test su telefono, nessuna firma richiesta)
