@@ -18,6 +18,9 @@ const FRICTION = 0.85;
 const MAX_SPIN = 4;
 // Modello 3D (GLB, da Meshy) del rank: public/models/rank-<id>.glb. Se manca resta la moneta CSS.
 const modelUrl = (rankId) => `/models/rank-${rankId}.glb`;
+// Alcuni modelli di Meshy escono girati: il fronte in rilievo guarda dalla parte opposta e la camera
+// vedrebbe il retro (specchiato e piu' piatto). Qui la rotazione in gradi che li rimette di fronte.
+const MODEL_YAW = { elite: 180 };
 
 const clamp = (v) => Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, v));
 
@@ -52,10 +55,12 @@ const SPARKLE_FRAGMENT = `
     // Riflesso stretto della luce principale: il "lampo" sulle parti lucide.
     float glint = pow(facing, 90.0) * 0.55;
     // Scintille: piccole celle che si accendono solo se la faccetta guarda la luce e cambiano con la rotazione.
-    vec2 cell = floor(vPos.xy * 70.0);
-    float r = hash(cell);
-    float on = step(0.955, fract(r * 13.0 + uTurn));
-    float sparkle = on * pow(facing, 6.0) * 1.4;
+    vec2 grid = vPos.xy * 70.0;
+    float r = hash(floor(grid));
+    float on = step(0.965, fract(r * 13.0 + uTurn));
+    // Punto rotondo e sfumato al centro della cella, non un quadratino.
+    float dotShape = smoothstep(0.32, 0.0, length(fract(grid) - 0.5));
+    float sparkle = on * dotShape * pow(facing, 6.0) * 1.6;
     gl_FragColor = vec4(vec3(glint + sparkle), 1.0);
   }
 `;
@@ -88,6 +93,8 @@ async function loadModelScene(rankId, canvas) {
 
   // Centra e scala il modello cosi' che stia sempre nello stesso spazio, qualunque sia la sua misura.
   const model = gltf.scene;
+  model.rotation.y = THREE.MathUtils.degToRad(MODEL_YAW[rankId] || 0);
+  model.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
