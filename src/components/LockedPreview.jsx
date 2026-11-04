@@ -14,8 +14,10 @@ export default function LockedPreview({ locked, tier, descKey, children }) {
   const [open, setOpen] = useState(false);
   if (!locked) return children;
 
+  // tier 'any': basta uno dei due piani (es. LifeGame), si mostra la stellina con "Sblocca con Pro o Premium".
   const premium = tier === 'premium';
   const Icon = premium ? Crown : Star;
+  const unlockKey = tier === 'any' ? 'gate_unlock_any' : premium ? 'gate_unlock_premium' : 'gate_unlock_pro';
 
   return (
     <LockedPreviewContext.Provider value>
@@ -34,7 +36,7 @@ export default function LockedPreview({ locked, tier, descKey, children }) {
         <span className="titanium-tile flex h-16 w-16 items-center justify-center rounded-full border border-border/70">
           <Icon size={28} strokeWidth={1.75} className="text-foreground" />
         </span>
-        <span className="text-lg font-semibold tracking-tight">{t(premium ? 'gate_unlock_premium' : 'gate_unlock_pro')}</span>
+        <span className="text-lg font-semibold tracking-tight">{t(unlockKey)}</span>
         {descKey && <span className="max-w-xs text-sm text-muted-foreground">{t(descKey)}</span>}
       </button>
       <PremiumModal open={open} onClose={() => setOpen(false)} />

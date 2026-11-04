@@ -138,7 +138,7 @@ function ObiettiviRankingInner() {
 export default function ObiettiviRanking() {
   const sub = useSubscription();
   return (
-    <LockedPreview locked={!sub.canUseRankings} tier="pro" descKey="gate_goals_desc">
+    <LockedPreview locked={!sub.canUseRankings} tier="any" descKey="gate_goals_desc">
       <ObiettiviRankingInner />
     </LockedPreview>
   );
