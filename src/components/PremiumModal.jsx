@@ -8,7 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
-import { PRICING, useStorePrices, storePriceFor } from '@/lib/plans';
+import { PRICING, useStorePrices, storePriceFor, useFreeTrials, trialDaysFor, priceLabelFor } from '@/lib/plans';
 import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, presentOfferCodeSheet, tierFromProductId } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
@@ -48,6 +48,12 @@ export default function PremiumModal({ open, onClose }) {
   const [restoreMessage, setRestoreMessage] = useState(null);
   const [celebrateTier, setCelebrateTier] = useState(null);
   const storePrices = useStorePrices();
+  const freeTrials = useFreeTrials();
+  // Il server dice che la prova e' gia' stata usata: da qui in poi pulsante normale.
+  const [trialUsed, setTrialUsed] = useState(false);
+  // Prova gratuita su Premium: solo se la si sceglie, poi si rinnova da sola. Non a chi e' gia' abbonato.
+  const premiumTrialDays = !trialUsed && settings?.subscription_tier !== 'premium' ? trialDaysFor(freeTrials, 'premium', period) : null;
+  const periodUnitLabel = period === 'monthly' ? t('pm_month') : period === 'quarterly' ? t('pm_per_quarter') : t('pm_per_year');
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -102,6 +108,7 @@ export default function PremiumModal({ open, onClose }) {
         period,
         user_id: user?.id,
         promoCode: readDiscount() || undefined,
+        trial: tier === 'premium' && !!premiumTrialDays,
       });
       const checkoutUrl = res?.data?.url || res?.url;
       if (checkoutUrl) {
@@ -109,6 +116,11 @@ export default function PremiumModal({ open, onClose }) {
       }
     } catch (e) {
       console.error('premium checkout error', e);
+      if (e.status === 409 || e.message === 'trial_unavailable') {
+        setTrialUsed(true);
+        alert(t('pm_trial_used'));
+        return;
+      }
       alert(e.message || 'Errore durante il checkout');
     } finally {
       setBuying(null);
@@ -282,8 +294,15 @@ export default function PremiumModal({ open, onClose }) {
                 disabled={buying !== null}
                 className="w-full mt-3 rounded-xl bg-background py-3 text-sm font-bold text-foreground disabled:opacity-50"
               >
-                {buying === 'premium' ? t('pm_redirecting') : t('pm_premium_btn')}
+                {buying === 'premium' ? t('pm_redirecting') : premiumTrialDays ? t('pm_trial_btn').replace('{n}', String(premiumTrialDays)) : t('pm_premium_btn')}
               </button>
+              {premiumTrialDays && (
+                <p className="mt-2.5 text-center text-[11px] leading-snug opacity-70">
+                  {t('pm_trial_terms').replace('{n}', String(premiumTrialDays)).replace('{price}', priceLabelFor(storePrices, 'premium', period)).replace('{unit}', periodUnitLabel)}
+                  {' '}
+                  {t(isRevenueCatAvailable() ? 'pm_trial_cancel_ios' : 'pm_trial_cancel_web')}
+                </p>
+              )}
             </div>
 
             <div className="rounded-2xl border border-border bg-background p-4 mb-3">

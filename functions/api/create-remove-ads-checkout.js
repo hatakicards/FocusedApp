@@ -14,6 +14,19 @@ const PRICE_IDS = {
   },
 };
 
+const TRIAL_DAYS = 7;
+
+// La prova gratuita spetta una volta sola: se questo utente ha gia' avuto un abbonamento Stripe
+// (anche in prova, anche disdetto) non la si ridà.
+async function hadSubscription(stripe, userId) {
+  try {
+    const res = await stripe.subscriptions.search({ query: `metadata['user_id']:'${userId}'`, limit: 1 });
+    return res.data.length > 0;
+  } catch {
+    return true; // nel dubbio niente prova (si paga normalmente)
+  }
+}
+
 const BMINDSET_COUPON_ID = 'bmindset_30off';
 const FOCUSEDORIGINAL_COUPON_ID = 'focusedoriginal_20off_12m';
 
@@ -49,7 +62,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const stripe = getStripe(env);
     const body = await request.json().catch(() => ({}));
-    const { tier, period, user_id, origin, promoCode } = body;
+    const { tier, period, user_id, origin, promoCode, trial } = body;
 
     if (tier !== 'pro' && tier !== 'premium') {
       return jsonResponse({ error: 'invalid tier' }, 400);
@@ -88,6 +101,15 @@ export async function onRequestPost({ request, env }) {
       const coupon = await ensureFocusedOriginalCoupon(stripe);
       sessionParams.discounts = [{ coupon: coupon.id }];
       delete sessionParams.allow_promotion_codes;
+    }
+
+    if (trial) {
+      if (tier !== 'premium' || (await hadSubscription(stripe, user_id))) {
+        return jsonResponse({ error: 'trial_unavailable' }, 409);
+      }
+      // Carta richiesta subito, nessun addebito per 7 giorni, poi rinnovo automatico.
+      sessionParams.subscription_data.trial_period_days = TRIAL_DAYS;
+      sessionParams.subscription_data.metadata.trial = '1';
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);

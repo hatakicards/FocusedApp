@@ -12,12 +12,14 @@ import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
 import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
+import { useT } from '@/lib/i18n';
 
 const STORAGE_KEY = 'welcome_data';
 
 export default function Welcome() {
   const { isAuthenticated, user, isLoadingAuth, guestLogin } = useAuth();
   const navigate = useNavigate();
+  const t = useT();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     name: '',
@@ -70,9 +72,9 @@ export default function Welcome() {
         if (existing.length > 0) {
           await getDB().UserSettings.update(existing[0].id, settingsData);
         } else {
-          // trial_start solo alla primissima creazione del profilo — attiva
-          // la prova gratuita di 7 giorni una volta sola per utente.
-          await getDB().UserSettings.create({ ...settingsData, trial_start: new Date().toISOString() });
+          // Nessuna prova automatica: la prova gratuita parte solo se l'utente la sceglie
+          // (pulsante "Prova gratis" su Premium, con rinnovo automatico).
+          await getDB().UserSettings.create(settingsData);
         }
       } catch (e) {
         console.error('Error saving welcome data:', e);
@@ -98,7 +100,7 @@ export default function Welcome() {
     guestLogin();
   };
 
-  const handleFinish = async (choice) => {
+  const handleFinish = async (choice, opts = {}) => {
     // Set onboarded = true
     try {
       const existing = await getDB().UserSettings.filter({ created_by_id: user?.id }, '-created_date', 10);
@@ -156,6 +158,7 @@ export default function Welcome() {
         tier: choice,
         period: 'monthly',
         user_id: user?.id,
+        trial: !!opts.trial,
       });
       const checkoutUrl = res?.data?.url || res?.url;
       if (checkoutUrl) {
@@ -166,6 +169,11 @@ export default function Welcome() {
       }
     } catch (e) {
       console.error('Checkout error:', e);
+      if (e.status === 409) {
+        alert(t('pm_trial_used'));
+        navigate('/home', { replace: true });
+        return;
+      }
       alert('Non è stato possibile avviare il pagamento. Riprova dal tuo profilo.');
       navigate('/home', { replace: true });
     }

@@ -208,7 +208,7 @@ export async function unlockGuestSubscription(tier) {
     items[0] = { ...items[0], subscription_tier: tier, ads_removed: true, updated_date: new Date().toISOString() };
     setStore('UserSettings', items);
   } else {
-    items.push(addBuiltins({ subscription_tier: tier, ads_removed: true, trial_start: new Date().toISOString() }));
+    items.push(addBuiltins({ subscription_tier: tier, ads_removed: true }));
     setStore('UserSettings', items);
   }
 }

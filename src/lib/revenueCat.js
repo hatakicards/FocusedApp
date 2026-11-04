@@ -116,6 +116,7 @@ export async function purchaseSubscription(tier, period) {
   }
 
   const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
+  freeTrialsPromise = null; // dopo un acquisto la prova non spetta piu'
   return customerInfo;
 }
 
@@ -135,6 +136,39 @@ export function getStorePrices() {
     })().catch((e) => { storePricesPromise = null; throw e; });
   }
   return storePricesPromise;
+}
+
+// Prove gratuite configurate in App Store Connect (offerta introduttiva a 0) a cui questo Apple ID ha
+// ancora diritto: { [productId]: giorni }. Apple applica la prova da sola all'acquisto del prodotto, poi
+// l'abbonamento si rinnova in automatico. Se Apple dice "non idoneo" o non c'e' l'offerta, il prodotto
+// non compare (e il pulsante resta quello normale).
+const UNIT_DAYS = { DAY: 1, WEEK: 7, MONTH: 30, YEAR: 365 };
+let freeTrialsPromise = null;
+export function getFreeTrials() {
+  if (!freeTrialsPromise) {
+    freeTrialsPromise = (async () => {
+      await ensureConfigured();
+      const offerings = await Purchases.getOfferings();
+      const products = Object.values(offerings.all || {})
+        .flatMap((o) => o.availablePackages)
+        .map((p) => p.product)
+        .filter((p) => p?.introPrice && p.introPrice.price === 0);
+      if (!products.length) return {};
+      let eligibility = {};
+      try {
+        eligibility = await Purchases.checkTrialOrIntroductoryPriceEligibility({ productIdentifiers: products.map((p) => p.identifier) });
+      } catch { /* sconosciuto: decide Apple all'acquisto */ }
+      const out = {};
+      products.forEach((p) => {
+        const status = eligibility[p.identifier]?.status;
+        if (status === 1 || status === 3) return; // non idoneo / nessuna offerta
+        const ip = p.introPrice;
+        out[p.identifier] = (UNIT_DAYS[ip.periodUnit] || 1) * (ip.periodNumberOfUnits || 1) * (ip.cycles || 1);
+      });
+      return out;
+    })().catch((e) => { freeTrialsPromise = null; throw e; });
+  }
+  return freeTrialsPromise;
 }
 
 // Schermata di Apple per riscattare un Offer Code (iOS 14+): e' l'unico modo ammesso

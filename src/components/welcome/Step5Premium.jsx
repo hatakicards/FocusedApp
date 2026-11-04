@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { Crown, Star, Loader2, Check } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { PRICING, useStorePrices, storePriceFor } from '@/lib/plans';
+import { PRICING, useStorePrices, storePriceFor, useFreeTrials, trialDaysFor, priceLabelFor } from '@/lib/plans';
+import { isRevenueCatAvailable } from '@/lib/revenueCat';
+import { useT } from '@/lib/i18n';
 
 const PERIODS = [
   { id: 'monthly', label: 'Monthly' },
@@ -16,13 +18,16 @@ const PRO_FEATURES = ['No Ads', 'Life Stats', 'Real-time Rankings', 'Gym Schedul
 
 export default function Step5Premium({ onFinish }) {
   const storePrices = useStorePrices();
+  const t = useT();
+  const freeTrials = useFreeTrials();
+  const trialDays = trialDaysFor(freeTrials, 'premium', 'monthly');
   const { user } = useAuth();
   const [period, setPeriod] = useState('monthly');
   const [loading, setLoading] = useState(null);
 
   const handleChoice = async (choice) => {
     setLoading(choice);
-    await onFinish(choice);
+    await onFinish(choice, { trial: choice === 'premium' && !!trialDays && period === 'monthly' });
   };
 
   const renderPrice = (tier) => {
@@ -104,8 +109,15 @@ export default function Step5Premium({ onFinish }) {
             disabled={loading !== null}
             className="w-full rounded-xl bg-background py-3 text-sm font-bold text-foreground disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading === 'premium' ? <Loader2 size={16} className="animate-spin" /> : 'Get Premium'}
+            {loading === 'premium' ? <Loader2 size={16} className="animate-spin" /> : trialDays && period === 'monthly' ? t('pm_trial_btn').replace('{n}', String(trialDays)) : 'Get Premium'}
           </button>
+          {trialDays && period === 'monthly' && (
+            <p className="mt-2.5 text-center text-[11px] leading-snug opacity-70">
+              {t('pm_trial_terms').replace('{n}', String(trialDays)).replace('{price}', priceLabelFor(storePrices, 'premium', 'monthly')).replace('{unit}', t('pm_month'))}
+              {' '}
+              {t(isRevenueCatAvailable() ? 'pm_trial_cancel_ios' : 'pm_trial_cancel_web')}
+            </p>
+          )}
         </div>
 
         {/* Pro box */}
