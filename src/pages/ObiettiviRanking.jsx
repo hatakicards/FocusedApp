@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useActivities, useRatings, useGoals, useSubscription, useLessonGrades, useLifeStats, useUserSettings, useBodyFuelEntries, useWorkDayLogs } from '@/lib/useAppData';
@@ -12,6 +12,7 @@ import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
 import MilestoneGrid from '@/components/MilestoneGrid';
 import LifeStatsTab from '@/components/obiettivi/LifeStatsTab';
+import { useTourTab } from '@/lib/planWelcome';
 
 // Gli obiettivi stanno in Oggi (sotto le abitudini) e nel dettaglio di ogni abitudine: qui restano
 // Ranking e Statistiche, e si passa dall'una all'altra anche scorrendo col dito.
@@ -33,6 +34,15 @@ function ObiettiviRankingInner() {
   const [direction, setDirection] = useState(0);
   const [medallion, setMedallion] = useState(null);
   const touch = useRef(null);
+  useTourTab('lifegame', setTab);
+
+  // Il benvenuto al piano aspetta che il medaglione si apra e si chiuda (non all'apertura della pagina).
+  const medallionSeen = useRef(false);
+  useEffect(() => {
+    if (!medallion && !medallionSeen.current) return;
+    medallionSeen.current = true;
+    window.dispatchEvent(new CustomEvent('rank-medallion', { detail: !!medallion }));
+  }, [!!medallion]);
 
   const goTo = (id) => {
     const from = TABS.findIndex(([k]) => k === tab);
@@ -70,7 +80,7 @@ function ObiettiviRankingInner() {
         <HelpButton pageId="obiettivi" className="mt-1" />
       </header>
 
-      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
+      <div data-tour="lg-tabs" className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
         {TABS.map(([id, key]) => (
           <button
             key={id}
@@ -96,7 +106,7 @@ function ObiettiviRankingInner() {
 
             {tab === 'ranking' && (
               <>
-                <div className="mb-2 grid grid-cols-3 gap-2.5">
+                <div data-tour="rank-grid" className="mb-2 grid grid-cols-3 gap-2.5">
                   {CATEGORIES.map((cat) => {
                     const rankInfo = computeCategoryRank(cat.id, activities || [], ratings || [], goals || [], lessonGrades || []);
                     return (

@@ -17,6 +17,7 @@ import SubjectPicker from '@/components/lezioni/SubjectPicker';
 import TimetableTab from '@/components/lezioni/TimetableTab';
 import ReadingSection from '@/components/ReadingSection';
 import LockedPreview from '@/components/LockedPreview';
+import { useTourTab } from '@/lib/planWelcome';
 
 function LezioniInner() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ function LezioniInner() {
   const today = todayISO();
 
   const [tab, setTab] = useState('voti');
+  useTourTab('lezioni', setTab);
 
   const [subject, setSubject] = useState('');
   const [gradeVal, setGradeVal] = useState('');
@@ -166,6 +168,7 @@ function LezioniInner() {
           <p className="mt-1 text-sm text-muted-foreground">{t('personal_study_sub')}</p>
         </div>
         <button
+          data-tour="materie"
           onClick={() => setMaterieOpen(true)}
           className="flex items-center gap-1.5 rounded-xl bg-foreground/10 px-3 py-2 text-xs font-semibold hover:bg-foreground/15 transition-all active:scale-95"
         >
@@ -173,7 +176,7 @@ function LezioniInner() {
         </button>
       </header>
 
-      <div className="mb-6 flex gap-1 overflow-x-auto rounded-full bg-foreground/[0.06] p-1 scrollbar-hide">
+      <div data-tour="lezioni-tabs" className="mb-6 flex gap-1 overflow-x-auto rounded-full bg-foreground/[0.06] p-1 scrollbar-hide">
         {['voti', 'verifiche', 'orario', 'libri', 'simulatore'].map((tabKey) => (
           <button
             key={tabKey}

@@ -27,6 +27,8 @@ import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import { useGymStringsSync } from '@/lib/gymLocation';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
 import WelcomeIntro from './welcome/WelcomeIntro';
+import PlanWelcomeFlow from './planwelcome/PlanWelcomeFlow';
+import { readPlanWelcome } from '@/lib/planWelcome';
 import AgeVerificationModal from './AgeVerificationModal';
 import AgeBlockedScreen from './AgeBlockedScreen';
 import { ageGateStatus, isAgeBlocked } from '@/lib/ageCheck';
@@ -82,6 +84,13 @@ export default function AppLayout() {
     const onReplay = () => { setReplayFirstRun(true); setFirstRun(true); };
     window.addEventListener('replay-first-run', onReplay);
     return () => window.removeEventListener('replay-first-run', onReplay);
+  }, []);
+  // Benvenuto al piano Pro/Premium appena attivato (vedi lib/planWelcome).
+  const [planWelcome, setPlanWelcome] = useState(() => readPlanWelcome());
+  useEffect(() => {
+    const on = (e) => setPlanWelcome(e.detail);
+    window.addEventListener('plan-welcome', on);
+    return () => window.removeEventListener('plan-welcome', on);
   }, []);
   // Eta' minima: true dopo che qualcuno ha dichiarato di essere sotto soglia; ageGiven evita un lampo del
   // modulo data subito dopo che il benvenuto l'ha appena chiesta (il salvataggio arriva un attimo dopo).
@@ -198,7 +207,7 @@ export default function AppLayout() {
   }, [settings, user]);
 
   useEffect(() => {
-    if (statsLoading || !settings?.onboarded) return;
+    if (statsLoading || !settings?.onboarded || planWelcome) return;
     if (!sub.canUseLifeStats) {
       statsDismissed.current = false;
       return;
@@ -212,7 +221,7 @@ export default function AppLayout() {
     const latest = sorted[sorted.length - 1];
     const days = differenceInCalendarDays(new Date(), new Date(latest.date + 'T00:00:00'));
     if (days >= 7) setStatsFlow('review');
-  }, [statsLoading, lifeStats, settings?.onboarded, sub?.canUseLifeStats]);
+  }, [statsLoading, lifeStats, settings?.onboarded, sub?.canUseLifeStats, planWelcome]);
 
   const statsBaseline =
     lifeStats && lifeStats.length
@@ -298,7 +307,7 @@ export default function AppLayout() {
         onTouchEnd={onSwipeEnd}
       >
         {swipeEnabled && (
-          <div className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+8px)] z-20 flex -translate-x-1/2 items-center gap-2 md:hidden">
+          <div data-tour="mode-dots" className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+8px)] z-20 flex -translate-x-1/2 items-center gap-2 md:hidden">
             {PERSONAL_PAGES.map((p, i) => (
               <p.icon key={p.id} size={i === personalIdx ? 15 : 12} strokeWidth={i === personalIdx ? 2.25 : 1.75} className={i === personalIdx ? 'text-foreground' : 'text-muted-foreground/50'} />
             ))}
@@ -349,12 +358,15 @@ export default function AppLayout() {
       <MilestoneChecker />
       <MorningCheckIn />
       <SensedActivityPrompt />
-      <FullScreenAd enabled={!sub.adsRemoved && !firstRun && !rateOpen} />
-      <RatePrompt enabled={!firstRun && !welcomeNeeded && !trialWelcome && !trialExpiredModal && !promoExpired} onOpenChange={setRateOpen} />
+      <FullScreenAd enabled={!sub.adsRemoved && !firstRun && !rateOpen && !planWelcome} />
+      <RatePrompt enabled={!firstRun && !welcomeNeeded && !planWelcome && !trialWelcome && !trialExpiredModal && !promoExpired} onOpenChange={setRateOpen} />
       <PromoExpiredModal open={promoExpired} onClose={() => setPromoExpired(false)} />
       <TrialWelcomeModal open={trialWelcome && !firstRun} onClose={closeTrialWelcome} />
       <TrialExpiredModal open={trialExpiredModal} onClose={() => setTrialExpiredModal(false)} />
       {firstRun && <FirstRunFlow replay={replayFirstRun} onDone={() => { setFirstRun(false); setReplayFirstRun(false); }} />}
+      {planWelcome && !firstRun && !welcomeNeeded && (
+        <PlanWelcomeFlow tier={planWelcome} onDone={() => setPlanWelcome(null)} />
+      )}
       {welcomeNeeded && !firstRun && settings && (
         <WelcomeIntro
           existing

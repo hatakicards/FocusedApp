@@ -11,6 +11,7 @@ import WorkspaceAddItem from '@/components/WorkspaceAddItem';
 import ProjectsList from '@/components/workspace/ProjectsList';
 import ProjectPlanner from '@/components/workspace/ProjectPlanner';
 import LockedPreview from '@/components/LockedPreview';
+import { useTourTab } from '@/lib/planWelcome';
 
 const CURRENCY = '€';
 
@@ -49,6 +50,7 @@ function WorkspaceInner() {
   const [goalInput, setGoalInput] = useState('');
   const [addItemType, setAddItemType] = useState(null); // 'riunione' | 'scadenza'
   const [tab, setTab] = useState('giornata');
+  useTourTab('workspace', setTab);
   const [plannerOpen, setPlannerOpen] = useState(false);
 
   useEffect(() => {
@@ -117,7 +119,7 @@ function WorkspaceInner() {
         )}
       </header>
 
-      <div className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
+      <div data-tour="ws-tabs" className="mb-6 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
         <button
           onClick={() => setTab('giornata')}
           className={`flex-1 rounded-full py-2 text-xs font-semibold transition-colors ${tab === 'giornata' ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground'}`}

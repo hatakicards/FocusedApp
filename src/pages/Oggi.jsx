@@ -139,7 +139,7 @@ export default function Oggi() {
       )}
 
       {/* === Selezione profilo === */}
-      <div className="mb-4">
+      <div className="mb-4" data-tour="profile-selector">
         <ProfileSelector
           value={settings?.profile_type || 'base'}
           onChange={handleProfileChange}

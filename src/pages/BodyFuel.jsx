@@ -316,13 +316,16 @@ function BodyFuelInner() {
         <HelpButton pageId="bodyfuel" className="mt-1" />
       </header>
 
-      <StepsCard className="mb-6" />
-      <GymActions className="mb-3" />
-      <GymLocationCard />
+      <div data-tour="bf-top">
+        <StepsCard className="mb-6" />
+        <GymActions className="mb-3" />
+        <GymLocationCard />
+      </div>
 
       <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_food')}</h2>
       {/* Calorie plan (BMR/TDEE calculator) */}
       <button
+        data-tour="bf-food"
         onClick={() => setShowCalculator(true)}
         className="w-full rounded-2xl border border-border bg-card p-4 mb-4 text-left active:bg-accent transition-colors"
       >
@@ -403,7 +406,7 @@ function BodyFuelInner() {
 
       <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_sleep')}</h2>
       {/* Sleep debt tracker */}
-      <SleepDebtTracker />
+      <div data-tour="bf-sleep"><SleepDebtTracker /></div>
 
       {/* Sleep routine */}
       <div className="rounded-2xl border border-border bg-card p-4 mb-4">
