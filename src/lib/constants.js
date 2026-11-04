@@ -18,8 +18,8 @@ export const RANKS = [
   { id: 'elite', name: 'Elite', image: '/images/elite.png' },
 ];
 
-// Rank con l'effetto olografico animato (medaglione 3D e badge).
-export const HOLO_RANKS = new Set(['pro', 'elite']);
+// Rank brillanti (medaglione 3D lucido con scintille, riflesso sui badge).
+export const SHINE_RANKS = new Set(['pro', 'elite']);
 
 export const LOGO_URL = '/images/logo_senza_sfondo_x_video.png';
 

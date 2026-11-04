@@ -3,29 +3,31 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { useT } from '@/lib/i18n';
-import { HOLO_RANKS } from '@/lib/constants';
-import RankHolo from '@/components/RankHolo';
+import { SHINE_RANKS } from '@/lib/constants';
+import RankShine from '@/components/RankShine';
 
 // Spessore della moneta CSS: copie scurite dell'immagine una dietro l'altra lungo l'asse Z.
 const EDGE_LAYERS = 10;
-// Rotazione massima 180 gradi in tutto (da -90 a +90): il retro del medaglione non si vede mai.
+// Rotazione massima in ogni direzione (sinistra/destra e su/giu'): il retro del medaglione non si vede mai.
 const MAX_ANGLE = 90;
-// Secondi per andare da un lato all'altro e tornare.
-const SWEEP_SECONDS = 7;
+// Gradi per pixel di trascinamento.
+const DRAG_SPEED = 0.45;
+// Quanto resta della spinta a ogni frame quando lasci il dito (poi il medaglione si ferma dov'e'),
+// e la spinta massima in gradi per frame, cosi' un colpo veloce non lo manda di taglio.
+const FRICTION = 0.85;
+const MAX_SPIN = 4;
 // Modello 3D (GLB, da Meshy) del rank: public/models/rank-<id>.glb. Se manca resta la moneta CSS.
 const modelUrl = (rankId) => `/models/rank-${rankId}.glb`;
 
 const clamp = (v) => Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, v));
 
-// Pro ed Elite (HOLO_RANKS) hanno l'effetto olografico: riflessi arcobaleno che cambiano con l'angolo
-// di vista (come una carta olografica), una banda di luce che scorre in diagonale e qualche scintilla.
-
-const HOLO_VERTEX = `
+// Pro ed Elite (SHINE_RANKS) sono brillanti: superfici piu' lucide e scintille bianche sulle pietre,
+// che si accendono e si spengono quando giri il medaglione (da fermo restano ferme).
+const SPARKLE_VERTEX = `
   varying vec3 vNormal;
   varying vec3 vView;
   varying vec3 vPos;
   void main() {
-    // Posizione nel mondo: il pivot porta ogni modello a circa 2 unita', anche se e' compresso (quantizzato).
     vPos = (modelMatrix * vec4(position, 1.0)).xyz;
     vNormal = normalize(normalMatrix * normal);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -34,26 +36,27 @@ const HOLO_VERTEX = `
   }
 `;
 
-const HOLO_FRAGMENT = `
-  uniform float uTime;
-  uniform float uAngle;
+const SPARKLE_FRAGMENT = `
+  uniform float uTurn;
   varying vec3 vNormal;
   varying vec3 vView;
   varying vec3 vPos;
-  vec3 hue(float h) {
-    return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
   }
   void main() {
-    vec3 p = vPos;
-    float facing = abs(dot(normalize(vNormal), normalize(vView)));
-    float fresnel = pow(1.0 - facing, 2.0);
-    // Il colore dipende da normale, posizione e angolo: girando il medaglione l'arcobaleno scorre.
-    float h = fract(dot(vNormal.xy, vec2(0.7, 0.45)) + p.x * 0.35 + p.y * 0.55 + uAngle * 0.45 + uTime * 0.06);
-    vec3 rainbow = mix(hue(h), vec3(1.0), 0.15);
-    float band = smoothstep(0.9, 1.0, sin((p.x + p.y) * 3.2 - uTime * 2.2) * 0.5 + 0.5);
-    float sparkle = step(0.985, fract(sin(dot(floor(p.xy * 60.0), vec2(12.9898, 78.233))) * 43758.5453 + uTime * 0.7));
-    float a = 0.16 + fresnel * 0.55 + band * 0.5 + sparkle * 0.6;
-    gl_FragColor = vec4(rainbow * a, 1.0);
+    vec3 n = normalize(vNormal);
+    vec3 v = normalize(vView);
+    vec3 h = normalize(normalize(vec3(0.35, 0.6, 1.0)) + v);
+    float facing = max(dot(n, h), 0.0);
+    // Riflesso stretto della luce principale: il "lampo" sulle parti lucide.
+    float glint = pow(facing, 90.0) * 0.55;
+    // Scintille: piccole celle che si accendono solo se la faccetta guarda la luce e cambiano con la rotazione.
+    vec2 cell = floor(vPos.xy * 70.0);
+    float r = hash(cell);
+    float on = step(0.955, fract(r * 13.0 + uTurn));
+    float sparkle = on * pow(facing, 6.0) * 1.4;
+    gl_FragColor = vec4(vec3(glint + sparkle), 1.0);
   }
 `;
 
@@ -62,6 +65,7 @@ async function loadModelScene(rankId, canvas) {
   const THREE = await import('three');
   const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
   const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
+  const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js');
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   const gltf = await loader.loadAsync(modelUrl(rankId));
@@ -70,16 +74,17 @@ async function loadModelScene(rankId, canvas) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.35;
+  renderer.toneMappingExposure = 1.25;
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 1.6));
-  const key = new THREE.DirectionalLight(0xffffff, 2.4);
+  // Ambiente riflesso dal metallo: senza, i materiali metallici sembrano opachi.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = envMap;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.8));
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(2, 3, 4);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xffffff, 1.2);
-  rim.position.set(-3, 1, -2);
-  scene.add(rim);
 
   // Centra e scala il modello cosi' che stia sempre nello stesso spazio, qualunque sia la sua misura.
   const model = gltf.scene;
@@ -92,13 +97,23 @@ async function loadModelScene(rankId, canvas) {
   pivot.scale.setScalar(2 / Math.max(size.x, size.y, size.z || 1));
   scene.add(pivot);
 
-  // Olografico: la stessa geometria disegnata una seconda volta sopra, in modo additivo.
-  let holo = null;
-  if (HOLO_RANKS.has(rankId)) {
-    holo = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uAngle: { value: 0 } },
-      vertexShader: HOLO_VERTEX,
-      fragmentShader: HOLO_FRAGMENT,
+  const meshes = [];
+  model.traverse((o) => { if (o.isMesh) meshes.push(o); });
+
+  // Brillante: superfici piu' lucide e riflettenti, piu' le scintille disegnate sopra in modo additivo.
+  let sparkle = null;
+  if (SHINE_RANKS.has(rankId)) {
+    meshes.forEach((m) => {
+      [].concat(m.material).forEach((mat) => {
+        if (!mat?.isMeshStandardMaterial) return;
+        mat.roughness = Math.min(mat.roughness ?? 1, 0.35);
+        mat.envMapIntensity = 1.8;
+      });
+    });
+    sparkle = new THREE.ShaderMaterial({
+      uniforms: { uTurn: { value: 0 } },
+      vertexShader: SPARKLE_VERTEX,
+      fragmentShader: SPARKLE_FRAGMENT,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
@@ -106,11 +121,8 @@ async function loadModelScene(rankId, canvas) {
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
     });
-    const meshes = [];
-    model.traverse((o) => { if (o.isMesh) meshes.push(o); });
-    meshes.forEach((m) => m.add(new THREE.Mesh(m.geometry, holo)));
+    meshes.forEach((m) => m.add(new THREE.Mesh(m.geometry, sparkle)));
   }
-  const clock = new THREE.Clock();
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
   camera.position.set(0, 0, 4.4);
@@ -125,17 +137,16 @@ async function loadModelScene(rankId, canvas) {
   resize();
 
   return {
-    render: (angleDeg) => {
-      pivot.rotation.y = THREE.MathUtils.degToRad(angleDeg);
-      if (holo) {
-        holo.uniforms.uTime.value = clock.getElapsedTime();
-        holo.uniforms.uAngle.value = pivot.rotation.y;
-      }
+    render: (rotX, rotY) => {
+      pivot.rotation.set(THREE.MathUtils.degToRad(rotX), THREE.MathUtils.degToRad(rotY), 0);
+      if (sparkle) sparkle.uniforms.uTurn.value = (rotX + rotY) * 0.03;
       renderer.render(scene, camera);
     },
     resize,
     dispose: () => {
-      holo?.dispose();
+      sparkle?.dispose();
+      envMap.dispose();
+      pmrem.dispose();
       renderer.dispose();
       model.traverse((o) => {
         o.geometry?.dispose?.();
@@ -148,16 +159,15 @@ async function loadModelScene(rankId, canvas) {
   };
 }
 
-// Medaglione del rank a tutto schermo: oscilla da solo tra -90 e +90 gradi e si puo' girare col dito
-// (sempre dentro quei 180 gradi). Usa il modello 3D se c'e', altrimenti l'immagine come moneta.
+// Medaglione del rank a tutto schermo: fermo finche' non lo tocchi, poi lo giri col dito a destra/sinistra
+// e su/giu' (ognuna tra -90 e +90 gradi). Usa il modello 3D se c'e', altrimenti l'immagine come moneta.
 export default function RankMedallion({ categoryId, rankInfo, onClose }) {
   const t = useT();
   const coinRef = useRef(null);
   const canvasRef = useRef(null);
   const sceneRef = useRef(null);
   const [hasModel, setHasModel] = useState(false);
-  // phase: posizione nell'oscillazione (angolo = MAX_ANGLE * sin(phase)).
-  const state = useRef({ phase: 0, angle: 0, dragging: false, lastX: 0, lastDx: 0 });
+  const state = useRef({ rotX: 0, rotY: 0, velX: 0, velY: 0, dragging: false, lastX: 0, lastY: 0, dirty: true });
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const rank = rankInfo?.rank;
@@ -169,10 +179,11 @@ export default function RankMedallion({ categoryId, rankInfo, onClose }) {
       .then((s) => {
         if (cancelled) { s.dispose(); return; }
         sceneRef.current = s;
+        state.current.dirty = true;
         setHasModel(true);
       })
       .catch(() => { /* nessun modello per questo rank: resta la moneta */ });
-    const onResize = () => sceneRef.current?.resize();
+    const onResize = () => { sceneRef.current?.resize(); state.current.dirty = true; };
     window.addEventListener('resize', onResize);
     return () => {
       cancelled = true;
@@ -184,17 +195,24 @@ export default function RankMedallion({ categoryId, rankInfo, onClose }) {
 
   useEffect(() => {
     let raf;
-    let last = performance.now();
-    const tick = (now) => {
+    const tick = () => {
       const s = state.current;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      if (!s.dragging) {
-        s.phase += (dt * 2 * Math.PI) / SWEEP_SECONDS;
-        s.angle = MAX_ANGLE * Math.sin(s.phase);
+      // Dopo che lasci il dito la spinta si esaurisce in fretta; ai bordi (+-90) si ferma.
+      if (!s.dragging && (Math.abs(s.velX) > 0.01 || Math.abs(s.velY) > 0.01)) {
+        const nx = clamp(s.rotX + s.velX);
+        const ny = clamp(s.rotY + s.velY);
+        s.velX = nx === s.rotX + s.velX ? s.velX * FRICTION : 0;
+        s.velY = ny === s.rotY + s.velY ? s.velY * FRICTION : 0;
+        s.rotX = nx;
+        s.rotY = ny;
+        s.dirty = true;
       }
-      if (sceneRef.current) sceneRef.current.render(s.angle);
-      else if (coinRef.current) coinRef.current.style.transform = `rotateX(6deg) rotateY(${s.angle}deg)`;
+      // Si ridisegna solo quando qualcosa si muove: da fermo il medaglione e' davvero fermo.
+      if (s.dirty) {
+        s.dirty = false;
+        if (sceneRef.current) sceneRef.current.render(s.rotX, s.rotY);
+        else if (coinRef.current) coinRef.current.style.transform = `rotateX(${-s.rotX}deg) rotateY(${s.rotY}deg)`;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -205,24 +223,23 @@ export default function RankMedallion({ categoryId, rankInfo, onClose }) {
 
   const onPointerDown = (e) => {
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    Object.assign(state.current, { dragging: true, lastX: e.clientX, lastDx: 0 });
+    Object.assign(state.current, { dragging: true, lastX: e.clientX, lastY: e.clientY, velX: 0, velY: 0 });
   };
   const onPointerMove = (e) => {
     const s = state.current;
     if (!s.dragging) return;
-    const dx = e.clientX - s.lastX;
-    s.angle = clamp(s.angle + dx * 0.5);
-    if (dx) s.lastDx = dx;
+    const dy = (e.clientY - s.lastY) * DRAG_SPEED;
+    const dx = (e.clientX - s.lastX) * DRAG_SPEED;
+    // Trascinare in giu' inclina la parte alta verso di te.
+    s.rotX = clamp(s.rotX + dy);
+    s.rotY = clamp(s.rotY + dx);
+    s.velX = Math.max(-MAX_SPIN, Math.min(MAX_SPIN, dy));
+    s.velY = Math.max(-MAX_SPIN, Math.min(MAX_SPIN, dx));
     s.lastX = e.clientX;
+    s.lastY = e.clientY;
+    s.dirty = true;
   };
-  // Quando lasci riparte l'oscillazione dal punto in cui l'hai messo, nel verso in cui lo stavi girando.
-  const onPointerUp = () => {
-    const s = state.current;
-    if (!s.dragging) return;
-    s.dragging = false;
-    const base = Math.asin(s.angle / MAX_ANGLE);
-    s.phase = s.lastDx >= 0 ? base : Math.PI - base;
-  };
+  const onPointerUp = () => { state.current.dragging = false; };
 
   if (!rank) return null;
   const nextReq = (rankInfo.requirements || []).find((r) => !r.completed);
@@ -246,7 +263,7 @@ export default function RankMedallion({ categoryId, rankInfo, onClose }) {
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 160, damping: 18 }}
-        className="relative h-[min(72vw,320px)] w-[min(72vw,320px)] touch-none select-none"
+        className="relative h-[min(72vw,320px)] w-[min(72vw,320px)] cursor-grab touch-none select-none active:cursor-grabbing"
         style={{ perspective: 1000 }}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={onPointerDown}
@@ -268,12 +285,14 @@ export default function RankMedallion({ categoryId, rankInfo, onClose }) {
               />
             ))}
             <img src={rank.image} alt={t('rank_' + rank.id)} draggable={false} className="absolute inset-0 h-full w-full object-contain" />
-            {HOLO_RANKS.has(rank.id) && <RankHolo image={rank.image} />}
+            {SHINE_RANKS.has(rank.id) && <RankShine image={rank.image} />}
           </div>
         )}
       </motion.div>
 
-      <h2 className="mt-8 text-4xl font-bold tracking-tight text-white">{t('rank_' + rank.id)}</h2>
+      <p className="mt-3 text-[11px] text-white/35">{t('rank_drag_hint')}</p>
+
+      <h2 className="mt-5 text-4xl font-bold tracking-tight text-white">{t('rank_' + rank.id)}</h2>
 
       <div className="mt-6 w-full max-w-sm space-y-2" onClick={(e) => e.stopPropagation()}>
         {nextReq ? (
