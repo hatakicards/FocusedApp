@@ -111,6 +111,7 @@ export default function AppLayout() {
         const patch = {};
         if (d.dream) patch.dream = d.dream;
         if (d.birthDate) patch.birth_date = d.birthDate;
+        if (d.reminderTime) patch.reminder_time = d.reminderTime;
         if (Object.keys(patch).length) await optimisticSettingsUpdate(settings.id, patch);
       }
     } catch (e) { console.warn('Welcome save failed', e); }
@@ -370,7 +371,7 @@ export default function AppLayout() {
       {welcomeNeeded && !firstRun && settings && (
         <WelcomeIntro
           existing
-          initial={{ name: (user?.full_name || '').trim().split(' ')[0], dream: settings?.dream || '', birthDate: settings?.birth_date || '' }}
+          initial={{ name: (user?.full_name || '').trim().split(' ')[0], dream: settings?.dream || '', birthDate: settings?.birth_date || '', reminderTime: settings?.reminder_time || '21:00' }}
           onBlocked={() => setAgeBlocked(true)}
           onDone={finishWelcome}
         />

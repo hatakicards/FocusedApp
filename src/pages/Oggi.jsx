@@ -21,6 +21,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
 import StreakCard from '@/components/StreakCard';
+import ReminderNudge from '@/components/today/ReminderNudge';
 import TodayActivities from '@/components/today/TodayActivities';
 import TodayGoals from '@/components/today/TodayGoals';
 import GreatDayCelebration from '@/components/GreatDayCelebration';
@@ -120,6 +121,7 @@ export default function Oggi() {
 
       {/* === Attivita' (ex Abitudini), compatte === */}
       <div className="relative z-10 mt-2 mb-6 space-y-4">
+        <ReminderNudge />
         <StreakCard />
         <TodayActivities />
         <TodayGoals />

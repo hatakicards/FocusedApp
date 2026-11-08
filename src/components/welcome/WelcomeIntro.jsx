@@ -5,14 +5,14 @@ import { Image } from '@/components/ui/image';
 import { LOGO_URL } from '@/lib/constants';
 import { birthDateBounds, isPlausibleBirthDate, meetsMinAge, markAgeBlocked } from '@/lib/ageCheck';
 import { LANGUAGES, useI18n, useT } from '@/lib/i18n';
-import { listPermissions, permissionState, askPermission, openAppSettings } from '@/lib/permissions';
+import { listPermissions, permissionState, askPermission, openAppSettings, isNativeApp } from '@/lib/permissions';
 
 const TUT_ICONS = [CheckCircle, Calendar, Play, Target];
 
 // Benvenuto a schermo intero, prima del login (e una volta sola anche per chi e' gia' dentro):
-// logo, nome, lingua, sogno, permessi, due domande e un giro a passi dell'app.
+// logo, nome, lingua, sogno, promemoria, altri permessi, due domande e un giro a passi dell'app.
 // In alto la barretta dei passi; in basso, sul giro, "Sai gia' come funziona?".
-const STAGES = ['splash', 'name', 'lang', 'dream', 'perms', 'q1', 'q2', 'tour'];
+const STAGES = ['splash', 'name', 'lang', 'dream', 'notif', 'perms', 'q1', 'q2', 'tour'];
 
 const shell = 'fixed inset-0 z-[95] flex flex-col overflow-y-auto bg-black text-white';
 const titaniumBtn = 'titanium-bg flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold active:scale-[0.98] transition-transform disabled:opacity-30';
@@ -43,10 +43,31 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
   const [birthDate, setBirthDate] = useState(initial.birthDate || '');
   const [showWhy, setShowWhy] = useState(false);
   const [dream, setDream] = useState(initial.dream || '');
-  const [perms, setPerms] = useState(['notifications']);
+  const [allPerms, setAllPerms] = useState(null); // null = ancora da leggere
   const [permState, setPermState] = useState({}); // id -> 'granted' | 'denied' | 'prompt' | 'busy'
   const [busy, setBusy] = useState(false);
   const [tourIdx, setTourIdx] = useState(0);
+  const [reminderTime, setReminderTime] = useState(initial.reminderTime || '21:00');
+  // "Non ora" sul promemoria: al primo tocco si spiega cosa si perde, al secondo si va avanti.
+  const [notifNudged, setNotifNudged] = useState(false);
+
+  // Nell'app il promemoria ha una schermata tutta sua (e' quello che fa tornare il giorno dopo); sul
+  // web le notifiche programmate non esistono, quindi resta nella lista come prima.
+  const native = isNativeApp();
+  const perms = (allPerms || ['notifications']).filter((id) => !(native && id === 'notifications'));
+  const notifSt = permState.notifications || 'prompt';
+
+  const skipStage = (s) => {
+    if (s === 'notif') return !native || permState.notifications === 'granted';
+    if (s === 'perms') return allPerms !== null && perms.length === 0;
+    return false;
+  };
+  const stepFrom = (from, dir) => {
+    let i = STAGES.indexOf(from) + dir;
+    while (i > 1 && i < STAGES.length - 1 && skipStage(STAGES[i])) i += dir;
+    return STAGES[Math.max(1, i)];
+  };
+  const goNext = (from = stage) => setStage(stepFrom(from, 1));
 
   const idx = STAGES.indexOf(stage);
 
@@ -60,12 +81,35 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
   useEffect(() => {
     (async () => {
       const list = await listPermissions();
-      setPerms(list);
       const states = {};
       for (const id of list) states[id] = await permissionState(id);
       setPermState(states);
+      setAllPerms(list);
     })();
   }, []);
+
+  // Chi va nelle Impostazioni ad accendere le notifiche e torna: si rilegge lo stato.
+  useEffect(() => {
+    if (stage !== 'notif') return undefined;
+    const recheck = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const st = await permissionState('notifications');
+      setPermState((p) => ({ ...p, notifications: st }));
+    };
+    document.addEventListener('visibilitychange', recheck);
+    return () => document.removeEventListener('visibilitychange', recheck);
+  }, [stage]);
+
+  const activateReminder = async () => {
+    if (busy) return;
+    setBusy(true);
+    setPermState((p) => ({ ...p, notifications: 'busy' }));
+    const next = await askPermission('notifications');
+    setPermState((p) => ({ ...p, notifications: next === 'prompt' ? 'asked' : next }));
+    setBusy(false);
+    // Un attimo per vedere la spunta, poi avanti. Se iOS ha detto no si resta qui: c'e' il tasto Impostazioni.
+    if (next !== 'denied') setTimeout(() => goNext('notif'), next === 'granted' ? 700 : 0);
+  };
 
   const permMeta = useMemo(() => ({
     notifications: { icon: Bell, title: 'wl_perm_notif', text: 'wl_perm_notif_d' },
@@ -93,7 +137,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
 
   const pending = perms.some((id) => !['granted', 'denied', 'asked'].includes(permState[id]));
 
-  const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '', dream: dream.trim(), skipTutorial, permsAsked: true });
+  const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '', dream: dream.trim(), reminderTime, skipTutorial, permsAsked: true });
 
   const continueFromName = () => {
     if (!name.trim()) return;
@@ -105,10 +149,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
     setStage('lang');
   };
 
-  const goBack = () => {
-    const prev = STAGES[Math.max(1, idx - 1)];
-    setStage(prev);
-  };
+  const goBack = () => setStage(stepFrom(stage, -1));
 
   const showBar = stage !== 'splash';
   const tourSteps = [1, 2, 3, 4];
@@ -227,7 +268,66 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
             )}
           </AnimatePresence>
         </div>
-        <button onClick={() => setStage('perms')} disabled={!dream.trim()} className={`${titaniumBtn} mt-8`}>{t('wl_continue')}</button>
+        <button onClick={() => goNext('dream')} disabled={!dream.trim()} className={`${titaniumBtn} mt-8`}>{t('wl_continue')}</button>
+      </Page>
+    );
+  } else if (stage === 'notif') {
+    const first = name.trim().split(' ')[0];
+    const previewTitle = first ? t('notif_evening_title').replace('{name}', first) : t('notif_evening_title_anon');
+    const granted = notifSt === 'granted';
+    const denied = notifSt === 'denied';
+    body = (
+      <Page key="notif">
+        <div className="flex flex-1 flex-col justify-center">
+          <h1 className="mb-2 text-3xl font-bold tracking-tight">{t('wl_nt_t')}</h1>
+          <p className="mb-8 text-sm leading-relaxed text-white/50">{t('wl_nt_d')}</p>
+          {/* Come apparira' la notifica sul telefono */}
+          <motion.div
+            initial={{ opacity: 0, y: -18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.35, type: 'spring', stiffness: 220, damping: 20 }}
+            className="flex items-start gap-3 rounded-[22px] border border-white/10 bg-white/[0.12] p-3.5 backdrop-blur"
+          >
+            <span className="h-9 w-9 shrink-0 overflow-hidden rounded-[9px] bg-black">
+              <Image src={LOGO_URL} alt="" fittingType="fit" className="h-full w-full object-contain" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-[13px] font-semibold">{previewTitle}</span>
+                <span className="shrink-0 text-[11px] text-white/45">{reminderTime}</span>
+              </span>
+              <span className="mt-0.5 block text-[13px] leading-snug text-white/80">{t('notif_evening_body')}</span>
+            </span>
+          </motion.div>
+          <label className="mt-5 flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+            <span className="text-sm font-semibold">{t('wl_nt_time')}</span>
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(e) => e.target.value && setReminderTime(e.target.value)}
+              className="bg-transparent text-base font-semibold outline-none [color-scheme:dark]"
+            />
+          </label>
+          {denied && <p className="mt-4 text-xs leading-snug text-white/55">{t('wl_nt_denied')}</p>}
+          {!denied && !granted && notifNudged && <p className="mt-4 text-sm leading-snug text-white/70">{t('wl_nt_sure')}</p>}
+        </div>
+        {granted ? (
+          <button onClick={() => goNext('notif')} className={`${titaniumBtn} mt-8`}><Check size={18} /> {t('wl_continue')}</button>
+        ) : denied ? (
+          <button onClick={openAppSettings} className={`${titaniumBtn} mt-8`}>{t('wl_nt_open')}</button>
+        ) : (
+          <button onClick={activateReminder} disabled={busy} className={`${titaniumBtn} mt-8`}>
+            {notifSt === 'busy' ? <Loader2 size={18} className="animate-spin" /> : <Bell size={18} />} {t('wl_nt_on')}
+          </button>
+        )}
+        {!granted && (
+          <button
+            onClick={() => (denied || notifNudged ? goNext('notif') : setNotifNudged(true))}
+            className="mt-3 py-2 text-sm font-medium text-white/50"
+          >
+            {t(denied ? 'wl_continue' : notifNudged ? 'wl_nt_without' : 'wl_perm_later')}
+          </button>
+        )}
       </Page>
     );
   } else if (stage === 'perms') {
