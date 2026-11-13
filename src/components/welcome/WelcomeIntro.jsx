@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, HeartPulse, Hourglass, MapPin, Check, ArrowLeft, Info, CheckCircle, Calendar, Play, Target, Loader2 } from 'lucide-react';
+import { Bell, HeartPulse, Hourglass, MapPin, Check, ArrowLeft, Info, CheckCircle, Calendar, Play, Target, Loader2, GraduationCap, Briefcase, Dumbbell, LayoutGrid, Smartphone, Clock, Repeat, Flame, Ban } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { LOGO_URL } from '@/lib/constants';
 import { birthDateBounds, isPlausibleBirthDate, meetsMinAge, markAgeBlocked } from '@/lib/ageCheck';
@@ -12,7 +12,38 @@ const TUT_ICONS = [CheckCircle, Calendar, Play, Target];
 // Benvenuto a schermo intero, prima del login (e una volta sola anche per chi e' gia' dentro):
 // logo, nome, lingua, sogno, promemoria, altri permessi, due domande e un giro a passi dell'app.
 // In alto la barretta dei passi; in basso, sul giro, "Sai gia' come funziona?".
-const STAGES = ['splash', 'name', 'lang', 'dream', 'notif', 'perms', 'q1', 'q2', 'tour'];
+const STAGES = ['splash', 'name', 'lang', 'dream', 'notif', 'perms', 'q1', 'q2', 'qa', 'qb', 'qc', 'tour'];
+
+// Le domande di impostazione. Le risposte diventano impostazioni vere (vedi setupToSettings in pages/Welcome).
+const SETUP_QUESTIONS = {
+  qa: {
+    key: 'profile', title: 'wl_qa_t', sub: 'wl_qa_d',
+    options: [
+      { id: 'studente', icon: GraduationCap, label: 'wl_qa_study' },
+      { id: 'professionista', icon: Briefcase, label: 'wl_qa_work' },
+      { id: 'atleta', icon: Dumbbell, label: 'wl_qa_sport' },
+      { id: 'base', icon: LayoutGrid, label: 'wl_qa_mix' },
+    ],
+  },
+  qb: {
+    key: 'gym', title: 'wl_qb_t', sub: 'wl_qb_d',
+    options: [
+      { id: '0', icon: Ban, label: 'wl_qb_0' },
+      { id: '1-2', icon: Dumbbell, label: 'wl_qb_12' },
+      { id: '3-4', icon: Dumbbell, label: 'wl_qb_34' },
+      { id: '5+', icon: Flame, label: 'wl_qb_5' },
+    ],
+  },
+  qc: {
+    key: 'block', title: 'wl_qc_t', sub: 'wl_qc_d',
+    options: [
+      { id: 'phone', icon: Smartphone, label: 'wl_qc_phone' },
+      { id: 'time', icon: Clock, label: 'wl_qc_time' },
+      { id: 'consistency', icon: Repeat, label: 'wl_qc_consistency' },
+      { id: 'motivation', icon: Flame, label: 'wl_qc_motivation' },
+    ],
+  },
+};
 
 const shell = 'fixed inset-0 z-[95] flex flex-col overflow-y-auto bg-black text-white';
 const titaniumBtn = 'titanium-bg flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold active:scale-[0.98] transition-transform disabled:opacity-30';
@@ -48,8 +79,12 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
   const [busy, setBusy] = useState(false);
   const [tourIdx, setTourIdx] = useState(0);
   const [reminderTime, setReminderTime] = useState(initial.reminderTime || '21:00');
-  // "Non ora" sul promemoria: al primo tocco si spiega cosa si perde, al secondo si va avanti.
-  const [notifNudged, setNotifNudged] = useState(false);
+  // Risposte alle domande di impostazione (vedi SETUP_QUESTIONS): { profile, gym, block }.
+  const [setup, setSetup] = useState(initial.setup || {});
+  const pickSetup = (from, key, value) => {
+    setSetup((p) => ({ ...p, [key]: value }));
+    setTimeout(() => goNext(from), 260);
+  };
 
   // Nell'app il promemoria ha una schermata tutta sua (e' quello che fa tornare il giorno dopo); sul
   // web le notifiche programmate non esistono, quindi resta nella lista come prima.
@@ -107,8 +142,8 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
     const next = await askPermission('notifications');
     setPermState((p) => ({ ...p, notifications: next === 'prompt' ? 'asked' : next }));
     setBusy(false);
-    // Un attimo per vedere la spunta, poi avanti. Se iOS ha detto no si resta qui: c'e' il tasto Impostazioni.
-    if (next !== 'denied') setTimeout(() => goNext('notif'), next === 'granted' ? 700 : 0);
+    // Apple 5.1.1(iv): dopo il messaggio si va sempre alla richiesta di iOS, e qualunque risposta porta avanti.
+    setTimeout(() => goNext('notif'), next === 'granted' ? 700 : 0);
   };
 
   const permMeta = useMemo(() => ({
@@ -137,7 +172,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
 
   const pending = perms.some((id) => !['granted', 'denied', 'asked'].includes(permState[id]));
 
-  const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '', dream: dream.trim(), reminderTime, skipTutorial, permsAsked: true });
+  const finish = (skipTutorial) => onDone({ name: name.trim(), birthDate: isPlausibleBirthDate(birthDate) ? birthDate : '', dream: dream.trim(), reminderTime, setup, skipTutorial, permsAsked: true });
 
   const continueFromName = () => {
     if (!name.trim()) return;
@@ -309,24 +344,17 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
             />
           </label>
           {denied && <p className="mt-4 text-xs leading-snug text-white/55">{t('wl_nt_denied')}</p>}
-          {!denied && !granted && notifNudged && <p className="mt-4 text-sm leading-snug text-white/70">{t('wl_nt_sure')}</p>}
         </div>
-        {granted ? (
-          <button onClick={() => goNext('notif')} className={`${titaniumBtn} mt-8`}><Check size={18} /> {t('wl_continue')}</button>
-        ) : denied ? (
-          <button onClick={openAppSettings} className={`${titaniumBtn} mt-8`}>{t('wl_nt_open')}</button>
+        {/* Apple 5.1.1(iv): un solo pulsante "Continua" che porta sempre alla richiesta di iOS, niente "Non ora". */}
+        {granted || denied ? (
+          <button onClick={() => goNext('notif')} className={`${titaniumBtn} mt-8`}>{granted && <Check size={18} />} {t('wl_continue')}</button>
         ) : (
           <button onClick={activateReminder} disabled={busy} className={`${titaniumBtn} mt-8`}>
-            {notifSt === 'busy' ? <Loader2 size={18} className="animate-spin" /> : <Bell size={18} />} {t('wl_nt_on')}
+            {notifSt === 'busy' && <Loader2 size={18} className="animate-spin" />} {t('wl_continue')}
           </button>
         )}
-        {!granted && (
-          <button
-            onClick={() => (denied || notifNudged ? goNext('notif') : setNotifNudged(true))}
-            className="mt-3 py-2 text-sm font-medium text-white/50"
-          >
-            {t(denied ? 'wl_continue' : notifNudged ? 'wl_nt_without' : 'wl_perm_later')}
-          </button>
+        {denied && (
+          <button onClick={openAppSettings} className="mt-3 py-2 text-sm font-medium text-white/50">{t('wl_nt_open')}</button>
         )}
       </Page>
     );
@@ -350,9 +378,6 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
                   </span>
                   {st === 'granted' && <Check size={18} className="shrink-0" />}
                   {st === 'busy' && <Loader2 size={18} className="shrink-0 animate-spin text-white/60" />}
-                  {(st === 'prompt' || st === 'asked') && (
-                    <button onClick={() => askOne(id)} disabled={busy} className="titanium-bg shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold disabled:opacity-40">{t('wl_perm_allow')}</button>
-                  )}
                   {st === 'denied' && (
                     <button onClick={openAppSettings} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-semibold text-white/80">{t('wl_perm_settings')}</button>
                   )}
@@ -361,14 +386,15 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
             })}
           </div>
         </div>
+        {/* Apple 5.1.1(iv): "Continua" apre sempre le richieste di iOS (una dopo l'altra), poi si va avanti
+            qualunque sia la risposta. Niente "Consenti" e niente "Non ora". */}
         <button
-          onClick={pending ? askAll : () => setStage('q1')}
+          onClick={async () => { if (pending) await askAll(); setStage('q1'); }}
           disabled={busy}
           className={`${titaniumBtn} mt-8`}
         >
-          {t(pending ? 'wl_perm_all' : 'wl_continue')}
+          {busy && <Loader2 size={18} className="animate-spin" />} {t('wl_continue')}
         </button>
-        {pending && <button onClick={() => setStage('q1')} className="mt-3 py-2 text-sm font-medium text-white/50">{t('wl_perm_later')}</button>}
       </Page>
     );
   } else if (stage === 'q1' || stage === 'q2') {
@@ -378,9 +404,40 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
         <div className="flex flex-1 flex-col justify-center">
           <h1 className="text-4xl font-bold leading-tight tracking-tight">{t(first ? 'wl_q1' : 'wl_q2')}</h1>
         </div>
-        <button onClick={() => setStage(first ? 'q2' : 'tour')} className={`${titaniumBtn} mt-8 text-lg`}>
+        <button onClick={() => setStage(first ? 'q2' : 'qa')} className={`${titaniumBtn} mt-8 text-lg`}>
           {t(first ? 'wl_q1_btn' : 'wl_q2_btn')}
         </button>
+      </Page>
+    );
+  } else if (SETUP_QUESTIONS[stage]) {
+    // Tre domande veloci che impostano davvero l'app: modalita' (Studente/Professionista/Atleta), palestra
+    // nell'agenda, e cosa ti blocca (lo ricorda Focusy). Un tocco e si va avanti.
+    const q = SETUP_QUESTIONS[stage];
+    const picked = setup[q.key];
+    body = (
+      <Page key={stage}>
+        <div className="flex flex-1 flex-col justify-center">
+          <h1 className="mb-2 text-3xl font-bold leading-tight tracking-tight">{t(q.title)}</h1>
+          <p className="mb-7 text-sm text-white/50">{t(q.sub)}</p>
+          <div className="space-y-2.5">
+            {q.options.map((o) => {
+              const Icon = o.icon;
+              const on = picked === o.id;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => pickSetup(stage, q.key, o.id)}
+                  className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors ${on ? 'border-white bg-white/10' : 'border-white/15 bg-white/5'}`}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10"><Icon size={19} strokeWidth={1.7} /></span>
+                  <span className="flex-1 text-base font-semibold">{t(o.label)}</span>
+                  {on && <Check size={18} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <button onClick={() => goNext(stage)} className="mt-6 py-2 text-sm font-medium text-white/45">{t('wl_q_skip')}</button>
       </Page>
     );
   } else if (stage === 'tour') {

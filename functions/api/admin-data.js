@@ -58,7 +58,9 @@ export async function onRequestPost({ request, env }) {
     const premiumUsers = [];
     for (const [uid, s] of latestSettingsByUser) {
       const hasPromo = s.promo_until && new Date(s.promo_until) > new Date();
-      const hasTrial = s.trial_start && (Date.now() - new Date(s.trial_start).getTime()) < 7 * 86400000;
+      // Prova in app: 3 giorni dal 9/11/2026, 7 prima (vedi src/lib/appTrial.js).
+      const trialDays = s.trial_start && new Date(s.trial_start).getTime() >= Date.parse('2026-11-09T00:00:00Z') ? 3 : 7;
+      const hasTrial = s.trial_start && (Date.now() - new Date(s.trial_start).getTime()) < trialDays * 86400000;
       if ((s.subscription_tier && s.subscription_tier !== 'free') || hasPromo || hasTrial) {
         premiumUsers.push({
           email: emailById.get(uid) || 'N/A',

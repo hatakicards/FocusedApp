@@ -10,6 +10,9 @@ import AgeBlockedScreen from '@/components/AgeBlockedScreen';
 import { isAgeBlocked } from '@/lib/ageCheck';
 import Step4Auth from '@/components/welcome/Step4Auth';
 import Step5Premium from '@/components/welcome/Step5Premium';
+import StepTrial from '@/components/welcome/StepTrial';
+import { setupToSettings } from '@/lib/welcomeSetup';
+import { startPlanWelcome } from '@/lib/planWelcome';
 import { isRevenueCatAvailable, purchaseSubscription } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 import { useT } from '@/lib/i18n';
@@ -27,7 +30,10 @@ export default function Welcome() {
     dream: '',
     reminderTime: '21:00',
     reminderEnabled: true,
+    setup: {},
   });
+  // La prova gratuita in app si offre una volta sola: se c'e' gia' un trial_start si mostrano i piani.
+  const [trialUsed, setTrialUsed] = useState(false);
   const dataSaved = useRef(false);
   // Sotto l'eta' minima non si crea nessun account: il blocco resta ricordato in locale per 24 ore.
   const [ageBlocked, setAgeBlocked] = useState(() => isAgeBlocked());
@@ -63,11 +69,14 @@ export default function Welcome() {
           await base44.auth.updateMe({ full_name: data.name });
         }
         const existing = await getDB().UserSettings.filter({ created_by_id: user.id }, '-created_date', 10);
+        if (existing[0]?.trial_start) setTrialUsed(true);
         const settingsData = {
           birth_date: data.birthDate || null,
           dream: data.dream,
           reminder_time: data.reminderTime,
           reminder_enabled: data.reminderEnabled,
+          // Le risposte alle domande del benvenuto: modalita', palestra, memoria di Focusy.
+          ...setupToSettings(data.setup, existing[0] || {}),
         };
         if (existing.length > 0) {
           await getDB().UserSettings.update(existing[0].id, settingsData);
@@ -101,13 +110,15 @@ export default function Welcome() {
   };
 
   const handleFinish = async (choice, opts = {}) => {
-    // Set onboarded = true
+    // Set onboarded = true (e, se l'utente l'ha scelta, la prova gratuita di 3 giorni in app)
     try {
       const existing = await getDB().UserSettings.filter({ created_by_id: user?.id }, '-created_date', 10);
+      const patch = { onboarded: true };
+      if (opts.appTrial && !existing[0]?.trial_start) patch.trial_start = new Date().toISOString();
       if (existing.length > 0) {
-        await getDB().UserSettings.update(existing[0].id, { onboarded: true });
+        await getDB().UserSettings.update(existing[0].id, patch);
       } else {
-        await getDB().UserSettings.create({ ...data, onboarded: true });
+        await getDB().UserSettings.create({ ...patch, reminder_time: data.reminderTime, dream: data.dream, ...setupToSettings(data.setup) });
       }
     } catch (e) {
       console.error('Error setting onboarded:', e);
@@ -121,6 +132,13 @@ export default function Welcome() {
       // e' quello che fa capire come funziona davvero l'app.
       localStorage.setItem('first_run_pending', '1');
     } catch { /* ignore */ }
+
+    if (opts.appTrial) {
+      // Niente vecchio popup "PROVA PREMIUM GRATUITA": al suo posto il tutorial delle funzioni Premium,
+      // che parte dopo il primo avvio guidato.
+      try { localStorage.setItem('trial_welcome_seen', '1'); } catch { /* ignore */ }
+      startPlanWelcome('premium');
+    }
 
     if (choice === 'free') {
       navigate(safeReturnTo(), { replace: true });
@@ -219,10 +237,18 @@ export default function Welcome() {
             className="flex-1 w-full"
           >
             {step === 4 && <Step4Auth data={data} onBlocked={() => setAgeBlocked(true)} onAuthRedirect={handleAuthRedirect} onGuest={handleGuestContinue} onBack={handleBack} />}
-            {step === 5 && <Step5Premium data={data} onFinish={handleFinish} />}
+            {step === 5 && trialUsed && <Step5Premium data={data} onFinish={handleFinish} />}
+            {step === 6 && <Step5Premium data={data} onFinish={handleFinish} />}
           </motion.div>
         </AnimatePresence>
       </div>
+      {step === 5 && !trialUsed && (
+        <StepTrial
+          onTrial={() => handleFinish('free', { appTrial: true })}
+          onSkip={() => handleFinish('free')}
+          onPlans={() => setStep(6)}
+        />
+      )}
       <WelcomeToProAnimation
         tier={celebrateTier}
         onClose={() => { setCelebrateTier(null); navigate('/home', { replace: true }); }}

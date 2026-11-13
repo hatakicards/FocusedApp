@@ -27,6 +27,7 @@ import { useFocusScheduler } from '@/lib/useFocusScheduler';
 import { useGymStringsSync } from '@/lib/gymLocation';
 import FirstRunFlow, { FIRST_RUN_KEY } from './firstrun/FirstRunFlow';
 import WelcomeIntro from './welcome/WelcomeIntro';
+import { setupToSettings } from '@/lib/welcomeSetup';
 import PlanWelcomeFlow from './planwelcome/PlanWelcomeFlow';
 import { readPlanWelcome } from '@/lib/planWelcome';
 import AgeVerificationModal from './AgeVerificationModal';
@@ -112,6 +113,7 @@ export default function AppLayout() {
         if (d.dream) patch.dream = d.dream;
         if (d.birthDate) patch.birth_date = d.birthDate;
         if (d.reminderTime) patch.reminder_time = d.reminderTime;
+        Object.assign(patch, setupToSettings(d.setup, settings));
         if (Object.keys(patch).length) await optimisticSettingsUpdate(settings.id, patch);
       }
     } catch (e) { console.warn('Welcome save failed', e); }

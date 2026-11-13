@@ -8,6 +8,7 @@ import { CATEGORIES, RANKS } from './constants';
 import { useOptimisticSave, useOptimisticRemove, useOptimisticUpdate, useOptimisticSettingsPatch } from './optimisticHelpers';
 import { mergePending, processQueue, addToQueue, clearQueue } from './syncQueue';
 import { refreshWidgets } from './nativeWidgetSync';
+import { isAppTrialActive } from './appTrial';
 
 // ---------------------------------------------------------------------------
 // Query hooks
@@ -59,7 +60,7 @@ export function useSubscription() {
   const trialStart = settings?.trial_start;
   const promoUntil = settings?.promo_until;
   const now = new Date();
-  const trialActive = trialStart && (now.getTime() - new Date(trialStart).getTime()) < 7 * 24 * 60 * 60 * 1000;
+  const trialActive = isAppTrialActive(trialStart, now.getTime());
   const trialExpired = trialStart && !trialActive;
   const promoActive = promoUntil && now.getTime() < new Date(promoUntil).getTime();
   const isPremium = tier === 'premium' || (tier === 'free' && trialActive) || promoActive;
