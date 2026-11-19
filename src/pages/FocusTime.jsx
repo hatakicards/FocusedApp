@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2, Check, Clock, Bell, Repeat, Lock, ChevronDown } from 'lucide-react';
+import { Play, Trash2, Clock, Bell, Lock, CalendarPlus, ChevronRight, Check, Target } from 'lucide-react';
 import {
   useFocusSessions,
   useHomeworks,
@@ -15,9 +15,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
 import { saveActiveFocus } from '@/lib/activeFocus';
-import FocusStats from '@/components/FocusStats';
 import UsageReportCard from '@/components/UsageReportCard';
-import FocusBlockCard from '@/components/FocusBlockCard';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
 import {
   isScreenTimeSupported,
@@ -26,12 +24,38 @@ import {
   getSessionMode,
   setSessionMode,
   resolveBlockMode,
+  setUsageGoal,
 } from '@/lib/nativeScreenTime';
 import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
 import IphoneToggle from '@/components/IphoneToggle';
 import { recurringSchedules, describeDays } from '@/lib/focusSchedule';
 
+// Obiettivo di tempo di utilizzo al giorno (minuti). Vive sul telefono e nell'App Group, dove la
+// vista nativa lo usa per il voto della giornata.
+const GOAL_KEY = 'focus_usage_goal_min';
+const DEFAULT_GOAL = 120;
+const GOAL_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300, 360];
+
+const readGoal = () => {
+  try {
+    const v = Number(localStorage.getItem(GOAL_KEY));
+    return GOAL_OPTIONS.includes(v) ? v : DEFAULT_GOAL;
+  } catch {
+    return DEFAULT_GOAL;
+  }
+};
+
+const fmtGoal = (min) => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return `${m} min`;
+  return m ? `${h} h ${m}` : `${h} h`;
+};
+
+// Focus Time (1.5), stile Opal: in alto l'obiettivo; sotto il tempo di utilizzo di oggi grande in
+// titanio con le 3 app piu' usate e il voto (vista nativa di Screen Time); poi "Avvia sessione" e
+// "Programma sessione" affiancati; sotto tutte le sessioni programmate.
 export default function FocusTime() {
   const { data: sessions } = useFocusSessions();
   const { data: homeworks } = useHomeworks();
@@ -48,8 +72,8 @@ export default function FocusTime() {
   const [prefillHomework, setPrefillHomework] = useState(null);
   const [quickMode, setQuickMode] = useState(getDefaultMode);
   const [quickMinutes, setQuickMinutes] = useState(25);
-  const [showAllPast, setShowAllPast] = useState(false);
-  const [tab, setTab] = useState(null);
+  const [goal, setGoal] = useState(readGoal);
+  const [goalOpen, setGoalOpen] = useState(false);
   const prefillHandledRef = useRef(false);
 
   useEffect(() => {
@@ -57,6 +81,8 @@ export default function FocusTime() {
       Notification.requestPermission().catch(() => {});
     }
   }, []);
+
+  useEffect(() => { setUsageGoal(goal); }, [goal]);
 
   useEffect(() => {
     if (prefillHandledRef.current) return;
@@ -79,19 +105,13 @@ export default function FocusTime() {
       .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)),
     [sessions, now]
   );
-  const past = useMemo(
-    () => (sessions || [])
-      .filter((s) => !s.is_recurring && s.status !== 'scheduled')
-      .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at)),
-    [sessions]
-  );
 
   const fmtWhen = (iso) =>
     new Date(iso).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const notifiedRef = useRef(new Set());
   useEffect(() => {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return undefined;
     const check = () => {
       const tm = Date.now();
       upcoming.forEach((s) => {
@@ -113,33 +133,17 @@ export default function FocusTime() {
     const wanted = modeOverride ?? (session?.id ? getSessionMode(session.id) : getDefaultMode());
     const blockMode = await resolveBlockMode(wanted);
     const durationMin = session?.duration_minutes || 25;
-    const active = {
+    saveActiveFocus({
       blockMode,
       durationMin,
       endAt: Date.now() + durationMin * 60 * 1000,
       spotifyUrl: session?.spotify_url || null,
       session: session || null,
-    };
-    saveActiveFocus(active);
+    });
     window.dispatchEvent(new Event('focus-active-changed'));
     if (session?.spotify_url) {
       try { window.open(session.spotify_url, '_blank'); } catch { /* ignore */ }
     }
-  };
-
-  // Ripete una sessione passata con la stessa durata, titolo e blocco.
-  const handleRepeat = async (s) => {
-    const mins = s.duration_minutes || 25;
-    const created = await optimisticFocusTimeSave(null, {
-      title: s.title,
-      scheduled_at: new Date().toISOString(),
-      duration_minutes: mins,
-      status: 'scheduled',
-      linked_homework_id: s.linked_homework_id || null,
-    });
-    const mode = created?.id ? getSessionMode(s.id) : getDefaultMode();
-    if (created?.id) setSessionMode(created.id, mode);
-    handleStart(created, mode);
   };
 
   const handleToggleSchedule = async (s, on) => {
@@ -178,153 +182,107 @@ export default function FocusTime() {
     if (!mins || autoStartRef.current) return;
     autoStartRef.current = true;
     handleQuickStart(mins);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const pickGoal = (min) => {
+    setGoal(min);
+    try { localStorage.setItem(GOAL_KEY, String(min)); } catch { /* ignore */ }
+    setGoalOpen(false);
+  };
+
+  const openSchedule = () => { setEditing(null); setFormOpen(true); };
   const group = 'divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-card';
-  const pastShown = showAllPast ? past : past.slice(0, 3);
-  const tabs = [
-    ['programs', t('ft_programmi'), schedules.length],
-    ['upcoming', t('ft_prossime'), upcoming.length],
-    ['history', t('ft_cronologia'), past.length],
-  ];
-  const activeTab = tab ?? (schedules.length ? 'programs' : upcoming.length ? 'upcoming' : past.length ? 'history' : 'programs');
+  const hasScheduled = schedules.length > 0 || upcoming.length > 0;
 
   return (
     <>
       <PullToRefresh onRefresh={invalidate}>
         <div className="mx-auto max-w-xl px-5 safe-top pb-4">
-          <header className="mb-6 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-3xl font-bold tracking-tight">{t('nav_focus')}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">{t('opt_sub')}</p>
-            </div>
-            <HelpButton pageId="focus" className="mt-1" />
+          {/* Obiettivo */}
+          <header className="mb-5 flex items-center justify-between gap-3">
+            <button onClick={() => setGoalOpen(true)} className="flex min-w-0 items-center gap-3 text-left active:opacity-70">
+              <span className="titanium-tile flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border">
+                <Target size={20} strokeWidth={1.8} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ftn_goal')}</span>
+                <span className="flex items-center gap-1 text-xl font-bold tracking-tight">
+                  {fmtGoal(goal)} <span className="text-sm font-medium text-muted-foreground">{t('ftn_per_day')}</span>
+                  <ChevronRight size={16} className="text-muted-foreground" />
+                </span>
+              </span>
+            </button>
+            <HelpButton pageId="focus" />
           </header>
 
-          <UsageReportCard className="mb-6" />
+          {/* Tempo di utilizzo, 3 app piu' usate e voto */}
+          <UsageReportCard className="mb-5" />
 
-          {/* Un'unica azione principale */}
-          <button
-            onClick={() => setQuickPick(true)}
-            className="titanium-bg mb-2 flex w-full flex-col items-center justify-center gap-0.5 rounded-3xl py-5 transition-transform active:scale-[0.98]"
-          >
-            <span className="flex items-center gap-2 text-lg font-bold"><Play size={20} /> {t('ft_avvia')}</span>
-            <span className="text-xs font-medium opacity-60">{t('opt_start_sub')}</span>
-          </button>
-          <button
-            onClick={() => { setEditing(null); setFormOpen(true); }}
-            className="mb-7 flex w-full items-center justify-center gap-1.5 py-2 text-sm font-semibold text-muted-foreground"
-          >
-            <Plus size={15} /> {t('opt_program_session')}
-          </button>
-
-          <FocusStats sessions={sessions} className="mb-7" />
-
-          <FocusBlockCard className="mb-7" />
-
-          {/* Una lista alla volta: programmi, prossime o cronologia */}
-          <div className="mb-3 flex gap-1 rounded-full bg-foreground/[0.06] p-1">
-            {tabs.map(([id, text, count]) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-xs font-semibold transition-colors ${activeTab === id ? 'bg-foreground text-background' : 'text-muted-foreground'}`}
-              >
-                {text}
-                {count > 0 && <span className={`text-[10px] tabular-nums ${activeTab === id ? 'opacity-60' : 'opacity-70'}`}>{count}</span>}
-              </button>
-            ))}
+          {/* Avvia / Programma */}
+          <div className="mb-8 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setQuickPick(true)}
+              className="titanium-bg flex h-28 flex-col justify-between rounded-3xl p-4 text-left transition-transform active:scale-[0.98]"
+            >
+              <Play size={22} />
+              <span className="text-base font-bold leading-tight">{t('ftn_start')}</span>
+            </button>
+            <button
+              onClick={openSchedule}
+              className="flex h-28 flex-col justify-between rounded-3xl border border-border bg-card p-4 text-left transition-transform active:scale-[0.98]"
+            >
+              <CalendarPlus size={22} />
+              <span className="text-base font-bold leading-tight">{t('ftn_schedule')}</span>
+            </button>
           </div>
 
-          {activeTab === 'programs' && (
-            schedules.length === 0 ? (
-              <button
-                onClick={() => { setEditing(null); setFormOpen(true); }}
-                className="w-full rounded-2xl border border-dashed border-border p-5 text-left text-xs text-muted-foreground"
-              >
-                {t('ft_prog_vuoto')}
-              </button>
-            ) : (
-              <div className={group}>
-                {schedules.map((s) => (
-                  <div key={s.id} className={`flex items-center justify-between gap-3 px-4 py-3.5 ${s.schedule_active === false ? 'opacity-50' : ''}`}>
-                    <button onClick={() => { setEditing(s); setFormOpen(true); }} className="min-w-0 text-left">
-                      <span className="block truncate text-sm font-semibold">{s.title}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Clock size={11} className="shrink-0" />
-                        <span className="truncate">{describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}</span>
-                        {s.block_mode && s.block_mode !== 'off' && <Lock size={11} className="shrink-0" />}
-                      </span>
-                    </button>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
-                      <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {activeTab === 'upcoming' && (
-            upcoming.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">{t('ft_nessuna')}</p>
-            ) : (
-              <div className={group}>
-                {upcoming.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
-                    <div className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{s.title}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Clock size={11} /> {fmtWhen(s.scheduled_at)} · {s.duration_minutes} min
-                        {s.reminder_enabled && <Bell size={11} />}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button onClick={() => handleStart(s)} className="rounded-lg bg-foreground p-2 text-background">
-                        <Play size={14} />
-                      </button>
-                      <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {activeTab === 'history' && (
-            past.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">{t('ft_nessuna')}</p>
-            ) : (
-              <div className={group}>
-                {pastShown.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 px-4 py-3.5">
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${s.status === 'done' ? 'bg-foreground text-background' : 'bg-foreground/10'}`}>
-                      {s.status === 'done' ? <Check size={14} /> : <Clock size={14} className="text-muted-foreground" />}
+          {/* Sessioni programmate */}
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('ftn_scheduled')}</h2>
+          {!hasScheduled ? (
+            <button onClick={openSchedule} className="w-full rounded-2xl border border-dashed border-border p-5 text-left text-xs text-muted-foreground">
+              {t('ft_prog_vuoto')}
+            </button>
+          ) : (
+            <div className={group}>
+              {schedules.map((s) => (
+                <div key={s.id} className={`flex items-center justify-between gap-3 px-4 py-3.5 ${s.schedule_active === false ? 'opacity-50' : ''}`}>
+                  <button onClick={() => { setEditing(s); setFormOpen(true); }} className="min-w-0 text-left">
+                    <span className="block truncate text-sm font-semibold">{s.title}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Clock size={11} className="shrink-0" />
+                      <span className="truncate">{describeDays(s.repeat_days, locale, { everyDay: t('ft_ogni_giorno'), weekdays: t('ft_feriali') })} · {s.start_time}–{s.end_time}</span>
+                      {s.block_mode && s.block_mode !== 'off' && <Lock size={11} className="shrink-0" />}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{s.title}</span>
-                      <span className="text-[11px] text-muted-foreground">{fmtWhen(s.scheduled_at)} · {s.actual_minutes ?? s.duration_minutes} min</span>
-                    </div>
-                    <button
-                      onClick={() => handleRepeat(s)}
-                      className="flex shrink-0 items-center gap-1 rounded-lg border border-border/70 px-2.5 py-1.5 text-[11px] font-semibold"
-                    >
-                      <Repeat size={12} /> {t('ft_ripeti')}
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <IphoneToggle checked={s.schedule_active !== false} onChange={(on) => handleToggleSchedule(s, on)} />
+                    <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive" aria-label={t('elimina')}>
+                      <Trash2 size={14} />
                     </button>
                   </div>
-                ))}
-                {past.length > 3 && (
-                  <button onClick={() => setShowAllPast((v) => !v)} className="flex w-full items-center justify-center gap-1.5 py-3 text-xs font-semibold text-muted-foreground">
-                    {showAllPast ? '' : `+${past.length - 3}`} <ChevronDown size={14} className={showAllPast ? 'rotate-180' : ''} />
-                  </button>
-                )}
-              </div>
-            )
+                </div>
+              ))}
+              {upcoming.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                  <div className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{s.title}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Clock size={11} /> {fmtWhen(s.scheduled_at)} · {s.duration_minutes} min
+                      {s.reminder_enabled && <Bell size={11} />}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button onClick={() => handleStart(s)} className="rounded-lg bg-foreground p-2 text-background" aria-label={t('ftn_start')}>
+                      <Play size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(s.id)} className="rounded-lg p-2 text-muted-foreground hover:text-destructive" aria-label={t('elimina')}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
           <FocusScheduleForm open={formOpen} schedule={editing} onClose={() => { setFormOpen(false); setEditing(null); }} onSaved={handleSchedule} />
@@ -355,8 +313,34 @@ export default function FocusTime() {
               disabled={quickMinutes < 1}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground py-3.5 text-sm font-semibold text-background transition-transform active:scale-[0.98] disabled:opacity-40"
             >
-              <Play size={16} /> {t('ft_avvia')}
+              <Play size={16} /> {t('ftn_start')}
             </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {goalOpen && createPortal(
+        <div className="fixed inset-0 z-[65] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center" onClick={() => setGoalOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-sm rounded-t-3xl border border-border bg-card px-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-5 sm:rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold">{t('ftn_goal_title')}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">{t('ftn_goal_sub')}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {GOAL_OPTIONS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => pickGoal(m)}
+                  className={`flex items-center justify-center gap-1 rounded-xl border py-3 text-sm font-semibold tabular-nums transition-colors ${goal === m ? 'border-foreground bg-foreground text-background' : 'border-border'}`}
+                >
+                  {goal === m && <Check size={14} strokeWidth={3} />}{fmtGoal(m)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>,
         document.body

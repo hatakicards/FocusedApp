@@ -24,6 +24,7 @@ import StreakCard from '@/components/StreakCard';
 import ReminderNudge from '@/components/today/ReminderNudge';
 import TodayActivities from '@/components/today/TodayActivities';
 import TodayGoals from '@/components/today/TodayGoals';
+import TodayHabits from '@/components/today/TodayHabits';
 import GreatDayCelebration from '@/components/GreatDayCelebration';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -124,6 +125,7 @@ export default function Oggi() {
         <ReminderNudge />
         <StreakCard />
         <TodayActivities />
+        <TodayHabits />
         <TodayGoals />
       </div>
 

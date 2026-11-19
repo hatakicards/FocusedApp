@@ -34,6 +34,8 @@ import { todayISO } from '@/lib/productivity';
 import { createDictation, isDictationAvailable } from '@/lib/speech';
 import { buildSensedSummary } from '@/lib/healthSense';
 import { buildTimetableSummary } from '@/lib/timetable';
+import { useActivityLimit } from '@/lib/activityLimit';
+import { sortTimes } from '@/lib/smallHabits';
 
 const SUGGESTIONS = [
   { key: 'focusy_sugg_gym', text: 'Come posso migliorare la mia scheda di allenamento?' },
@@ -198,6 +200,7 @@ CREAZIONE ELEMENTI: Se l'utente chiede di creare/aggiungere/fare qualcosa, DEVI 
 - "Crea una task/devo fare X" → create_task
 - "Aggiungi evento/riunione/scadenza X" → create_event
 - "Crea un compito/homework di X" → create_homework
+- "Aggiungi una small habit / piccola abitudine X (a un'attività)" → create_habit
 Se l'utente NON chiede di creare nulla, lascia "actions": [] e rispondi solo con "reply".
 
 === DATI UTENTE ===
@@ -259,6 +262,7 @@ Se l'utente chiede di creare qualcosa, compila "actions" con UN oggetto:
 3. create_task: { "type":"create_task", "title":"...", "task_type":"todo", "due_date":"YYYY-MM-DD (opzionale)", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
 4. create_event: { "type":"create_event", "title":"...", "task_type":"meeting|deadline", "due_date":"YYYY-MM-DD", "due_time":"HH:MM (opzionale)", "notes":"(opzionale)" }
 5. create_homework: { "type":"create_homework", "subject":"...", "title":"...", "due_date":"YYYY-MM-DD (opzionale)", "difficulty":"quick|medium|heavy" }
+6. create_habit (Small Habit: piccola abitudine dentro un'attività, si segna fatta / non fatta ogni giorno): { "type":"create_habit", "name":"...", "activity_name":"<nome esatto da ATTIVITÀ ESISTENTI>", "times":["HH:MM", ...], "days":[numeri 0-6, 0 = domenica; lista vuota = ogni giorno] }. Gli orari li scegli TU capendo l'abitudine (skincare mattutina -> mattina; skincare generica -> mattina e sera; cardio a fine allenamento -> dopo l'orario tipico dell'allenamento). Nel "reply" di' gli orari che hai proposto e che li può cambiare dalla pagina dell'attività.
 
 REGOLE:
 - Rispondi in massimo 4-5 righe, citando SEMPRE dati specifici dell'utente.
@@ -298,7 +302,7 @@ const RESPONSE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework', 'log_food'] },
+          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework', 'log_food', 'create_habit'] },
           name: { type: 'string' },
           category: { type: 'string' },
           emoji: { type: 'string' },
@@ -311,6 +315,8 @@ const RESPONSE_SCHEMA = {
           due_time: { type: 'string' },
           notes: { type: 'string' },
           subject: { type: 'string' },
+          times: { type: 'array', items: { type: 'string' } },
+          days: { type: 'array', items: { type: 'integer' } },
           items: {
             type: 'array',
             items: {
@@ -351,6 +357,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const { data: settings } = useUserSettings();
   const { data: activities } = useActivities();
+  const activityLimit = useActivityLimit();
   const { data: ratings } = useRatings();
   const { data: gymSessions } = useGymSessions();
   const { data: bodyFuelEntries } = useBodyFuelEntries();
@@ -508,6 +515,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
         return { ok: true, label: `${t('focusy_action_logged_food')} (${added.length})` };
       }
       if (action.type === 'create_activity') {
+        if (!activityLimit.canAdd) return { ok: false, label: t('fl_limit_focusy') };
         await base44.entities.Activity.create({
           name: action.name,
           category: action.category || 'custom',
@@ -527,6 +535,21 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
         });
         qc.invalidateQueries({ queryKey: ['goals'] });
         return { ok: true, label: t('focusy_action_created_goal') };
+      }
+      if (action.type === 'create_habit') {
+        const act = (activities || []).find((a) => a.name === action.activity_name);
+        if (!act || activityLimit.isLocked(act.id)) return { ok: false, label: t('focusy_action_no_activity') };
+        const name = String(action.name || '').trim().slice(0, 120);
+        if (!name) return { ok: false, label: t('focusy_action_unknown') };
+        const days = Array.isArray(action.days) ? [...new Set(action.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
+        await base44.entities.SmallHabit.create({
+          activity_id: act.id,
+          name,
+          times: sortTimes(action.times).slice(0, 6),
+          repeat_days: days.length && days.length < 7 ? days : null,
+        });
+        qc.invalidateQueries({ queryKey: ['smallHabits'] });
+        return { ok: true, label: t('focusy_action_created_habit') };
       }
       if (action.type === 'create_task') {
         await base44.entities.TaskItem.create({

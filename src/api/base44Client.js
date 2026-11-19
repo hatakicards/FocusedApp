@@ -42,12 +42,31 @@ function ensureSocialLoginInitialized() {
   return socialLoginInitPromise;
 }
 
+// L'SDK Google per iOS mette sempre un nonce nell'id_token: se Supabase non
+// riceve il nonce corrispondente rifiuta il login ("Passed nonce and nonce in
+// id_token should either both exist or not"). Diamo a Google l'hash SHA-256
+// di un nonce casuale e a Supabase il nonce in chiaro, che lui ri-hasha e
+// confronta con quello nel token.
+async function makeNonce() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const raw = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  const hashed = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  return { raw, hashed };
+}
+
 async function loginWithNativeSdk(provider, returnTo) {
   await ensureSocialLoginInitialized();
-  const { result } = await SocialLogin.login({ provider, options: {} });
+  const nonce = provider === 'google' ? await makeNonce() : null;
+  const options = nonce ? { nonce: nonce.hashed } : {};
+  const { result } = await SocialLogin.login({ provider, options });
   const idToken = result?.idToken;
   if (!idToken) throw shimError({ message: 'Nessun token restituito dal provider' }, 'Login failed');
-  const { error } = await supabase.auth.signInWithIdToken({ provider, token: idToken });
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider,
+    token: idToken,
+    ...(nonce ? { nonce: nonce.raw } : {}),
+  });
   if (error) throw shimError(error, 'Login failed');
   window.location.href = returnTo || '/home';
 }
@@ -365,8 +384,11 @@ async function loginWithProvider(provider, returnTo) {
 }
 
 async function register({ email, password }) {
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw shimError(error, 'Registration failed');
+  // Con la conferma email disattivata su Supabase la sessione arriva subito:
+  // chi chiama salta la schermata del codice ed entra direttamente.
+  return { session: data?.session || null };
 }
 
 async function verifyOtp({ email, otpCode }) {

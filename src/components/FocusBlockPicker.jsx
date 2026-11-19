@@ -94,6 +94,8 @@ export default function FocusBlockPicker({ mode, onChange }) {
 
       {mode === 'all_except' && <p className="text-[11px] leading-snug text-muted-foreground">{t('fb_all_note')}</p>}
       {mode === 'selected' && count === 0 && <p className="text-[11px] leading-snug text-muted-foreground">{t('fb_need_apps')}</p>}
+      {mode === 'selected' && <p className="text-[11px] leading-snug text-muted-foreground">{t('fb_tip_single')}</p>}
+      {count > 50 && <p className="text-[11px] leading-snug text-muted-foreground">{t('fb_over_limit')}</p>}
     </div>
   );
 }

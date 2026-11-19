@@ -17,6 +17,7 @@ import GymScheduleEditor from '@/components/GymScheduleEditor';
 import PhoneTimeSection from '@/components/PhoneTimeSection';
 import ReadingSection from '@/components/ReadingSection';
 import QuitSmokingSection from '@/components/QuitSmokingSection';
+import SmallHabitsSection from '@/components/habits/SmallHabitsSection';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -163,6 +164,7 @@ export default function ActivityDetailDesktop() {
 
           {/* RIGHT: calendar + goals below */}
           <div className="space-y-6">
+            <SmallHabitsSection activity={activity} />
             <section>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('detail_calendario')}</h2>
               <div className="rounded-2xl border border-border bg-card p-4">

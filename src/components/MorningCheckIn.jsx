@@ -14,6 +14,7 @@ import {
   useOptimisticDayEntry,
   useSubscription,
 } from '@/lib/useAppData';
+import { useActivityLimit } from '@/lib/activityLimit';
 import RatingPicker from '@/components/RatingPicker';
 import ActivityIcon from '@/components/ActivityIcon';
 
@@ -44,6 +45,7 @@ export default function MorningCheckIn() {
   const [dayRating, setDayRating] = useState(0);
 
   const { data: activities } = useActivities();
+  const activityLimit = useActivityLimit();
   const { data: ratings } = useRatings();
   const { data: dayEntries } = useDayEntries();
   const { data: tasks } = useTasks();
@@ -60,7 +62,7 @@ export default function MorningCheckIn() {
       const seen = localStorage.getItem(STORAGE_PREFIX + yesterday);
       if (!seen) {
         // Only show if there are unrated activities or no day rating for yesterday
-        const activeActivities = (activities || []).filter((a) => !a.archived);
+        const activeActivities = (activities || []).filter((a) => !a.archived && !activityLimit.isLocked(a.id));
         const yesterdayRatings = (ratings || []).filter((r) => r.date === yesterday);
         const ratedIds = new Set(yesterdayRatings.map((r) => r.activity_id));
         const hasUnrated = activeActivities.some((a) => !ratedIds.has(a.id));
@@ -94,7 +96,7 @@ export default function MorningCheckIn() {
 
   if (!open) return null;
 
-  const activeActivities = (activities || []).filter((a) => !a.archived);
+  const activeActivities = (activities || []).filter((a) => !a.archived && !activityLimit.isLocked(a.id));
   const yesterdayRatings = (ratings || []).filter((r) => r.date === yesterday);
   const yesterdayEntry = (dayEntries || []).find((e) => e.date === yesterday);
   const yesterdayGoals = dailyGoalsFor(goals, activities, yesterday);

@@ -5,6 +5,7 @@ import { Activity as ActivityIcon, X } from 'lucide-react';
 import { getDB } from '@/lib/guestDB';
 import { useT } from '@/lib/i18n';
 import { useActivities, useOptimisticRating } from '@/lib/useAppData';
+import { useActivityLimit } from '@/lib/activityLimit';
 import {
   isSenseAvailable,
   wasSenseAsked,
@@ -32,6 +33,7 @@ export default function SensedActivityPrompt() {
   const t = useT();
   const qc = useQueryClient();
   const { data: activities } = useActivities();
+  const activityLimit = useActivityLimit();
   const optimisticRate = useOptimisticRating();
   const [available, setAvailable] = useState(false);
   const [enabled, setEnabled] = useState(isSenseEnabled);
@@ -70,8 +72,9 @@ export default function SensedActivityPrompt() {
     .replace('{min}', String(ev.minutes));
 
   const handleRate = async (rating) => {
-    let act = (activities || []).find((a) => !a.archived && spec.match(a));
-    if (!act) {
+    let act = (activities || []).find((a) => !a.archived && spec.match(a) && !activityLimit.isLocked(a.id));
+    // Piano gratuito gia' a 4 attivita': non se ne crea una nuova, il voto non si salva.
+    if (!act && activityLimit.canAdd) {
       try {
         act = await getDB().Activity.create({ category: 'fitness', ...spec.create });
         qc.invalidateQueries({ queryKey: ['activities'] });

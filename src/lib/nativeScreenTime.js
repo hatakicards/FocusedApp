@@ -60,11 +60,44 @@ export const setKeepAwake = (enabled) =>
 export const syncSchedules = (schedules) =>
   call(() => FocusedScreenTime.syncSchedules({ schedules }), null);
 
-export async function startBlock(endAt, mode = 'selected') {
+// 1.5: obiettivo di tempo di utilizzo al giorno (minuti), usato dalla vista nativa per il voto.
+export const setUsageGoal = (minutes) => call(() => FocusedScreenTime.setUsageGoal({ minutes: Math.round(minutes) || 0 }), null);
+
+// 1.5 (build nativa nuova): stato del blocco condiviso con le estensioni. version === 2 vuol dire
+// che il blocco dei programmi lo gestisce iOS e che c'e' la pausa.
+let nativeV2Promise = null;
+export function isNativeV2() {
+  if (!isScreenTimeSupported()) return Promise.resolve(false);
+  if (!nativeV2Promise) {
+    nativeV2Promise = FocusedScreenTime.getBlockState()
+      .then((s) => s?.version === 2)
+      .catch(() => false);
+  }
+  return nativeV2Promise;
+}
+
+// Pausa del blocco: per `minutes` le app si sbloccano, poi il blocco torna da solo.
+export const pauseBlock = (minutes) =>
+  call(() => FocusedScreenTime.pauseBlock({ minutes: Math.round(minutes) }), { paused: false });
+export const resumeBlock = () => call(() => FocusedScreenTime.resumeBlock(), { active: false });
+
+// Eventi dal nativo: 'blockEnded' (blocco finito o tolto), 'blockResumed' (fine pausa).
+export function onNativeBlockEvent(event, cb) {
+  if (!isScreenTimeSupported()) return () => {};
+  let handle = null;
+  let removed = false;
+  Promise.resolve(FocusedScreenTime.addListener(event, cb)).then((h) => {
+    handle = h;
+    if (removed) h?.remove?.();
+  }).catch(() => {});
+  return () => { removed = true; handle?.remove?.(); };
+}
+
+export async function startBlock(endAt, mode = 'selected', { id } = {}) {
   if (!isScreenTimeSupported()) return { active: false };
   const attempt = async () => {
-    const r = await FocusedScreenTime.startBlock({ endAt: endAt.toISOString(), mode });
-    return { active: !!r.active };
+    const r = await FocusedScreenTime.startBlock({ endAt: endAt.toISOString(), mode, id: id ? String(id) : '' });
+    return { active: !!r.active, mode: r.mode };
   };
   try {
     return await attempt();
@@ -82,7 +115,9 @@ export async function startBlock(endAt, mode = 'selected') {
   }
 }
 
-export const stopBlock = () => call(async () => (await FocusedScreenTime.stopBlock()).active, false);
+// dismissSchedule: se il blocco in corso e' di un programma, per oggi non riparte.
+export const stopBlock = ({ dismissSchedule = true } = {}) =>
+  call(async () => (await FocusedScreenTime.stopBlock({ dismissSchedule })).active, false);
 
 export const getBlockState = () => call(() => FocusedScreenTime.getBlockState(), { active: false });
 
@@ -124,3 +159,6 @@ export async function resolveBlockMode(mode) {
   if (mode === 'selected') return (await getSelectionCount('block')) > 0 ? 'selected' : 'all_except';
   return mode;
 }
+
+// Info sulla vista del tempo di utilizzo: version 2 = vista 1.5 (tempo, 3 app, voto).
+export const getUsageInfo = () => call(() => FocusedScreenTime.hasUsageReport(), null);

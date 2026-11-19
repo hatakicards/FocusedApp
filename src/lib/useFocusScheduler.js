@@ -3,7 +3,7 @@ import { useFocusSessions, useUserSettings } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { saveActiveFocus, loadActiveFocus } from '@/lib/activeFocus';
 import { currentScheduleWindow, recurringSchedules, toNativeSchedule } from '@/lib/focusSchedule';
-import { resolveBlockMode, syncSchedules, setShieldContent, isScreenTimeSupported } from '@/lib/nativeScreenTime';
+import { resolveBlockMode, syncSchedules, setShieldContent, isScreenTimeSupported, isNativeV2 } from '@/lib/nativeScreenTime';
 
 const dismissKey = (id) => `focus_sched_dismissed_${id}_${new Date().toISOString().slice(0, 10)}`;
 
@@ -29,10 +29,16 @@ export function useFocusScheduler() {
 
   // Registra i programmi nell'estensione nativa (e il testo della schermata di blocco).
   useEffect(() => {
-    if (!isScreenTimeSupported() || !sessions) return;
+    if (!isScreenTimeSupported() || !sessions) return undefined;
     const list = recurringSchedules(sessions).filter((s) => s.schedule_active !== false && s.block_mode !== 'off');
-    setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
-      .then(() => syncSchedules(list.map(toNativeSchedule)));
+    const sync = () => setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
+      .then(() => syncSchedules(list.map(toNativeSchedule)))
+      .then(() => window.dispatchEvent(new Event('focus-native-sync')));
+    sync();
+    // Anche al ritorno nell'app: se nel frattempo e' arrivata l'autorizzazione Screen Time, i programmi si registrano.
+    const onVisible = () => { if (document.visibilityState === 'visible') sync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [sessions, settings?.dream]);
 
   useEffect(() => {
@@ -41,6 +47,9 @@ export function useFocusScheduler() {
       if (cancelled || loadActiveFocus()) return;
       const win = currentScheduleWindow(sessionsRef.current);
       if (!win || isDismissed(win.schedule.id)) return;
+      // Build nativa nuova: i programmi con blocco li fa partire iOS (anche ad app chiusa) e
+      // ActiveFocusHost li mostra leggendo lo stato del blocco. Qui restano solo quelli senza blocco.
+      if (win.schedule.block_mode !== 'off' && await isNativeV2()) return;
       const blockMode = await resolveBlockMode(win.schedule.block_mode || 'selected');
       if (cancelled || loadActiveFocus()) return;
       const remainingMin = Math.max(1, Math.round((win.endAt.getTime() - Date.now()) / 60000));

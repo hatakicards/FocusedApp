@@ -4,6 +4,7 @@ import { Sparkles, Send, Bot, User, Loader2, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useT, useI18n, weekdayShortByMonSun } from '@/lib/i18n';
 import { useInvalidateAll } from '@/lib/useAppData';
+import { useActivityLimit } from '@/lib/activityLimit';
 import { base44 } from '@/api/base44Client';
 import ActivityIcon, { iconKey } from '@/components/ActivityIcon';
 
@@ -83,6 +84,7 @@ ${history}`;
 
 export default function ProjectPlanner({ open, onClose }) {
   const t = useT();
+  const activityLimit = useActivityLimit();
   const { locale } = useI18n();
   const navigate = useNavigate();
   const invalidate = useInvalidateAll();
@@ -149,6 +151,10 @@ export default function ProjectPlanner({ open, onClose }) {
     setPartialError(null);
     try {
       let activity = createdActivityRef.current;
+      if (!activity && !activityLimit.canAdd) {
+        setMessages((m) => [...m, { role: 'assistant', content: t('fl_limit_focusy') }]);
+        return;
+      }
       if (!activity) {
         setCreateStep('activity');
         activity = await base44.entities.Activity.create({

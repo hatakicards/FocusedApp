@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Check, Lock } from 'lucide-react';
 import { useActivities, useRatings, useGoals, useOptimisticGoalToggle, useOptimisticRating, useOptimisticGoalDelete, useOptimisticActivityDelete, useSubscription, useUserSettings } from '@/lib/useAppData';
 import { isMinor } from '@/lib/ageCheck';
+import { useActivityLimit } from '@/lib/activityLimit';
 import PremiumModal from '@/components/PremiumModal';
 import { useT } from '@/lib/i18n';
 import { DIFFICULTY_INFO } from '@/lib/constants';
@@ -18,6 +19,7 @@ import PhoneTimeSection from '@/components/PhoneTimeSection';
 import ReadingSection from '@/components/ReadingSection';
 import QuitSmokingSection from '@/components/QuitSmokingSection';
 import TutorialDialog from '@/components/TutorialDialog';
+import SmallHabitsSection from '@/components/habits/SmallHabitsSection';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ActivityDetailDesktop from '@/components/desktop/ActivityDetailDesktop';
 import {
@@ -51,6 +53,7 @@ export default function ActivityDetail() {
   const { data: settings } = useUserSettings();
   const userIsMinor = isMinor(settings?.birth_date);
   const isMobile = useIsMobile();
+  const limit = useActivityLimit();
 
   const activity = (activities || []).find((a) => a.id === id);
 
@@ -71,6 +74,28 @@ export default function ActivityDetail() {
           <ArrowLeft size={20} />
         </button>
         <p className="text-muted-foreground text-sm">{t('detail_non_trovata')}</p>
+      </div>
+    );
+  }
+
+  // Piano gratuito oltre le 4 attivita': i dati restano, ma per vederli e votare serve un piano.
+  if (activity && limit.isLocked(activity.id)) {
+    return (
+      <div className="px-5 safe-top">
+        <button onClick={() => navigate(-1)} className="mb-6 -ml-1 text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft size={20} />
+        </button>
+        <div className="flex flex-col items-center pt-10 text-center">
+          <span className="titanium-tile mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-border">
+            <Lock size={26} strokeWidth={1.7} />
+          </span>
+          <h1 className="text-xl font-bold">{activity.name}</h1>
+          <p className="mt-2 max-w-xs text-sm text-muted-foreground">{t('fl_locked_detail')}</p>
+          <button onClick={() => setShowPremium(true)} className="titanium-bg mt-6 w-full max-w-xs rounded-2xl py-4 text-base font-bold active:scale-[0.98]">
+            {t('fl_unlock_pro')}
+          </button>
+        </div>
+        <PremiumModal open={showPremium} onClose={() => setShowPremium(false)} />
       </div>
     );
   }
@@ -177,6 +202,8 @@ export default function ActivityDetail() {
           )}
         </button>
       )}
+
+      <SmallHabitsSection activity={activity} />
 
       <section className="mb-8">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('detail_calendario')}</h2>

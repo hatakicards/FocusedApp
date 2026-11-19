@@ -80,8 +80,12 @@ export default function Step4Auth({ data, onAuthRedirect, onGuest, onBack, onBlo
         // Preserve query params (returnTo) through the redirect
         window.location.href = '/welcome' + window.location.search;
       } else {
-        await base44.auth.register({ email, password });
-        setShowOtp(true);
+        const res = await base44.auth.register({ email, password });
+        if (res?.session) {
+          window.location.href = '/welcome' + window.location.search;
+        } else {
+          setShowOtp(true);
+        }
       }
     } catch (err) {
       setError(err.message || 'Something went wrong');

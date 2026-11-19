@@ -41,6 +41,25 @@ export function useGoals() {
   });
 }
 
+// 1.5: Small Habits (src/lib/smallHabits.js).
+export function useSmallHabits() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['smallHabits', user?.id],
+    queryFn: async () => mergePending('SmallHabit', await getDB().SmallHabit.filter({ created_by_id: user.id }, 'sort_order', 1000)),
+    enabled: !!user,
+  });
+}
+
+export function useSmallHabitLogs() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['smallHabitLogs', user?.id],
+    queryFn: async () => mergePending('SmallHabitLog', await getDB().SmallHabitLog.filter({ created_by_id: user.id }, '-date', 5000)),
+    enabled: !!user,
+  });
+}
+
 export function useUserSettings() {
   const { user } = useAuth();
   return useQuery({
@@ -292,6 +311,8 @@ export function useInvalidateAll() {
     qc.invalidateQueries({ queryKey: ['readingLogs'] });
     qc.invalidateQueries({ queryKey: ['smokingProfiles'] });
     qc.invalidateQueries({ queryKey: ['smokingLogs'] });
+    qc.invalidateQueries({ queryKey: ['smallHabits'] });
+    qc.invalidateQueries({ queryKey: ['smallHabitLogs'] });
   }, [qc]);
 }
 
@@ -333,6 +354,10 @@ export const useOptimisticBookUpdate = () => useOptimisticUpdate('Book', 'books'
 export const useOptimisticReadingLogSave = () => useOptimisticSave('ReadingLog', 'readingLogs');
 export const useOptimisticSmokingProfileSave = () => useOptimisticSave('SmokingProfile', 'smokingProfiles');
 export const useOptimisticSmokingLogSave = () => useOptimisticSave('SmokingLog', 'smokingLogs');
+export const useOptimisticSmallHabitSave = () => useOptimisticSave('SmallHabit', 'smallHabits');
+export const useOptimisticSmallHabitDelete = () => useOptimisticRemove('SmallHabit', 'smallHabits');
+export const useOptimisticSmallHabitLogSave = () => useOptimisticSave('SmallHabitLog', 'smallHabitLogs');
+export const useOptimisticSmallHabitLogDelete = () => useOptimisticRemove('SmallHabitLog', 'smallHabitLogs');
 
 export function useOptimisticEntityDelete(entityName, queryKey) {
   return useOptimisticRemove(entityName, queryKey);
@@ -351,6 +376,10 @@ export function useOptimisticRating() {
     const prev = qc.getQueryData(key) || [];
     const existing = prev.find((r) => r.activity_id === activityId && r.date === date);
     if (existing?.rating === rating) return;
+    // Momento positivo (voto 4-5): RatePrompt puo' mostrare la finestra di valutazione di sistema.
+    if (rating >= 4) {
+      try { window.dispatchEvent(new CustomEvent('focused-positive-moment')); } catch { /* ignore */ }
+    }
 
     const isTemp = existing && typeof existing.id === 'string' && existing.id.startsWith('temp-');
 
@@ -777,6 +806,8 @@ export function useSyncInit() {
           GradeGoal: 'gradeGoals',
           Project: 'projects',
           UserSettings: 'userSettings',
+          SmallHabit: 'smallHabits',
+          SmallHabitLog: 'smallHabitLogs',
         };
         syncedEntities.forEach((entity) => {
           const qk = entityToKey[entity];

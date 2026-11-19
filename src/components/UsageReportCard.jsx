@@ -3,10 +3,12 @@ import { Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import {
   isScreenTimeSupported, getAuthorizationStatus, requestAuthorization,
-  hasUsageEmbed, showUsageEmbed, hideUsageEmbed, setUsageStrings,
+  hasUsageEmbed, showUsageEmbed, hideUsageEmbed, setUsageStrings, getUsageInfo,
 } from '@/lib/nativeScreenTime';
 
 const HEIGHT = 250;
+// 1.5: la vista nuova (tempo, 3 app piu' usate, voto) e' piu' alta.
+const HEIGHT_V2 = 372;
 
 // Tempo di utilizzo collegato a Screen Time (solo iOS, solo build con l'estensione di report).
 // iOS non lascia che l'app legga il numero: lo mostra una vista di sistema, che qui viene
@@ -19,12 +21,15 @@ export default function UsageReportCard({ className = '' }) {
   const [available, setAvailable] = useState(false);
   const [authorized, setAuthorized] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [v2, setV2] = useState(false);
 
   useEffect(() => {
     if (!isScreenTimeSupported()) return undefined;
     let alive = true;
     (async () => {
       const ok = await hasUsageEmbed();
+      const info = await getUsageInfo();
+      if (alive) setV2(info?.version === 2);
       if (!alive) return;
       setAvailable(ok);
       setChecked(true);
@@ -54,6 +59,10 @@ export default function UsageReportCard({ className = '' }) {
       continuing: t('pt_continue'),
       yearOne: t('pt_year_one'),
       yearMany: t('pt_year_many'),
+      topApps: t('ftn_top_apps'),
+      vote: t('ftn_vote'),
+      left: t('ftn_left'),
+      over: t('ftn_over'),
     });
     place();
     const timers = [setTimeout(place, 150), setTimeout(place, 500), setTimeout(place, 1200)];
@@ -76,11 +85,23 @@ export default function UsageReportCard({ className = '' }) {
 
   // Mai un campo da compilare: il tempo di utilizzo lo sa da solo il telefono. Finche' questa
   // versione dell'app non contiene l'estensione di report, la scheda lo dice e basta.
-  if (!isScreenTimeSupported() || !checked) return null;
+  if (!isScreenTimeSupported()) {
+    // Web e Android: il tempo di utilizzo lo legge solo l'app per iPhone.
+    return (
+      <div className={`flex items-start gap-3 rounded-3xl border border-border bg-card p-5 ${className}`}>
+        <Smartphone size={18} className="mt-0.5 shrink-0" />
+        <span>
+          <span className="block text-sm font-semibold">{t('opt_usage_title')}</span>
+          <span className="block text-xs text-muted-foreground">{t('ftn_usage_iphone')}</span>
+        </span>
+      </div>
+    );
+  }
+  if (!checked) return null;
   if (!available) {
     return (
       <div className={`flex items-start gap-3 rounded-2xl border border-border bg-card p-4 ${className}`}>
-        <Smartphone size={18} className="mt-0.5 shrink-0 text-blue-400" />
+        <Smartphone size={18} className="mt-0.5 shrink-0" />
         <span>
           <span className="block text-sm font-semibold">{t('opt_usage_title')}</span>
           <span className="block text-xs text-muted-foreground">{t('opt_usage_pending')}</span>
@@ -95,7 +116,7 @@ export default function UsageReportCard({ className = '' }) {
         onClick={async () => setAuthorized((await requestAuthorization()) === 'authorized')}
         className={`flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left ${className}`}
       >
-        <Smartphone size={18} className="text-blue-400" />
+        <Smartphone size={18} />
         <span>
           <span className="block text-sm font-semibold">{t('opt_usage_title')}</span>
           <span className="block text-xs text-muted-foreground">{t('fb_attiva')}</span>
@@ -104,5 +125,5 @@ export default function UsageReportCard({ className = '' }) {
     );
   }
 
-  return <div ref={boxRef} className={className} style={{ height: HEIGHT }} />;
+  return <div ref={boxRef} className={`rounded-3xl bg-black ${className}`} style={{ height: v2 ? HEIGHT_V2 : HEIGHT }} />;
 }

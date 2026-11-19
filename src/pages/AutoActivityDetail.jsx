@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Lock } from 'lucide-react';
+import PremiumModal from '@/components/PremiumModal';
 import { useBodyFuelEntries, useUserSettings, useSubscription } from '@/lib/useAppData';
 import { useI18n, useT } from '@/lib/i18n';
 import { computeLongestStreak, todayISO } from '@/lib/productivity';
-import { useAutoActivities } from '@/lib/autoActivities';
+import { useAutoActivities, AUTO_ACTIVITIES } from '@/lib/autoActivities';
 import { RATING_COLORS } from '@/lib/constants';
 import ActivityIcon from '@/components/ActivityIcon';
 import StreakBadge from '@/components/StreakBadge';
@@ -31,6 +32,27 @@ export default function AutoActivityDetail() {
   const longest = useMemo(() => (activity ? computeLongestStreak(activity.ratings) : 0), [activity]);
   const recent = useMemo(() => [...(activity?.ratings || [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14), [activity]);
   const entryOf = (date) => (entries || []).find((e) => e.date === date);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const lockedDef = !sub.canUseProfiles ? AUTO_ACTIVITIES.find((a) => a.id === `auto-${id}`) : null;
+
+  if (lockedDef) {
+    return (
+      <div className="px-5 safe-top">
+        <button onClick={() => navigate(-1)} className="mb-6 -ml-1 text-muted-foreground"><ArrowLeft size={20} /></button>
+        <div className="flex flex-col items-center pt-10 text-center">
+          <span className="titanium-tile mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-border">
+            <Lock size={26} strokeWidth={1.7} />
+          </span>
+          <h1 className="text-xl font-bold">{t(lockedDef.nameKey)}</h1>
+          <p className="mt-2 max-w-xs text-sm text-muted-foreground">{t('fl_auto_locked')}</p>
+          <button onClick={() => setPremiumOpen(true)} className="titanium-bg mt-6 w-full max-w-xs rounded-2xl py-4 text-base font-bold active:scale-[0.98]">
+            {t('fl_unlock_premium')}
+          </button>
+        </div>
+        <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      </div>
+    );
+  }
 
   if (!activity) {
     return (

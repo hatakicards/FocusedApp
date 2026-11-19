@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Star } from 'lucide-react';
+import { Plus, Star, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useActivities, useRatings, useSubscription, useOptimisticRating } from '@/lib/useAppData';
 import { useT } from '@/lib/i18n';
 import { computeStreak, todayISO } from '@/lib/productivity';
-import { useAutoActivities } from '@/lib/autoActivities';
+import { useAutoActivities, AUTO_ACTIVITIES } from '@/lib/autoActivities';
+import { useActivityLimit } from '@/lib/activityLimit';
+import PremiumModal from '@/components/PremiumModal';
+import FreeLimitNotice from '@/components/today/FreeLimitNotice';
 import ActivityIcon from '@/components/ActivityIcon';
 import ActivityForm from '@/components/ActivityForm';
 import FireStreak from '@/components/FireStreak';
@@ -72,6 +75,30 @@ function Tile({ icon, name, streak, onOpen, left }) {
   );
 }
 
+// Casella con il lucchetto (piano gratuito): sfumata, con "Sblocca con Premium" al posto del voto.
+// Un tocco apre i piani.
+function LockedTile({ icon, name, label, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="titanium-tile relative flex aspect-square flex-col rounded-3xl border border-border/70 p-3 text-left active:scale-[0.98]"
+      aria-label={`${name}. ${label}`}
+    >
+      <span className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center opacity-35">
+        <ActivityIcon name={icon} size={42} className="text-foreground" />
+        <span className="w-full truncate text-sm font-semibold">{name}</span>
+      </span>
+      <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10">
+        <Lock size={13} />
+      </span>
+      <span className="mt-1 flex h-8 items-center justify-center rounded-full bg-foreground/10 px-2 text-[11px] font-semibold">
+        {label}
+      </span>
+    </button>
+  );
+}
+
 export default function TodayActivities() {
   const navigate = useNavigate();
   const t = useT();
@@ -80,8 +107,11 @@ export default function TodayActivities() {
   const sub = useSubscription();
   const optimisticRate = useOptimisticRating();
   const [formOpen, setFormOpen] = useState(false);
+  const [premiumOpen, setPremiumOpen] = useState(false);
   const today = todayISO();
   const auto = useAutoActivities(sub.canUseProfiles, today);
+  const limit = useActivityLimit();
+  const unlockLabel = t('fl_unlock_premium');
 
   const list = (activities || [])
     .filter((a) => !a.archived && !a.is_gym && !a.preset_type)
@@ -92,6 +122,10 @@ export default function TodayActivities() {
       <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('today_attivita')}</h2>
 
       <div className="grid grid-cols-2 gap-2.5">
+        {!sub.canUseProfiles && AUTO_ACTIVITIES.map((a) => (
+          <LockedTile key={a.id} icon={a.icon} name={t(a.nameKey)} label={unlockLabel} onOpen={() => setPremiumOpen(true)} />
+        ))}
+
         {auto.map((a) => (
           <Tile
             key={a.id}
@@ -111,6 +145,11 @@ export default function TodayActivities() {
           const aRatings = (ratings || []).filter((r) => r.activity_id === activity.id);
           const streak = computeStreak(aRatings);
           const todayRating = aRatings.find((r) => r.date === today)?.rating;
+          if (limit.isLocked(activity.id)) {
+            return (
+              <LockedTile key={activity.id} icon={activity.emoji} name={activity.name} label={t('fl_unlock_pro')} onOpen={() => setPremiumOpen(true)} />
+            );
+          }
           return (
             <Tile
               key={activity.id}
@@ -124,11 +163,14 @@ export default function TodayActivities() {
         })}
 
         <button
-          onClick={() => setFormOpen(true)}
+          onClick={() => (limit.canAdd ? setFormOpen(true) : setPremiumOpen(true))}
           className="flex aspect-square flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-border text-muted-foreground active:scale-[0.98]"
         >
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border"><Plus size={22} /></span>
-          <span className="text-xs font-semibold">{t('nuova')}</span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border">
+            {limit.canAdd ? <Plus size={22} /> : <Lock size={20} />}
+          </span>
+          <span className="text-xs font-semibold">{limit.canAdd ? t('nuova') : t('fl_limit_tile')}</span>
+          {!limit.canAdd && <span className="px-3 text-center text-[10px] leading-tight">{t('fl_limit_hint')}</span>}
         </button>
       </div>
 
@@ -137,6 +179,8 @@ export default function TodayActivities() {
       )}
 
       <ActivityForm open={formOpen} onClose={() => setFormOpen(false)} activity={null} />
+      <PremiumModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      <FreeLimitNotice />
     </section>
   );
 }
