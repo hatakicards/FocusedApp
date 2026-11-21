@@ -10,6 +10,7 @@ import WorkspaceUpcoming from '@/components/WorkspaceUpcoming';
 import WorkspaceAddItem from '@/components/WorkspaceAddItem';
 import ProjectsList from '@/components/workspace/ProjectsList';
 import ProjectPlanner from '@/components/workspace/ProjectPlanner';
+import ProjectTimeCard from '@/components/workspace/ProjectTimeCard';
 import LockedPreview from '@/components/LockedPreview';
 import { useTourTab } from '@/lib/planWelcome';
 
@@ -135,7 +136,12 @@ function WorkspaceInner() {
         </button>
       </div>
 
-      {tab === 'progetti' && <ProjectsList onNewProject={() => setPlannerOpen(true)} />}
+      {tab === 'progetti' && (
+        <>
+          <ProjectTimeCard className="mb-5" />
+          <ProjectsList onNewProject={() => setPlannerOpen(true)} />
+        </>
+      )}
 
       {tab === 'giornata' && (
         <>

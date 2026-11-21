@@ -8,14 +8,12 @@ import { useT, useI18n } from '@/lib/i18n';
 import { GRADE_SYSTEMS, formatGrade, formatGradeNumber, normalizeGrade } from '@/lib/grades';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import TutorialDialog from '@/components/TutorialDialog';
-import GradeSimulator from '@/components/lezioni/GradeSimulator';
 import TestTimeline from '@/components/lezioni/TestTimeline';
 import SubjectManagement from '@/components/lezioni/SubjectManagement';
 import { GradeInput, resolveGrade } from '@/components/lezioni/GradeInput';
 import GradeSystemPicker from '@/components/lezioni/GradeSystemPicker';
 import SubjectPicker from '@/components/lezioni/SubjectPicker';
 import TimetableTab from '@/components/lezioni/TimetableTab';
-import ReadingSection from '@/components/ReadingSection';
 import LockedPreview from '@/components/LockedPreview';
 import { useTourTab } from '@/lib/planWelcome';
 
@@ -52,6 +50,8 @@ function LezioniInner() {
   const [vGrade, setVGrade] = useState('');
   const [vSystem, setVSystem] = useState('scale10');
   const [materieOpen, setMaterieOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [selSubjectRaw, setSelSubject] = useState('');
 
   const allGrades = grades || [];
   const allVerifiche = verifiche || [];
@@ -84,6 +84,14 @@ function LezioniInner() {
       }));
     return { subject: subj, data };
   }).filter((s) => s.data.length >= 1);
+
+  // Materia scelta a tendina: se non hai ancora scelto, quella del voto piu' recente.
+  const selSubject = selSubjectRaw || sortedGrades[0]?.subject || '';
+  const subjGrades = sortedGrades.filter((g) => g.subject === selSubject);
+  const subjAvg = subjGrades.length
+    ? subjGrades.reduce((sum, g) => sum + normalizeGrade(g.grade, g.grade_system), 0) / subjGrades.length
+    : 0;
+  const subjChart = subjectCharts.find((c) => c.subject === selSubject)?.data || [];
 
   const upcomingVerifiche = allVerifiche
     .filter((v) => v.status === 'scheduled')
@@ -177,7 +185,7 @@ function LezioniInner() {
       </header>
 
       <div data-tour="lezioni-tabs" className="mb-6 flex gap-1 overflow-x-auto rounded-full bg-foreground/[0.06] p-1 scrollbar-hide">
-        {['voti', 'verifiche', 'orario', 'libri', 'simulatore'].map((tabKey) => (
+        {['voti', 'verifiche', 'orario'].map((tabKey) => (
           <button
             key={tabKey}
             onClick={() => setTab(tabKey)}
@@ -190,76 +198,114 @@ function LezioniInner() {
 
       {tab === 'voti' && (
         <>
-          {allGrades.length > 0 && (
-            <div className="rounded-2xl border border-border bg-card p-4 mb-6 text-center">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{t('ls_media_generale')}</p>
-              <p className="text-3xl font-bold tabular-nums">{Math.round(avgNormalized)}<span className="text-base text-muted-foreground">/100</span></p>
-            </div>
-          )}
-
-
-          <div className="rounded-2xl border border-border bg-card p-4 mb-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('ls_oggi')}</p>
-            <div className="space-y-2">
-              <SubjectPicker subjects={pickSubjects} value={subject} onChange={setSubject} onManage={() => setMaterieOpen(true)} />
-              <GradeSystemPicker value={system} onChange={(v) => { setSystem(v); setGradeVal(''); }} />
-              <div className="flex gap-2">
-                <GradeInput system={system} value={gradeVal} onChange={setGradeVal} placeholder={t('ls_voto_ph')} />
-              </div>
-            </div>
+          {/* Media generale, grande, con il + per aggiungere un voto */}
+          <div className="relative mb-5 overflow-hidden rounded-3xl border border-border bg-card p-6 pb-7">
+            <span className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl" style={{ background: '#3b82f6' }} />
+            <p className="relative text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ls_media_generale')}</p>
+            <p className="relative mt-2 flex items-baseline gap-1.5">
+              <span className="titanium-text text-7xl font-extrabold leading-none tabular-nums">{allGrades.length ? Math.round(avgNormalized) : '–'}</span>
+              <span className="text-lg font-semibold text-muted-foreground">/100</span>
+            </p>
+            <p className="relative mt-2 text-xs text-muted-foreground">{allGrades.length} {t('lsn_voti_count')}</p>
             <button
-              onClick={handleAddGrade}
-              disabled={!subject.trim() || resolveGrade(gradeVal, system) == null}
-              className="mt-3 w-full rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              onClick={() => { setSubject(selSubject || ''); setAddOpen(true); }}
+              aria-label={t('ls_aggiungi')}
+              className="titanium-bg absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform active:scale-90"
             >
-              <Plus size={16} /> {t('ls_aggiungi')}
+              <Plus size={22} strokeWidth={2.4} />
             </button>
           </div>
 
-          {subjectCharts.map((sc) => (
-            <div key={sc.subject} className="rounded-2xl border border-border bg-card p-4 mb-4">
-              <p className="text-xs font-semibold mb-3">{sc.subject}</p>
-              <ResponsiveContainer width="100%" height={140}>
-                <LineChart data={sc.data}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" width={30} />
-                  <Tooltip
-                    contentStyle={{ background: 'hsl(0 0% 4%)', border: '1px solid hsl(0 0% 14%)', borderRadius: 12, fontSize: 12 }}
-                    labelStyle={{ color: 'hsl(0 0% 45%)' }}
-                  />
-                  <Line type="monotone" dataKey="voto" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} activeDot={{ r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ))}
-
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t('storico')}</p>
-          {sortedGrades.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">{t('nessun_dato')}</p>
-          ) : (
-            <div className="space-y-2">
-              {sortedGrades.map((g) => {
-                const gSys = GRADE_SYSTEMS[g.grade_system] || GRADE_SYSTEMS.scale10;
-                return (
-                  <div key={g.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{g.subject}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{new Date(g.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })} · {gSys.label}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold tabular-nums text-blue-500">{formatGrade(g.grade, g.grade_system)}</span>
-                      <button onClick={() => setEditGrade(g)} className="text-muted-foreground hover:text-foreground">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDeleteGrade(g.id)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Materia a tendina: grafico, media e storico di quella materia */}
+          {subjects.length > 0 && (
+            <div className="mb-4">
+              <SubjectPicker subjects={subjects} value={selSubject} onChange={setSelSubject} onManage={() => setMaterieOpen(true)} placeholder={t('lsn_scegli_materia')} />
             </div>
           )}
+
+          {selSubject && (
+            <>
+              <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <p className="truncate text-sm font-semibold">{selSubject}</p>
+                  <p className="shrink-0 text-2xl font-bold tabular-nums" style={{ color: '#60a5fa' }}>
+                    {subjGrades.length ? Math.round(subjAvg) : '–'}<span className="text-xs font-semibold text-muted-foreground">/100</span>
+                  </p>
+                </div>
+                {subjChart.length >= 1 ? (
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={subjChart}>
+                      <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" width={30} />
+                      <Tooltip
+                        contentStyle={{ background: 'hsl(0 0% 4%)', border: '1px solid hsl(0 0% 14%)', borderRadius: 12, fontSize: 12 }}
+                        labelStyle={{ color: 'hsl(0 0% 45%)' }}
+                      />
+                      <Line type="monotone" dataKey="voto" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="py-6 text-center text-xs text-muted-foreground">{t('lsn_nessun_voto_materia')}</p>
+                )}
+              </div>
+
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('storico')}</p>
+              {subjGrades.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">{t('nessun_dato')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {subjGrades.map((g) => {
+                    const gSys = GRADE_SYSTEMS[g.grade_system] || GRADE_SYSTEMS.scale10;
+                    return (
+                      <div key={g.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium capitalize">{new Date(g.date + 'T00:00:00').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                          <p className="text-xs text-muted-foreground">{gSys.label}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold tabular-nums" style={{ color: '#60a5fa' }}>{formatGrade(g.grade, g.grade_system)}</span>
+                          <button onClick={() => setEditGrade(g)} className="text-muted-foreground hover:text-foreground" aria-label={t('modifica')}>
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteGrade(g.id)} className="text-muted-foreground hover:text-destructive" aria-label={t('elimina')}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Aggiungi voto */}
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t('lsn_nuovo_voto')}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <SubjectPicker subjects={pickSubjects} value={subject} onChange={setSubject} onManage={() => { setAddOpen(false); setMaterieOpen(true); }} />
+                <GradeSystemPicker value={system} onChange={(v) => { setSystem(v); setGradeVal(''); }} />
+                <div className="flex gap-2">
+                  <GradeInput system={system} value={gradeVal} onChange={setGradeVal} placeholder={t('ls_voto_ph')} />
+                </div>
+              </div>
+              <DialogFooter>
+                <button onClick={() => setAddOpen(false)} className="rounded-xl px-4 py-2.5 text-sm font-medium text-muted-foreground">
+                  {t('annulla')}
+                </button>
+                <button
+                  onClick={async () => { const s = subject; await handleAddGrade(); setAddOpen(false); if (s) setSelSubject(s); }}
+                  disabled={!subject.trim() || resolveGrade(gradeVal, system) == null}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-2.5 text-sm font-semibold text-background transition-all active:scale-95 disabled:opacity-40"
+                >
+                  <Plus size={16} /> {t('ls_aggiungi')}
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={!!editGrade} onOpenChange={(v) => !v && setEditGrade(null)}>
             <DialogContent>
@@ -443,11 +489,6 @@ function LezioniInner() {
         <TimetableTab subjects={pickSubjects} onManageSubjects={() => setMaterieOpen(true)} />
       )}
 
-      {tab === 'libri' && <ReadingSection />}
-
-      {tab === 'simulatore' && (
-        <GradeSimulator grades={allGrades} onManageSubjects={() => setMaterieOpen(true)} />
-      )}
 
       <SubjectManagement open={materieOpen} onClose={() => setMaterieOpen(false)} />
       <TutorialDialog pageId="lezioni" />

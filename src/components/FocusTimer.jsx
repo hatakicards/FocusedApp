@@ -94,7 +94,7 @@ export default function FocusTimer({ durationMin, endAt, spotifyUrl, session, bl
     if (endAtRef.current <= Date.now()) return;
     scheduleSessionEnd(new Date(endAtRef.current), t('ftimer_notif_title'), t('ftimer_notif_body'));
     if (nativeOwned) return;
-    setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
+    setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button'), pause: t('shield_pause') })
       .then(() => startBlock(new Date(endAtRef.current), blockMode, { id: session?.id }))
       .then(async (r) => {
         if (!r.active) { setBlockFailed(r.error || true); return; }

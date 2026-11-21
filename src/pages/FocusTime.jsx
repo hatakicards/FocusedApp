@@ -16,6 +16,7 @@ import FocusScheduleForm from '@/components/FocusScheduleForm';
 import DurationPicker from '@/components/DurationPicker';
 import { saveActiveFocus } from '@/lib/activeFocus';
 import UsageReportCard from '@/components/UsageReportCard';
+import BlockStatusCard from '@/components/BlockStatusCard';
 import FocusBlockPicker from '@/components/FocusBlockPicker';
 import {
   isScreenTimeSupported,
@@ -215,6 +216,9 @@ export default function FocusTime() {
             </button>
             <HelpButton pageId="focus" />
           </header>
+
+          {/* Blocco in corso: pausa, ripresa, fine */}
+          <BlockStatusCard className="mb-5" />
 
           {/* Tempo di utilizzo, 3 app piu' usate e voto */}
           <UsageReportCard className="mb-5" />

@@ -32,38 +32,19 @@ const MODES = [
 
 const TUTORIALS_COVERED = ['obiettivi', 'bodyfuel', 'lezioni', 'workspace'];
 
+// 1.5: tour corto (7 passi Premium, 4 Pro). Prima erano 18: troppi, la gente scappava. Il resto lo
+// spiegano la lista "cosa hai sbloccato" e i mini-tutorial di ogni pagina.
 function buildSteps(tier) {
-  const lifegame = [
-    { id: 'ranks', kind: 'spot', route: '/obiettivi', tab: ['lifegame', 'ranking'], target: '[data-tour="rank-grid"]', passthrough: true, eyebrow: 'LifeGame', title: 'pw_ranks_t', text: 'pw_ranks_d', waitMedallion: true },
-    { id: 'stats', kind: 'spot', route: '/obiettivi', tab: ['lifegame', 'lifestats'], target: '[data-tour="lg-tabs"]', dim: 0.55, sheetAtBottom: true, eyebrow: 'LifeGame', title: 'pw_stats_t', text: 'pw_stats_d' },
-  ];
-  if (tier !== 'premium') return [{ id: 'unlock', kind: 'unlock' }, { id: 'intro', kind: 'intro' }, ...lifegame, { id: 'done', kind: 'done' }];
+  const ranks = { id: 'ranks', kind: 'spot', route: '/obiettivi', tab: ['lifegame', 'ranking'], target: '[data-tour="rank-grid"]', passthrough: true, eyebrow: 'LifeGame', title: 'pw_ranks_t', text: 'pw_ranks_d', waitMedallion: true };
+  if (tier !== 'premium') return [{ id: 'unlock', kind: 'unlock' }, { id: 'intro', kind: 'intro' }, ranks, { id: 'done', kind: 'done' }];
 
-  const ath = { route: '/body-fuel', profile: 'atleta', eyebrow: 'pw_eb_athlete', swipe: true };
-  const st = { route: '/lezioni', profile: 'studente', eyebrow: 'pw_eb_student', swipe: true };
-  const ws = { route: '/workspace', profile: 'professionista', eyebrow: 'pw_eb_pro', swipe: true };
   return [
     { id: 'unlock', kind: 'unlock' },
     { id: 'intro', kind: 'intro' },
-    ...lifegame,
-    { id: 'modes', kind: 'spot', route: '/home', target: '[data-tour="profile-selector"]', eyebrow: 'pw_eb_modes', title: 'pw_modes_t', text: 'pw_modes_d' },
-    { id: 'ath_top', kind: 'spot', ...ath, target: '[data-tour="bf-top"]', title: 'pw_ath_top_t', text: 'pw_ath_top_d' },
-    { id: 'ath_food', kind: 'spot', ...ath, target: '[data-tour="bf-food"]', title: 'pw_ath_food_t', text: 'pw_ath_food_d' },
-    { id: 'ath_sleep', kind: 'spot', ...ath, target: '[data-tour="bf-sleep"]', title: 'pw_ath_sleep_t', text: 'pw_ath_sleep_d' },
-    { id: 'swipe', kind: 'spot', ...ath, target: '[data-tour="mode-dots"]', dim: 0.6, title: 'pw_swipe_t', text: 'pw_swipe_d', hand: true },
-    { id: 'st_materie', kind: 'spot', ...st, target: '[data-tour="materie"]', title: 'pw_st_materie_t', text: 'pw_st_materie_d', subjects: true },
-    { id: 'st_voti', kind: 'spot', ...st, tab: ['lezioni', 'voti'], target: '[data-tour="lezioni-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_st_voti_t', text: 'pw_st_voti_d' },
-    { id: 'st_verifiche', kind: 'spot', ...st, tab: ['lezioni', 'verifiche'], target: '[data-tour="lezioni-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_st_verifiche_t', text: 'pw_st_verifiche_d' },
-    { id: 'st_orario', kind: 'spot', ...st, tab: ['lezioni', 'orario'], target: '[data-tour="lezioni-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_st_orario_t', text: 'pw_st_orario_d' },
-    { id: 'st_libri', kind: 'spot', ...st, tab: ['lezioni', 'libri'], target: '[data-tour="lezioni-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_st_libri_t', text: 'pw_st_libri_d' },
-    { id: 'st_sim', kind: 'spot', ...st, tab: ['lezioni', 'simulatore'], target: '[data-tour="lezioni-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_st_sim_t', text: 'pw_st_sim_d' },
-    {
-      id: 'st_links', kind: 'spot', ...st, tab: ['lezioni', 'voti'], title: 'pw_st_links_t', text: 'pw_st_links_d',
-      bullets: [[CalendarCheck, 'pw_st_link_agenda'], [Bell, 'pw_st_link_remind'], [Sparkles, 'pw_st_link_focusy'], [Timer, 'pw_st_link_focus']],
-    },
-    { id: 'ws_day', kind: 'spot', ...ws, tab: ['workspace', 'giornata'], target: '[data-tour="ws-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_ws_day_t', text: 'pw_ws_day_d' },
-    { id: 'ws_projects', kind: 'spot', ...ws, tab: ['workspace', 'progetti'], target: '[data-tour="ws-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_ws_proj_t', text: 'pw_ws_proj_d' },
-    { id: 'focusy', kind: 'focusy' },
+    ranks,
+    { id: 'ath_food', kind: 'spot', route: '/body-fuel', profile: 'atleta', eyebrow: 'pw_eb_modes', tab: ['athlete', 'food'], target: '[data-tour="bf-food"]', title: 'pw2_ath_food_t', text: 'pw2_ath_food_d' },
+    { id: 'st_materie', kind: 'spot', route: '/lezioni', profile: 'studente', eyebrow: 'pw_eb_modes', target: '[data-tour="materie"]', title: 'pw_st_materie_t', text: 'pw_st_materie_d', subjects: true },
+    { id: 'ws_projects', kind: 'spot', route: '/workspace', profile: 'professionista', eyebrow: 'pw_eb_modes', tab: ['workspace', 'progetti'], target: '[data-tour="ws-tabs"]', dim: 0.55, sheetAtBottom: true, title: 'pw_ws_proj_t', text: 'pw_ws_proj_d' },
     { id: 'choose', kind: 'choose' },
   ];
 }

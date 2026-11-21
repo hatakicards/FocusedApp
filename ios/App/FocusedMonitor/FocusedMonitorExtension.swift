@@ -5,7 +5,7 @@ import Foundation
 
 // Fa partire e finire da solo il blocco di Focus Time anche quando l app e chiusa:
 // - programmi ricorrenti ("ogni giovedi 15:00-18:00"), registrati dall app (syncSchedules);
-// - fine di una sessione avviata a mano (monitor "focus.session");
+// - fine di una sessione avviata a mano (monitor "focus.end", che inizia all ora di fine);
 // - ripresa dopo una pausa (monitor "focus.resume").
 // Lo stato del blocco corrente e condiviso con l app nell App Group (FocusBlockEngine).
 final class FocusedMonitorExtension: DeviceActivityMonitor {
@@ -17,8 +17,12 @@ final class FocusedMonitorExtension: DeviceActivityMonitor {
             engine.resume()
             return
         }
+        if activity == FocusBlockEngine.endName {
+            engine.sessionEnded()
+            return
+        }
         if activity == FocusBlockEngine.sessionName {
-            // La sessione l ha gia applicata l app: qui solo una conferma, se non e in pausa.
+            // Versioni precedenti: la sessione l ha gia applicata l app.
             engine.reapplyIfActive()
             return
         }
@@ -33,7 +37,7 @@ final class FocusedMonitorExtension: DeviceActivityMonitor {
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        if activity == FocusBlockEngine.resumeName { return }
+        if activity == FocusBlockEngine.resumeName || activity == FocusBlockEngine.endName { return }
         guard let current = engine.currentBlock() else { return }
         if activity == FocusBlockEngine.sessionName {
             if current.source == "session" && current.endAt <= Date().timeIntervalSince1970 + FocusBlockEngine.tolerance {
@@ -49,13 +53,16 @@ final class FocusedMonitorExtension: DeviceActivityMonitor {
 
 // MARK: - Motore del blocco
 //
-// COPIA di FocusBlockEngine in ios/App/App/FocusedScreenTimePlugin.swift: tenere le due copie uguali.
+// COPIA di FocusBlockEngine in ios/App/App/FocusedScreenTimePlugin.swift: tenere le copie uguali.
 struct FocusBlockEngine {
     static let appGroupId = "group.org.focusedapp.app"
     static let maxTokens = 50              // limite di ManagedSettings per lista di app / siti
-    static let maxScheduleMonitors = 18    // iOS ne accetta ~20: 2 restano a sessione e ripresa
-    static let sessionName = DeviceActivityName("focus.session")
+    static let maxScheduleMonitors = 17    // iOS ne accetta ~20: 3 restano a sessione, fine e ripresa
+    static let sessionName = DeviceActivityName("focus.session")   // versioni precedenti
+    static let endName = DeviceActivityName("focus.end")           // inizia all'ora di fine della sessione
     static let resumeName = DeviceActivityName("focus.resume")
+    static let systemNames: Set<DeviceActivityName> = [sessionName, endName, resumeName]
+    static let shieldPauseMinutes = 5
     static let metaKey = "schedule_meta"
     static let tolerance: Double = 120     // secondi di margine sui bordi degli intervalli
 
@@ -228,19 +235,31 @@ struct FocusBlockEngine {
         return effective
     }
 
-    // Allo scadere e' l'estensione a togliere lo shield, anche ad app chiusa. iOS accetta intervalli
-    // di almeno 15 minuti: per le sessioni piu' brevi ci pensa l'app.
+    // Allo scadere e' l'estensione a togliere lo shield, anche ad app chiusa e per sessioni di qualsiasi
+    // durata: il monitor "focus.end" INIZIA all'ora di fine (iOS vuole intervalli di almeno 15 minuti,
+    // quindi dura 16) e il suo intervalDidStart chiude la sessione.
     private func monitorSession(endAt: Date) {
         let center = DeviceActivityCenter()
-        center.stopMonitoring([Self.sessionName])
-        guard endAt.timeIntervalSinceNow >= 15 * 60 else { return }
+        center.stopMonitoring([Self.sessionName, Self.endName])
         let parts: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute, .second]
         let schedule = DeviceActivitySchedule(
-            intervalStart: Calendar.current.dateComponents(parts, from: Date()),
-            intervalEnd: Calendar.current.dateComponents(parts, from: endAt),
+            intervalStart: Calendar.current.dateComponents(parts, from: endAt),
+            intervalEnd: Calendar.current.dateComponents(parts, from: endAt.addingTimeInterval(16 * 60)),
             repeats: false
         )
-        try? center.startMonitoring(Self.sessionName, during: schedule)
+        try? center.startMonitoring(Self.endName, during: schedule)
+    }
+
+    // Fine della sessione arrivata dal monitor "focus.end" (o dal timer dell'app).
+    func sessionEnded() {
+        guard let cur = currentBlock(), cur.source == "session", cur.endAt <= now + Self.tolerance else { return }
+        endCurrent()
+    }
+
+    // Pausa dalla schermata di blocco: c'e' un blocco attivo e non e' gia' in pausa.
+    var canPauseFromShield: Bool {
+        guard let b = currentBlock(), b.endAt > now else { return false }
+        return pauseUntil <= now
     }
 
     func startSchedule(_ b: Block) {
@@ -256,7 +275,7 @@ struct FocusBlockEngine {
         clearShield()
         setCurrentBlock(nil)
         setPauseUntil(nil)
-        DeviceActivityCenter().stopMonitoring([Self.sessionName, Self.resumeName])
+        DeviceActivityCenter().stopMonitoring([Self.sessionName, Self.endName, Self.resumeName])
         if let next = activeSchedule(excluding: excluding) { startSchedule(next) }
     }
 

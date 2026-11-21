@@ -93,13 +93,13 @@ export default function FirstRunFlow({ onDone, replay = false }) {
   }, []);
 
   useEffect(() => {
-    if (stage === 'perms' && perms && perms.length === 0) setStage('tour');
+    if (stage === 'perms' && perms && perms.length === 0) setStage('activity');
   }, [stage, perms]);
 
   // Dopo questo giro i tutorial a comparsa per pagina non servono piu'.
   const finish = () => {
     try {
-      Object.keys(TUTORIALS).forEach((id) => localStorage.setItem(`tutorial_seen_${id}`, '1'));
+      // 1.5: i mini-tutorial delle pagine restano: spiegano ogni pagina la prima volta che la apri.
       localStorage.removeItem(FIRST_RUN_KEY);
     } catch { /* ignore */ }
     onDone?.();
@@ -126,7 +126,7 @@ export default function FirstRunFlow({ onDone, replay = false }) {
     try { await Promise.race([permMeta[perms[permIdx]].run(), limit]); } catch { /* il rifiuto non blocca il percorso */ }
     setBusy(false);
     if (permIdx + 1 < perms.length) setPermIdx(permIdx + 1);
-    else setStage('tour');
+    else setStage('activity');
   };
 
   const createActivity = async () => {
@@ -139,7 +139,8 @@ export default function FirstRunFlow({ onDone, replay = false }) {
       setGoalTitle(`${actName.trim()} - ${t('fr_daily').toLowerCase()}`);
     } catch (e) { console.error(e); }
     setBusy(false);
-    setStage('goal');
+    // 1.5: il primo avvio finisce qui (prima seguivano obiettivo, task e Focus Time: troppi passi).
+    finish();
   };
 
   const createGoal = async () => {
@@ -175,7 +176,7 @@ export default function FirstRunFlow({ onDone, replay = false }) {
 
   const steps = useMemo(() => ['arrival', 'perms', 'tour', 'activity', 'goal', 'task', 'focus'], []);
   const guidedIdx = steps.indexOf(stage) - 2; // 0 = tour
-  const dots = stage !== 'arrival' && stage !== 'perms' && stage !== 'tour';
+  const dots = false;
 
   const primary = 'w-full rounded-2xl bg-white py-3.5 text-sm font-semibold text-black transition-transform active:scale-[0.98] disabled:opacity-40';
   const chip = (on) => `rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${on ? 'bg-white text-black' : 'border border-white/20 text-white/70'}`;

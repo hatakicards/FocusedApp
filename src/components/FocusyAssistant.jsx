@@ -25,6 +25,7 @@ import {
   useHomeworks,
   useCustomFoods,
   useTimetable,
+  useTasks,
 } from '@/lib/useAppData';
 import { normalizeGrade } from '@/lib/grades';
 import { sortHomeworkByPriority, priorityTier, averageNormalizedGradeForSubject } from '@/lib/studyPriority';
@@ -191,10 +192,24 @@ function buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntr
 
   return `Sei Focusy, l'assistente IA personale dell'app Focused. Rispondi SEMPRE nella stessa lingua dell'ULTIMO messaggio dell'utente (inglese se scrive in inglese, spagnolo se in spagnolo, francese, tedesco, italiano ecc.; ignora la lingua di queste istruzioni e dei dati qui sotto), in tono amichevole, conciso e motivazionale.
 
-OBIETTIVO PRIMARIO: Dare consigli MIRATI basati sui dati reali dell'utente. NON dare consigli generici — cita sempre dati specifici (es. "La tua media è 3.2/5, in calo rispetto alla settimana scorsa"). Riferisciti alle attività per nome. Se un dato è "N/A" o 0, NON inventarlo.
+COME RAGIONI E RISPONDI (la cosa piu' importante):
+- Prima la risposta diretta alla domanda, poi il PERCHE': spiega il ragionamento in 2-4 punti chiari, con i numeri e i dati reali dell'utente quando ci sono (es. "la tua media e' 3.2/5, in calo di 0.4 rispetto alla settimana scorsa"). Mai una conclusione senza spiegazione.
+- Poi, se serve, cosa fare in pratica: passi concreti, quantita', orari.
+- Lunghezza adatta alla domanda: domanda semplice o di cortesia -> 1-3 frasi; consiglio o piano -> fino a 12-15 righe ben organizzate. Niente giri di parole, niente ripetizioni.
+- Puoi rispondere a QUALSIASI domanda, anche di cultura generale, scuola, curiosita', conversazione normale ("come stai?", "spiegami la fotosintesi"): rispondi bene come un assistente esperto, non solo sui dati dell'app.
+- Se la domanda e' ambigua o ti manca un'informazione importante, fai UNA domanda breve per chiarire invece di tirare a indovinare.
+- Se non sei sicuro di qualcosa dillo chiaramente. Non inventare mai dati dell'utente: se un dato e' "N/A" o 0, non c'e'.
+- Riferisciti alle attivita' per nome. Usa elenchi con "- " quando aiutano; niente titoli markdown, niente asterischi.
+
+COMPETENZE (qui devi essere impeccabile, basato sulle evidenze scientifiche attuali):
+- Alimentazione: bilancio energetico (deficit 300-500 kcal per dimagrire, surplus 200-300 per massa), proteine 1.6-2.2 g per kg di peso per chi si allena, fibre 25-35 g, idratazione, distribuzione dei pasti, alimenti concreti con porzioni in grammi. Parti SEMPRE dal piano calorico e dalle macro dell'utente qui sotto se ci sono. Niente diete estreme; con utenti minorenni niente deficit aggressivi.
+- Allenamento: sovraccarico progressivo, volume settimanale (circa 10-20 serie per gruppo muscolare), intensita' (RPE/RIR), recupero tra serie e tra sedute, tecnica e prevenzione infortuni, cardio. Collega i consigli alla scheda dell'utente qui sotto, giorno per giorno.
+- Sonno e recupero: 7-9 ore (8-10 per gli adolescenti), orari regolari, pisolini brevi, effetto di schermi e caffeina.
+- Organizzazione e studio: priorita' (urgente/importante), blocchi di tempo, Pomodoro, ripetizione dilazionata, pianificazione a ritroso dalle scadenze e dalle verifiche, carico realistico per giornata.
+- Se emergono sintomi, dolori o segnali di disturbi alimentari, consiglia con tatto di rivolgersi a un medico o professionista.
 ${settings?.dream ? `\nIL SOGNO DELL'UTENTE: "${settings.dream}". Parti SEMPRE dal presupposto che l'utente sia realmente impegnato a raggiungerlo — non metterlo in dubbio, non trattarlo come velleità. Collega i tuoi consigli a questo sogno quando ha senso farlo (es. come l'attività di oggi lo avvicina o allontana da lì), senza forzarlo in ogni risposta.` : ''}
 
-CREAZIONE ELEMENTI: Se l'utente chiede di creare/aggiungere/fare qualcosa, DEVI compilare l'array "actions" con l'azione appropriata. Esempi di richieste che richiedono azioni:
+CREAZIONE ELEMENTI: usa "actions" SOLO quando l'utente ti chiede esplicitamente di creare/aggiungere/registrare qualcosa. Non aggiungere MAI nulla di tua iniziativa: se pensi che un'attivita', un obiettivo o un'abitudine gli servirebbe, PROPONILO a parole nel "reply" e chiedi se vuole che lo aggiunga, lasciando "actions" vuoto. Se la richiesta e' vaga (es. "aggiungimi qualcosa per studiare"), chiedi i dettagli che mancano prima di creare. Le azioni che restituisci vengono mostrate all'utente come proposta: le applica lui con "Conferma". Esempi di richieste esplicite:
 - "Crea un'attività per X" → create_activity
 - "Aggiungi un obiettivo di X" → create_goal (usa activity_name esatto da ATTIVITÀ ESISTENTI)
 - "Crea una task/devo fare X" → create_task
@@ -265,9 +280,50 @@ Se l'utente chiede di creare qualcosa, compila "actions" con UN oggetto:
 6. create_habit (Small Habit: piccola abitudine dentro un'attività, si segna fatta / non fatta ogni giorno): { "type":"create_habit", "name":"...", "activity_name":"<nome esatto da ATTIVITÀ ESISTENTI>", "times":["HH:MM", ...], "days":[numeri 0-6, 0 = domenica; lista vuota = ogni giorno] }. Gli orari li scegli TU capendo l'abitudine (skincare mattutina -> mattina; skincare generica -> mattina e sera; cardio a fine allenamento -> dopo l'orario tipico dell'allenamento). Nel "reply" di' gli orari che hai proposto e che li può cambiare dalla pagina dell'attività.
 
 REGOLE:
-- Rispondi in massimo 4-5 righe, citando SEMPRE dati specifici dell'utente.
-- Se crei qualcosa, confermalo brevemente nel "reply".
-- Se mancano dati per un consiglio, dillo e suggerisci di registrarli.`;
+- Segui "COME RAGIONI E RISPONDI" qui sopra: risposta diretta, poi il perche', poi cosa fare.
+- Se proponi di creare qualcosa con "actions", nel "reply" di' esattamente cosa stai proponendo (nome, orari, giorni) e che basta toccare Conferma.
+- Se mancano dati per un consiglio, dillo e suggerisci quali registrare nell'app.`;
+}
+
+const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+
+// Valori per 100 g stimati da Focusy: limiti realistici e calorie coerenti con le macro
+// (4 kcal per g di proteine e carboidrati, 9 per i grassi). null se non utilizzabili.
+function sanitizeMacros(it) {
+  const clamp = (v, max) => Math.min(max, Math.max(0, Math.round((Number(v) || 0) * 10) / 10));
+  const protein = clamp(it.protein, 100);
+  const carbs = clamp(it.carbs, 100);
+  const lipids = clamp(it.lipids, 100);
+  let kcal = clamp(it.kcal, 900);
+  const fromMacros = 4 * protein + 4 * carbs + 9 * lipids;
+  if (fromMacros > 0 && (kcal <= 0 || Math.abs(kcal - fromMacros) > Math.max(40, fromMacros * 0.35))) kcal = Math.round(fromMacros);
+  if (kcal <= 0) return null;
+  return { kcal: Math.round(kcal), protein, carbs, lipids };
+}
+
+// Parole del cibo nelle 5 lingue (e i pasti): solo allora serve la sezione completa del registro cibo.
+const FOOD_TALK_RE = /(mangiat|mangio|mangiare|bevut|bevo|pranz|cena|cenat|colazion|merend|spuntin|calori|kcal|gramm|\bg\b|porzion|piatto|registra|ate\b|eaten|eat\b|drank|breakfast|lunch|dinner|snack|meal|comí|comido|desayun|almuerz|merienda|mangé|déjeun|dîner|petit[- ]d[ée]j|gegessen|getrunken|frühstück|mittagessen|abendessen|erano \d|togli|food|cibo)/i;
+
+// Cose da fare in agenda, con l'attivita' a cui sono collegate: cosi' Focusy sa che "comprare le
+// proteine" e' per la Palestra o "ripassare il capitolo 3" e' per Studio.
+function buildTasksSection(tasks, activities) {
+  const byId = new Map((activities || []).map((a) => [a.id, a]));
+  const today = todayISO();
+  const open = (tasks || [])
+    .filter((x) => x.status !== 'done' && x.status !== 'archived' && !x.completed)
+    .sort((a, b) => String(a.due_date || '9999').localeCompare(String(b.due_date || '9999')))
+    .slice(0, 15);
+  if (!open.length) return '';
+  const lines = open.map((x) => {
+    const act = x.linked_activity_id ? byId.get(x.linked_activity_id) : null;
+    const forWhat = act ? ` — per l'attivita' "${act.name}"${act.is_gym ? ' (palestra)' : ''}` : '';
+    const when = x.due_date ? ` — ${x.due_date === today ? 'oggi' : x.due_date}${x.due_time ? ' ' + String(x.due_time).slice(0, 5) : ''}` : '';
+    const weekly = x.type === 'weekly' && x.recurrence_per_week ? ` — ${x.recurrence_per_week} volte a settimana` : '';
+    return `  - ${x.title}${forWhat}${when}${weekly}`;
+  });
+  return `=== COSE DA FARE (agenda) ===
+${lines.join('\n')}
+Quando una cosa e' collegata a un'attivita', l'utente la fa PER quell'attivita' (es. "comprare la creatina" collegata a Palestra serve all'allenamento): tienine conto nei consigli su quell'attivita' e quando organizzi la sua giornata.`;
 }
 
 // Sezione del prompt per il registro cibo: solo Premium, come BodyFuel.
@@ -279,18 +335,35 @@ Il registro cibo (BodyFuel) e' una funzione Premium: se l'utente ti dice cosa ha
   const today = todayISO();
   const todayEntry = (bodyFuelEntries || []).find((e) => e.date === today);
   const logged = (todayEntry?.food_log || [])
-    .map((i) => `${getFoodById(i.food_id, customFoods)?.name || i.food_id} ${i.grams}g`)
+    .map((i) => `${getFoodById(i.food_id, customFoods)?.name || i.food_id} [${i.food_id}] ${i.grams}g`)
     .join(', ');
   const known = [...FOODS, ...(customFoods || [])]
-    .map((f) => `${f.id}=${f.name} (${f.kcal}kcal/100g)`)
+    .map((f) => `${f.id}=${f.name} ${f.kcal}`)
     .join('; ');
   return `=== REGISTRO CIBO (Premium) ===
 GIA' REGISTRATO OGGI: ${logged || 'niente'}
-Se l'utente dice cosa ha mangiato o bevuto (anche a voce), usa UNA azione log_food con "items": un elemento per alimento, ognuno con "grams" (stima una porzione normale se non la dice: un piatto di pasta ~80g a secco, un uovo ~60g, una fetta di pane ~30g, un bicchiere ~200g).
-- Alimento presente in ALIMENTI NOTI: "food_id" = l'id esatto, grams.
-- Altro alimento: "food_id" vuoto, "name", grams e i valori STIMATI per 100g: "kcal","protein","carbs","lipids".
-- Non registrare due volte quello che e' gia' registrato oggi. Nel "reply" riassumi in una riga cosa hai registrato e dichiara che le quantita' sono stime.
-ALIMENTI NOTI: ${known}`;
+
+Quando l'utente racconta cosa ha mangiato o bevuto (anche a voce, anche con frasi lunghe, dialetto o errori), CAPISCI BENE e registra tutto con UNA azione log_food. Il registro e' quello di OGGI: se parla di ieri o di un altro giorno, non registrare e spiegaglielo.
+COME RAGIONARE, alimento per alimento:
+1. Separa ogni cosa mangiata: "pasta al pomodoro, una mela e un caffe' con lo zucchero" sono 3 cose (piu' i condimenti, punto 3).
+2. Quantita': se dice i grammi usa quelli. Se dice pezzi o porzioni, converti con queste porzioni italiane standard:
+   - pasta: piatto normale 90 g SECCA (abbondante 120, piccolo 70); riso: porzione 80 g secco. ATTENZIONE: pasta e riso nella lista sono a peso SECCO: se l'utente dice il peso COTTO, dividi per 2.2 (pasta) o 2.7 (riso).
+   - pane: fetta 35 g, panino 80 g, rosetta 60 g, piadina 100 g; fette biscottate 8 g l'una; biscotto secco 8 g, frollino 12 g; cereali/avena: ciotola 40 g.
+   - uovo intero 55 g (senza guscio); albume 33 g; latte: tazza 250 ml, bicchiere 200 ml (1 ml = 1 g); yogurt vasetto 125 g, greco 150-170 g; mozzarella 125 g; parmigiano: cucchiaio 5 g, porzione 30 g; ricotta porzione 100 g.
+   - carne: petto di pollo/fettina 150 g, bistecca 200 g, hamburger 120 g; pesce: filetto 180 g; tonno in scatola 80 g sgocciolato (scatoletta piccola 52 g).
+   - legumi in scatola: mezzo barattolo 120 g; patate: porzione 200 g.
+   - frutta: mela 180 g, banana 120 g (senza buccia), arancia 160 g, pesca 150 g, mandarino 80 g; frutta secca: manciata 30 g.
+   - verdura: porzione 200 g, insalata 80 g, pomodoro 120 g.
+   - olio: cucchiaio 10 g, cucchiaino 4 g; burro: noce 10 g; Nutella/marmellata: cucchiaino 15 g, fetta spalmata 20 g.
+   - pizza margherita intera al piatto 330 g; trancio 150 g; patatine fast food media 115 g; chips busta piccola 25 g, grande 50 g.
+   - bevande: lattina 330 ml, bottiglietta 500 ml, birra piccola 330 ml / media 400 ml, bicchiere di vino 125 ml, caffe' zuccherato = 1 tazzina; gelato: coppetta 100 g, cono 120 g.
+   Numeri: "3 uova" = 3 x 55 = 165 g. "Mezzo piatto" = meta'. "Un po' di" = mezza porzione.
+3. Piatti composti: scomponili negli ingredienti con le loro quantita' (es. "pasta al pomodoro" = pasta 90 g + pomodori 100 g + olio 8 g; "insalata di pollo" = insalata 80 g + pollo 120 g + olio 10 g; "toast" = pancarre 50 g + prosciutto cotto 30 g + formaggio 20 g). Aggiungi l'olio di cottura solo quando il piatto lo prevede di sicuro, e dillo nel reply. Se il piatto non si scompone bene (kebab, sushi, Big Mac, lasagna, cornetto, brioche, tiramisu', piatti di ristorante) registralo come un alimento unico NON in lista con valori realistici per 100 g e il peso della porzione (es. cornetto 60 g, kebab 350 g, 8 pezzi di sushi 240 g).
+4. Abbinamento alla lista: usa "food_id" SOLO se l'alimento e' davvero quello (es. "petto di pollo" -> carne_bianca, "salmone" -> pesce_semigrasso, "ceci in scatola" -> legumi_scatola). Se non c'e' niente di uguale, lascia "food_id" vuoto e metti "name" chiaro in italiano con i valori STIMATI per 100 g: "kcal", "protein", "carbs", "lipids" (coerenti: kcal circa = 4*proteine + 4*carboidrati + 9*grassi). Acqua, caffe' amaro e te' senza zucchero hanno 0 kcal: non serve registrarli.
+5. Non registrare di nuovo cio' che e' gia' in GIA' REGISTRATO OGGI. Se l'utente CORREGGE qualcosa gia' registrato ("erano 150 g non 100", "togli la mela", "non era pollo ma tacchino"), usa l'azione edit_food con "items": per ogni alimento da cambiare "food_id" (l'id tra parentesi quadre in GIA' REGISTRATO OGGI) e i nuovi "grams" (0 = togli); per sostituire un alimento con un altro, togli il vecchio con edit_food e aggiungi il nuovo con log_food.
+6. Chiedi chiarimenti SOLO se e' impossibile capire cosa ha mangiato (es. "ho mangiato quella cosa di ieri"); per le quantita' non chiedere: stima con le porzioni sopra.
+Nel "reply": elenca in breve ogni alimento registrato con grammi e kcal (es. "- Pasta 90 g: 320 kcal"), il totale del pasto e quanto manca all'obiettivo calorico di oggi se c'e'; di' che le quantita' sono stime e che puo' correggerle scrivendo, per esempio, "erano 120 g".
+ALIMENTI NOTI (id=nome kcal per 100 g): ${known}`;
 }
 
 const RESPONSE_SCHEMA = {
@@ -302,7 +375,7 @@ const RESPONSE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework', 'log_food', 'create_habit'] },
+          type: { type: 'string', enum: ['create_activity', 'create_goal', 'create_task', 'create_event', 'create_homework', 'log_food', 'edit_food', 'create_habit'] },
           name: { type: 'string' },
           category: { type: 'string' },
           emoji: { type: 'string' },
@@ -351,6 +424,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [actionResults, setActionResults] = useState([]);
+  const [pendingActions, setPendingActions] = useState([]);
   const [dailyCount, setDailyCount] = useState(getDailyCount());
   const scrollRef = useRef(null);
   const sentInitialRef = useRef(false);
@@ -372,6 +446,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
   const { data: homeworks } = useHomeworks();
   const { data: customFoods } = useCustomFoods();
   const { data: timetable } = useTimetable();
+  const { data: tasks } = useTasks();
   const { tier, isPremium } = useSubscription();
 
   const limit = LIMITS[tier] ?? LIMITS.free;
@@ -382,7 +457,7 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, loading, actionResults]);
+  }, [messages, loading, actionResults, pendingActions]);
 
   // Dettatura: parte solo quando premi il microfono, scrive nel campo di testo e si
   // ferma da sola (o se chiudi la chat / l'app va in secondo piano).
@@ -464,6 +539,42 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
 
   const executeAction = useCallback(async (action) => {
     try {
+      if (action.type === 'edit_food') {
+        if (!isPremium) return { ok: false, label: t('focusy_action_food_premium') };
+        const today = todayISO();
+        const entries = qc.getQueryData(['bodyFuelEntries', user?.id]) || bodyFuelEntries || [];
+        const existing = entries.find((e) => e.date === today);
+        if (!existing?.food_log?.length) return { ok: false, label: t('focusy_action_unknown') };
+        const foods = qc.getQueryData(['customFoods', user?.id]) || customFoods || [];
+        let foodLog = [...existing.food_log];
+        let changed = 0;
+        for (const it of Array.isArray(action.items) ? action.items : []) {
+          const grams = Math.round(Number(it.grams));
+          if (!Number.isFinite(grams) || grams < 0 || grams > 3000) continue;
+          const wanted = String(it.food_id || '').trim();
+          const byName = norm(it.name);
+          // L'ultima voce di quell'alimento (la correzione riguarda di solito l'ultimo pasto).
+          let idx = -1;
+          for (let i = foodLog.length - 1; i >= 0; i -= 1) {
+            const fid = foodLog[i].food_id;
+            if ((wanted && fid === wanted) || (byName && norm(getFoodById(fid, foods)?.name) === byName)) { idx = i; break; }
+          }
+          if (idx < 0) continue;
+          foodLog = grams === 0 ? foodLog.filter((_, i) => i !== idx) : foodLog.map((x, i) => (i === idx ? { ...x, grams } : x));
+          changed += 1;
+        }
+        if (!changed) return { ok: false, label: t('focusy_action_unknown') };
+        const totals = computeFoodLogTotals(foodLog, foods);
+        await base44.entities.BodyFuelEntry.update(existing.id, {
+          food_log: foodLog,
+          calories_consumed: totals.kcal,
+          protein_consumed: totals.protein,
+          carbs_consumed: totals.carbs,
+          lipids_consumed: totals.lipids,
+        });
+        qc.invalidateQueries({ queryKey: ['bodyFuelEntries'] });
+        return { ok: true, label: `${t('focusy_action_edited_food')} (${changed})` };
+      }
       if (action.type === 'log_food') {
         if (!isPremium) return { ok: false, label: t('focusy_action_food_premium') };
         const items = Array.isArray(action.items) ? action.items : [];
@@ -473,24 +584,18 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           const grams = Math.round(Number(it.grams) || 0);
           if (grams <= 0 || grams > 3000) continue;
           let foodId = it.food_id && getFoodById(it.food_id, foods) ? it.food_id : null;
+          const name = String(it.name || '').trim();
+          // Nome uguale a un alimento della lista o a uno gia' creato: si usa quello.
+          if (!foodId && name) {
+            const same = [...FOODS, ...foods].find((f) => norm(f.name) === norm(name));
+            if (same) foodId = same.id;
+          }
           if (!foodId) {
-            const name = String(it.name || '').trim();
-            const kcal = Number(it.kcal) || 0;
-            if (!name || kcal <= 0) continue;
-            const existingFood = foods.find((f) => String(f.name).toLowerCase() === name.toLowerCase());
-            if (existingFood) {
-              foodId = existingFood.id;
-            } else {
-              const created = await base44.entities.CustomFood.create({
-                name,
-                kcal,
-                protein: Number(it.protein) || 0,
-                carbs: Number(it.carbs) || 0,
-                lipids: Number(it.lipids) || 0,
-              });
-              foods = [...foods, created];
-              foodId = created.id;
-            }
+            const values = sanitizeMacros(it);
+            if (!name || !values) continue;
+            const created = await base44.entities.CustomFood.create({ name: name.slice(0, 80), ...values });
+            foods = [...foods, created];
+            foodId = created.id;
           }
           added.push({ food_id: foodId, grams, _id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
         }
@@ -600,11 +705,21 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
     setInput('');
     setLoading(true);
     setActionResults([]);
+    setPendingActions([]);
 
     try {
       const context = buildContext({ settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks });
-      const conversationHistory = messages.slice(-6).map((m) => `${m.role === 'user' ? 'Utente' : 'Focusy'}: ${m.content}`).join('\n');
-      const foodSection = buildFoodSection({ isPremium, bodyFuelEntries, customFoods });
+      // Il piano gratuito del servizio AI accetta circa 8000 token al minuto (domanda + risposta):
+      // la conversazione si accorcia e la parte sul cibo (lunga) c'e' solo quando si parla di cibo.
+      const conversationHistory = messages.slice(-6)
+        .map((m) => `${m.role === 'user' ? 'Utente' : 'Focusy'}: ${String(m.content).slice(0, 500)}`)
+        .join('\n');
+      const recentText = [text, ...messages.slice(-2).map((m) => m.content)].join(' ');
+      const foodTalk = FOOD_TALK_RE.test(recentText);
+      const foodSection = foodTalk
+        ? buildFoodSection({ isPremium, bodyFuelEntries, customFoods })
+        : `=== REGISTRO CIBO ===\n${isPremium ? "Se l'utente racconta cosa ha mangiato, rispondi che puo' dirtelo e lo registri (lo vedrai al prossimo messaggio con la lista degli alimenti)." : "Il registro cibo e' una funzione Premium: non usare log_food."}`;
+      const tasksSection = buildTasksSection(tasks, activities);
       const timetableSummary = buildTimetableSummary(timetable);
       const timetableSection = timetableSummary
         ? `=== ORARIO SCOLASTICO SETTIMANALE ===\n${timetableSummary}\nUsalo per sapere cosa ha l'utente oggi/domani, per proporre quando studiare e per i compiti: se dice "per la prossima lezione di X" usa la data indicata sopra come due_date.`
@@ -616,36 +731,41 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
       const memorySection = settings?.focusy_memory
         ? `=== COSA RICORDI DELL'UTENTE (detto da lui in precedenza) ===\n${settings.focusy_memory}\nTienilo presente nei consigli senza ripeterlo a ogni risposta.`
         : '';
-      const prompt = `${context}\n\n${memorySection}\n\n${foodSection}\n\n${timetableSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
+      const prompt = `${context}\n\n${memorySection}\n\n${tasksSection}\n\n${foodSection}\n\n${timetableSection}\n\n${sensedSection}\n\nCONVERSAZIONE:\n${conversationHistory}\nUtente: ${text.trim()}`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
         model: 'gpt_5_4',
         response_json_schema: RESPONSE_SCHEMA,
+        max_output_tokens: foodTalk ? 900 : 1100,
+        reasoning: 'medium',
       });
 
       const reply = response?.reply || 'Scusa, non sono riuscito a rispondere.';
       const actions = response?.actions || [];
 
-      // Execute actions
+      // Il cibo raccontato si registra subito (e' quello che l'utente ha chiesto); tutto il resto
+      // e' una proposta che l'utente conferma con un tocco (1.5: niente piu' cose aggiunte a caso).
       const results = [];
+      const proposals = [];
       for (const action of actions) {
-        const result = await executeAction(action);
-        results.push(result);
+        if (action?.type === 'log_food' || action?.type === 'edit_food') results.push(await executeAction(action));
+        else if (action?.type) proposals.push(action);
       }
 
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
       if (results.length) setActionResults(results);
+      setPendingActions(proposals);
 
       const newCount = incDailyCount();
       setDailyCount(newCount);
     } catch (e) {
       console.error('Focusy error', e);
-      setMessages((m) => [...m, { role: 'assistant', content: 'Scusa, c\'è stato un errore. Riprova tra un momento.' }]);
+      setMessages((m) => [...m, { role: 'assistant', content: t('focusy_error_retry') }]);
     } finally {
       setLoading(false);
     }
-  }, [loading, canSend, isPremium, customFoods, timetable, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
+  }, [loading, canSend, isPremium, customFoods, timetable, tasks, messages, settings, activities, ratings, gymSessions, bodyFuelEntries, dayEntries, lifeStats, goals, workDayLogs, subjects, lessonGrades, verifiche, gradeGoals, homeworks, executeAction]);
 
   sendRef.current = sendMessage;
 
@@ -772,6 +892,44 @@ export default function FocusyAssistant({ defaultOpen = false, initialPrompt = n
           </div>
         </div>
       ))}
+      {pendingActions.length > 0 && (
+        <div className="flex gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+            <Sparkles size={14} />
+          </div>
+          <div className="min-w-0 flex-1 rounded-2xl border border-border bg-card px-3.5 py-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t('focusy_propose_title')}</p>
+            <div className="mb-3 space-y-1">
+              {pendingActions.map((a, i) => (
+                <p key={i} className="text-sm">
+                  <span className="text-muted-foreground">{t('focusy_propose_' + a.type) !== 'focusy_propose_' + a.type ? t('focusy_propose_' + a.type) : a.type}:</span>{' '}
+                  <span className="font-semibold">{a.name || a.title || a.subject || ''}</span>
+                  {a.type === 'create_habit' && Array.isArray(a.times) && a.times.length > 0 && <span className="text-muted-foreground"> · {a.times.join(', ')}</span>}
+                  {(a.type === 'create_task' || a.type === 'create_event') && a.due_date && <span className="text-muted-foreground"> · {a.due_date}{a.due_time ? ` ${a.due_time}` : ''}</span>}
+                  {a.activity_name && <span className="text-muted-foreground"> · {a.activity_name}</span>}
+                </p>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  const list = pendingActions;
+                  setPendingActions([]);
+                  const res = [];
+                  for (const a of list) res.push(await executeAction(a));
+                  setActionResults(res);
+                }}
+                className="flex-1 rounded-xl bg-foreground py-2 text-sm font-semibold text-background active:scale-[0.98]"
+              >
+                {t('focusy_propose_confirm')}
+              </button>
+              <button onClick={() => setPendingActions([])} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground">
+                {t('focusy_propose_no')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {actionResults.length > 0 && (
         <div className="flex gap-2.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-foreground text-background">

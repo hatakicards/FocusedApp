@@ -40,8 +40,8 @@ export const getSelectionCount = (kind = 'block') =>
 
 // Testo della schermata di blocco (estensione iOS FocusedShield): sogno tra virgolette,
 // sottotitolo e bottone. Va scritto prima di far partire il blocco.
-export const setShieldContent = ({ dream, subtitle, button }) =>
-  call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button }), null);
+export const setShieldContent = ({ dream, subtitle, button, pause }) =>
+  call(() => FocusedScreenTime.setShieldContent({ dream: dream || '', subtitle, button, pause: pause || '' }), null);
 
 // Tempo di utilizzo reale: iOS non lo passa alle app come numero, lo si puo' solo mostrare con
 // una vista di sistema (DeviceActivityReport, estensione FocusedReport). L'app la incolla

@@ -171,6 +171,38 @@ export function getFreeTrials() {
   return freeTrialsPromise;
 }
 
+// Offerte introduttive A PAGAMENTO (es. Black Friday: 1,99 € il primo mese) a cui questo Apple ID ha
+// diritto: { [productId]: { priceString, months } }. Apple applica il prezzo da sola all'acquisto; qui
+// serve solo per mostrarlo nel paywall (1.5: prima si vedevano solo le prove gratuite).
+let introDiscountsPromise = null;
+export function getIntroDiscounts() {
+  if (!introDiscountsPromise) {
+    introDiscountsPromise = (async () => {
+      await ensureConfigured();
+      const offerings = await Purchases.getOfferings();
+      const products = Object.values(offerings.all || {})
+        .flatMap((o) => o.availablePackages)
+        .map((p) => p.product)
+        .filter((p) => p?.introPrice && p.introPrice.price > 0);
+      if (!products.length) return {};
+      let eligibility = {};
+      try {
+        eligibility = await Purchases.checkTrialOrIntroductoryPriceEligibility({ productIdentifiers: products.map((p) => p.identifier) });
+      } catch { /* sconosciuto: decide Apple all'acquisto */ }
+      const out = {};
+      products.forEach((p) => {
+        const status = eligibility[p.identifier]?.status;
+        if (status === 1 || status === 3) return; // non idoneo / nessuna offerta
+        const ip = p.introPrice;
+        const months = ip.periodUnit === 'MONTH' ? (ip.periodNumberOfUnits || 1) * (ip.cycles || 1) : null;
+        out[p.identifier] = { priceString: ip.priceString, months, cycles: ip.cycles || 1, unit: ip.periodUnit };
+      });
+      return out;
+    })().catch((e) => { introDiscountsPromise = null; throw e; });
+  }
+  return introDiscountsPromise;
+}
+
 // Schermata di Apple per riscattare un Offer Code (iOS 14+): e' l'unico modo ammesso
 // da Apple per dare accesso con un codice, e passa comunque dall'App Store.
 export async function presentOfferCodeSheet() {

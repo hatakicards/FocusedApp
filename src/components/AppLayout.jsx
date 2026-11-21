@@ -74,8 +74,7 @@ export default function AppLayout() {
   const [firstRun, setFirstRun] = useState(() => {
     try {
       const on = localStorage.getItem(FIRST_RUN_KEY) === '1' || new URLSearchParams(window.location.search).get('firstrun') === '1';
-      // I tutorial a comparsa per pagina non devono aprirsi sopra il primo avvio guidato.
-      if (on) Object.keys(TUTORIALS).forEach((id) => localStorage.setItem('tutorial_seen_' + id, '1'));
+      // 1.5: i mini-tutorial delle pagine non si spengono piu' qui; aspettano che il primo avvio finisca.
       return on;
     } catch { return false; }
   });
@@ -359,7 +358,8 @@ export default function AppLayout() {
       )}
       <ActiveFocusHost />
       <MilestoneChecker />
-      <MorningCheckIn />
+      {/* Non sopra al primo avvio, al benvenuto o al benvenuto Premium: compare quando finiscono. */}
+      <MorningCheckIn enabled={!firstRun && !welcomeNeeded && !planWelcome} />
       <SensedActivityPrompt />
       <FullScreenAd enabled={!sub.adsRemoved && !firstRun && !rateOpen && !planWelcome} />
       <RatePrompt enabled={!firstRun && !welcomeNeeded && !planWelcome && !trialWelcome && !trialExpiredModal && !promoExpired} onOpenChange={setRateOpen} />

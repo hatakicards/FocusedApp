@@ -1,7 +1,7 @@
 import {
   Plus, ChevronRight, Calendar, BarChart3, Target,
   TrendingUp, Trophy, CheckCircle, Dumbbell, Timer, Play, Activity, Settings,
-  Flame, Sparkles, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator, Smartphone, Repeat,
+  Flame, Sparkles, Apple, Moon, Scale, GraduationCap, ClipboardCheck, Briefcase, Euro, Calculator, Smartphone, Repeat, CalendarClock,
 } from 'lucide-react';
 
 export const TUTORIALS = {
@@ -76,9 +76,9 @@ export const TUTORIALS = {
   bodyfuel: {
     titleKey: 'tut_bodyfuel_title',
     steps: [
-      { icon: Apple, titleKey: 'tut_bodyfuel_s1_t', textKey: 'tut_bodyfuel_s1_d' },
-      { icon: Moon, titleKey: 'tut_bodyfuel_s2_t', textKey: 'tut_bodyfuel_s2_d' },
-      { icon: Scale, titleKey: 'tut_bodyfuel_s3_t', textKey: 'tut_bodyfuel_s3_d' },
+      { icon: Apple, titleKey: 'bfn_food', textKey: 'tutn_bf_food_d' },
+      { icon: Dumbbell, titleKey: 'bfn_gym', textKey: 'tutn_bf_gym_d' },
+      { icon: Moon, titleKey: 'bfn_sleep', textKey: 'tutn_bf_sleep_d' },
     ],
   },
   lezioni: {
@@ -86,7 +86,7 @@ export const TUTORIALS = {
     steps: [
       { icon: GraduationCap, titleKey: 'tut_lezioni_s1_t', textKey: 'tut_lezioni_s1_d' },
       { icon: ClipboardCheck, titleKey: 'tut_lezioni_s2_t', textKey: 'tut_lezioni_s2_d' },
-      { icon: Calculator, titleKey: 'tut_lezioni_s3_t', textKey: 'tut_lezioni_s3_d' },
+      { icon: CalendarClock, titleKey: 'tutn_lez_orario_t', textKey: 'tutn_lez_orario_d' },
     ],
   },
   workspace: {

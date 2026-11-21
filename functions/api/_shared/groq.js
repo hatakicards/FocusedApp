@@ -105,7 +105,8 @@ async function callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOu
 // quindi un default piu' basso di 2048 lascia lo stesso margine ma libera
 // molto piu' budget per messaggio (visto in produzione: richieste da ~3900
 // token su un tetto di 8000/minuto, sufficienti per solo 2 messaggi).
-export async function callGroq({ env, prompt, systemPrompt, responseJsonSchema, maxOutputTokens = 900 }) {
+// reasoning: 'medium' per le risposte che devono ragionare bene (chat di Focusy, 1.5).
+export async function callGroq({ env, prompt, systemPrompt, responseJsonSchema, maxOutputTokens = 900, reasoning = 'low' }) {
   const apiKey = env.GROQ_API_KEY;
   if (!apiKey) return { ok: false, status: 500, errText: 'GROQ_API_KEY non configurata su Cloudflare Pages' };
   const model = env.GROQ_MODEL || 'openai/gpt-oss-120b';
@@ -114,12 +115,22 @@ export async function callGroq({ env, prompt, systemPrompt, responseJsonSchema, 
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
   messages.push({ role: 'user', content: prompt });
 
-  const attempts = responseJsonSchema ? REASONING_ATTEMPTS_WITH_SCHEMA : ['low'];
+  const base = reasoning === 'medium' ? 'medium' : 'low';
+  const attempts = responseJsonSchema
+    ? (base === 'medium' ? ['medium', 'high'] : REASONING_ATTEMPTS_WITH_SCHEMA)
+    : [base];
 
   let result;
   for (const reasoningEffort of attempts) {
     result = await callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOutputTokens, reasoningEffort });
     if (result.ok) return result;
+
+    // Richiesta oltre il limite di token al minuto del piano gratuito (413, o 429 con "Request too
+    // large"): si riprova una volta con meno spazio per la risposta e ragionamento leggero.
+    if (result.status === 413 || (result.status === 429 && /too large/i.test(result.errText || ''))) {
+      const smaller = await callGroqOnce({ apiKey, model, messages, responseJsonSchema, maxOutputTokens: Math.min(600, maxOutputTokens), reasoningEffort: 'low' });
+      return smaller.ok ? smaller : { ok: false, status: 429, errText: 'Troppe richieste in questo momento, riprova tra qualche secondo.' };
+    }
 
     if (result.status === 429) {
       await sleep(RATE_LIMIT_RETRY_WAIT_MS);

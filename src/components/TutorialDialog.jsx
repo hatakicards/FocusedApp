@@ -30,12 +30,19 @@ export default function TutorialDialog({ pageId }) {
         // apparire prima del primo tutorial — se l'utente ha una prova
         // gratuita in corso e non l'ha ancora chiuso, aspettiamo.
         const waitingForTrialWelcome = settings?.trial_start && !localStorage.getItem('trial_welcome_seen');
-        if (!seen && !waitingForTrialWelcome) setOpen(true);
-      } catch (e) { /* ignore */ }
+        // 1.5: niente tutorial sopra il benvenuto, il primo avvio o il benvenuto Premium ancora in corso.
+        const onboarding = localStorage.getItem('welcome_v2_done') !== '1'
+          || localStorage.getItem('first_run_pending') === '1'
+          || !!localStorage.getItem('plan_welcome_pending')
+          || new URLSearchParams(window.location.search).has('plan_welcome');
+        if (!seen && !waitingForTrialWelcome && !onboarding) { setOpen(true); return true; }
+        return !!seen;
+      } catch (e) { return true; }
     };
-    check();
+    // Se il benvenuto e' in corso si riprova ogni tanto, finche' non e' finito.
+    const id = check() ? null : setInterval(() => { if (check()) clearInterval(id); }, 1500);
     window.addEventListener('trial-welcome-dismissed', check);
-    return () => window.removeEventListener('trial-welcome-dismissed', check);
+    return () => { if (id) clearInterval(id); window.removeEventListener('trial-welcome-dismissed', check); };
   }, [pageId, tutorial, settings?.trial_start]);
 
   useEffect(() => {

@@ -8,7 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { unlockGuestSubscription } from '@/lib/guestDB';
 import { useUserSettings, useInvalidateAll, useSubscription } from '@/lib/useAppData';
-import { PRICING, useStorePrices, storePriceFor, useFreeTrials, trialDaysFor, priceLabelFor } from '@/lib/plans';
+import { PRICING, useStorePrices, storePriceFor, useFreeTrials, trialDaysFor, priceLabelFor, useIntroDiscounts, introFor, isBlackFriday } from '@/lib/plans';
 import { isRevenueCatAvailable, purchaseSubscription, restorePurchases, presentOfferCodeSheet, tierFromProductId } from '@/lib/revenueCat';
 import WelcomeToProAnimation from '@/components/WelcomeToProAnimation';
 
@@ -49,11 +49,17 @@ export default function PremiumModal({ open, onClose }) {
   const [celebrateTier, setCelebrateTier] = useState(null);
   const storePrices = useStorePrices();
   const freeTrials = useFreeTrials();
+  const introDiscounts = useIntroDiscounts();
   // Il server dice che la prova e' gia' stata usata: da qui in poi pulsante normale.
   const [trialUsed, setTrialUsed] = useState(false);
   // Prova gratuita su Premium: solo se la si sceglie, poi si rinnova da sola. Non a chi e' gia' abbonato.
   const premiumTrialDays = !trialUsed && settings?.subscription_tier !== 'premium' ? trialDaysFor(freeTrials, 'premium', period) : null;
   const periodUnitLabel = period === 'monthly' ? t('pm_month') : period === 'quarterly' ? t('pm_per_quarter') : t('pm_per_year');
+  // Offerta introduttiva a pagamento (Black Friday: 1,99 € il primo mese), solo a chi ne ha diritto.
+  const premiumIntro = !premiumTrialDays && settings?.subscription_tier !== 'premium' ? introFor(introDiscounts, 'premium', period) : null;
+  const introPeriodLabel = premiumIntro
+    ? (premiumIntro.months === 1 || !premiumIntro.months ? t('pmbf_first_month') : t('pmbf_first_months').replace('{n}', String(premiumIntro.months)))
+    : '';
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -161,6 +167,20 @@ export default function PremiumModal({ open, onClose }) {
   };
 
   const renderPrice = (tier) => {
+    if (tier === 'premium' && premiumIntro) {
+      return (
+        <div className="flex flex-col items-center gap-1">
+          {isBlackFriday() && (
+            <span className="mb-1 inline-flex items-center rounded-full bg-background px-2.5 py-0.5 text-[11px] font-black tracking-widest text-foreground">BLACK FRIDAY</span>
+          )}
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-4xl font-black">{premiumIntro.priceString}</span>
+            <span className="text-sm opacity-70">{introPeriodLabel}</span>
+          </div>
+          <span className="text-xs opacity-70">{t('pmbf_then').replace('{price}', priceLabelFor(storePrices, 'premium', period)).replace('{unit}', periodUnitLabel)}</span>
+        </div>
+      );
+    }
     const p = PRICING[tier][period];
     const real = storePriceFor(storePrices, tier, period);
     if (real) {
@@ -294,8 +314,19 @@ export default function PremiumModal({ open, onClose }) {
                 disabled={buying !== null}
                 className="w-full mt-3 rounded-xl bg-background py-3 text-sm font-bold text-foreground disabled:opacity-50"
               >
-                {buying === 'premium' ? t('pm_redirecting') : premiumTrialDays ? t('pm_trial_btn').replace('{n}', String(premiumTrialDays)) : t('pm_premium_btn')}
+                {buying === 'premium'
+                  ? t('pm_redirecting')
+                  : premiumTrialDays
+                    ? t('pm_trial_btn').replace('{n}', String(premiumTrialDays))
+                    : premiumIntro
+                      ? t('pmbf_btn').replace('{price}', premiumIntro.priceString)
+                      : t('pm_premium_btn')}
               </button>
+              {premiumIntro && (
+                <p className="mt-2.5 text-center text-[11px] leading-snug opacity-70">
+                  {t('pmbf_terms').replace('{intro}', premiumIntro.priceString).replace('{period}', introPeriodLabel).replace('{price}', priceLabelFor(storePrices, 'premium', period)).replace('{unit}', periodUnitLabel)}
+                </p>
+              )}
               {premiumTrialDays && (
                 <p className="mt-2.5 text-center text-[11px] leading-snug opacity-70">
                   {t('pm_trial_terms').replace('{n}', String(premiumTrialDays)).replace('{price}', priceLabelFor(storePrices, 'premium', period)).replace('{unit}', periodUnitLabel)}

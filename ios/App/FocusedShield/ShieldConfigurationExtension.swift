@@ -27,6 +27,15 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         let subtitle = subtitleRaw.isEmpty ? "Do it for yourself." : subtitleRaw
         let button = buttonRaw.isEmpty ? "Stay focused" : buttonRaw
         let title = dream.isEmpty ? "Focused" : "\u{201C}\(dream)\u{201D}"
+        // 1.5.1: "Pausa 5 minuti" mentre un blocco e' attivo e non gia' in pausa (la gestisce FocusedShieldAction).
+        // Serve anche perche' Focused stessa puo' restare bloccata: cosi' c'e' sempre un'uscita.
+        let pauseRaw = defaults?.string(forKey: "shield_pause") ?? ""
+        let now = Date().timeIntervalSince1970
+        let block = defaults?.dictionary(forKey: "current_block")
+        let blockEnd = (block?["endAt"] as? NSNumber)?.doubleValue ?? 0
+        let pausedUntil = defaults?.double(forKey: "pause_until") ?? 0
+        let canPause = blockEnd > now + 60 && pausedUntil <= now
+        let pauseLabel = pauseRaw.isEmpty ? "Pause 5 min" : pauseRaw
 
         return ShieldConfiguration(
             backgroundBlurStyle: nil,
@@ -36,7 +45,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
             subtitle: ShieldConfiguration.Label(text: subtitle, color: UIColor(white: 1, alpha: 0.6)),
             primaryButtonLabel: ShieldConfiguration.Label(text: button, color: Self.black),
             primaryButtonBackgroundColor: .white,
-            secondaryButtonLabel: nil
+            secondaryButtonLabel: canPause ? ShieldConfiguration.Label(text: pauseLabel, color: UIColor(white: 1, alpha: 0.75)) : nil
         )
     }
 

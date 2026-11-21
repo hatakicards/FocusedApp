@@ -31,7 +31,7 @@ export function useFocusScheduler() {
   useEffect(() => {
     if (!isScreenTimeSupported() || !sessions) return undefined;
     const list = recurringSchedules(sessions).filter((s) => s.schedule_active !== false && s.block_mode !== 'off');
-    const sync = () => setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button') })
+    const sync = () => setShieldContent({ dream: settings?.dream, subtitle: t('shield_subtitle'), button: t('shield_button'), pause: t('shield_pause') })
       .then(() => syncSchedules(list.map(toNativeSchedule)))
       .then(() => window.dispatchEvent(new Event('focus-native-sync')));
     sync();

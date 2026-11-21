@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isRevenueCatAvailable, getStorePrices, getFreeTrials, PRODUCT_IDS } from '@/lib/revenueCat';
+import { isRevenueCatAvailable, getStorePrices, getFreeTrials, getIntroDiscounts, PRODUCT_IDS } from '@/lib/revenueCat';
 
 // Prezzi di ripiego (checkout web con Stripe, o se lo store non risponde). Sull'app iOS i prezzi
 // mostrati sono sempre quelli veri letti dallo store (vedi useStorePrices), cosi' non possono
@@ -47,6 +47,23 @@ export function useFreeTrials() {
   }, []);
   return trials;
 }
+
+// Offerta introduttiva a pagamento (Black Friday): { priceString, months } per piano e periodo, o null.
+export function useIntroDiscounts() {
+  const [discounts, setDiscounts] = useState(null);
+  useEffect(() => {
+    if (!isRevenueCatAvailable()) return undefined;
+    let alive = true;
+    getIntroDiscounts().then((d) => { if (alive) setDiscounts(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return discounts;
+}
+
+export const introFor = (discounts, tier, period) => discounts?.[PRODUCT_IDS[tier]?.[period]] || null;
+
+// Black Friday 2026 (21 novembre - 2 dicembre): solo per l'etichetta, il prezzo arriva da Apple.
+export const isBlackFriday = (now = new Date()) => now >= new Date(2026, 10, 20) && now < new Date(2026, 11, 3);
 
 // Giorni di prova per piano e periodo, oppure null se non c'e'.
 export function trialDaysFor(trials, tier, period) {

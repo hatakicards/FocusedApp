@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Pencil, Scale, Ruler, Moon, TrendingDown, Calculator, ChevronRight, ChevronDown, Dumbbell, Utensils, Sparkles, Beef, Wheat, Droplet, Flame } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useBodyFuelEntries, useUserSettings, useInvalidateAll, useCustomFoods, useOptimisticBodyFuelEntry, useOptimisticCustomFoodSave, useOptimisticSettingsUpdate, useOptimisticEntityDelete, useSubscription } from '@/lib/useAppData';
 import { useAuth } from '@/lib/AuthContext';
@@ -14,14 +14,17 @@ import CalorieCalculator from '@/components/bodyfuel/CalorieCalculator';
 import SleepDebtTracker from '@/components/SleepDebtTracker';
 import NapsCard from '@/components/bodyfuel/NapsCard';
 import { entrySleepRating, entrySleepMinutes } from '@/lib/sleepData';
-import GymActions from '@/components/gym/GymActions';
-import GymLocationCard from '@/components/bodyfuel/GymLocationCard';
-import StepsCard from '@/components/bodyfuel/StepsCard';
+import GymSection from '@/components/bodyfuel/GymSection';
+import FocusyAssistant from '@/components/FocusyAssistant';
 import { isSenseEnabled, getSleepFromHealth, getNapsFromHealth } from '@/lib/healthSense';
 import HealthSources from '@/components/HealthSources';
 import TutorialDialog from '@/components/TutorialDialog';
 import HelpButton from '@/components/HelpButton';
 import LockedPreview from '@/components/LockedPreview';
+import { useTourTab } from '@/lib/planWelcome';
+
+// Athlete (1.5): tre sezioni, Gym, Food e Sleep. Si apre sempre su Food.
+const TABS = [['food', Utensils, 'bfn_food', '#f97316'], ['gym', Dumbbell, 'bfn_gym', '#10b981'], ['sleep', Moon, 'bfn_sleep', '#a855f7']];
 
 function calculateSleepDuration(bedtime, wakeTime) {
   if (!bedtime || !wakeTime) return { hours: 0, minutes: 0 };
@@ -69,6 +72,9 @@ function BodyFuelInner() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sleepAuto, setSleepAuto] = useState(false);
+  const [tab, setTab] = useState('food');
+  useTourTab('athlete', setTab);
+  const [focusyOpen, setFocusyOpen] = useState(false);
   // Le aggiunte/rimozioni/modifiche cibo sono asincrone; senza questa coda,
   // due tap ravvicinati potevano generare due salvataggi in parallelo e
   // quello piu' lento a rispondere sovrascriveva l'altro nella cache
@@ -306,220 +312,284 @@ function BodyFuelInner() {
     setEditEntry({ ...editEntry, food_log: newLog });
   };
 
+  const selectTab = (id) => setTab(id);
+
+  // Focusy ha registrato del cibo: la lista di oggi si ricarica dal server.
+  const handleFocusyChange = async (open) => {
+    setFocusyOpen(open);
+    if (open) return;
+    await qc.refetchQueries({ queryKey: ['bodyFuelEntries', user?.id] });
+    const fresh = (qc.getQueryData(['bodyFuelEntries', user?.id]) || []).find((e) => e.date === today);
+    if (fresh?.food_log) {
+      foodLogRef.current = fresh.food_log;
+      setFoodLog(fresh.food_log);
+    }
+  };
+
+  const macroCards = [
+    { ...macroBoxes[1], goal: settings?.protein_goal || 0, Icon: Beef },
+    { ...macroBoxes[2], goal: settings?.carbs_goal || 0, Icon: Wheat },
+    { ...macroBoxes[3], goal: settings?.lipids_goal || 0, Icon: Droplet },
+  ];
+  const sleepTotalMin = entrySleepMinutes({ sleep_hours: sleepHours, sleep_minutes: sleepMinutes, naps });
+  const napMin = Math.max(0, sleepTotalMin - (sleepHours * 60 + sleepMinutes));
+  const calPct = calorieGoal > 0 ? Math.min(100, Math.round((totals.kcal / calorieGoal) * 100)) : 0;
+
   return (
     <div className="px-5 safe-top pb-4">
-      <header className="mb-6 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight">{t('personal_athlete')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('personal_athlete_sub')}</p>
-        </div>
+      <header className="mb-5 flex items-start justify-between gap-3">
+        <h1 className="text-3xl font-bold tracking-tight">{t('personal_athlete')}</h1>
         <HelpButton pageId="bodyfuel" className="mt-1" />
       </header>
 
-      <div data-tour="bf-top">
-        <StepsCard className="mb-6" />
-        <GymActions className="mb-3" />
-        <GymLocationCard />
-      </div>
-
-      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_food')}</h2>
-      {/* Calorie plan (BMR/TDEE calculator) */}
-      <button
-        data-tour="bf-food"
-        onClick={() => setShowCalculator(true)}
-        className="w-full rounded-2xl border border-border bg-card p-4 mb-4 text-left active:bg-accent transition-colors"
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Calculator size={16} className="text-red-500" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('nc_plan_title')}</p>
-          </div>
-          <ChevronRight size={16} className="text-muted-foreground" />
-        </div>
-        {settings?.daily_calories_goal > 0 ? (
-          <div>
-            <div className="flex items-baseline gap-1.5 mb-2">
-              <p className="text-2xl font-bold tabular-nums">{settings.daily_calories_goal}</p>
-              <p className="text-xs text-muted-foreground">{t('bf_kcal')}/{t('nc_day')}</p>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="text-center">
-                <p className="text-[10px] text-muted-foreground">{t('bf_proteins')}</p>
-                <p className="text-sm font-bold text-blue-400 tabular-nums">{settings.protein_goal || 0}{t('bf_g')}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] text-muted-foreground">{t('bf_carbs')}</p>
-                <p className="text-sm font-bold text-amber-400 tabular-nums">{settings.carbs_goal || 0}{t('bf_g')}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] text-muted-foreground">{t('bf_lipids')}</p>
-                <p className="text-sm font-bold text-purple-400 tabular-nums">{settings.lipids_goal || 0}{t('bf_g')}</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t('nc_no_plan')}</p>
-        )}
-      </button>
-
-      {/* Food tracker */}
-      <FoodTracker foodLog={foodLog} onAdd={handleAddFood} onRemove={handleRemoveFood} onEdit={handleEditFood} customFoods={customFoods || []} onAddCustomFood={handleAddCustomFood} saving={savingFood} />
-
-      {/* 4 macro boxes */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {macroBoxes.map((m) => (
+      {/* Gym · Food · Sleep */}
+      <div className="mb-6 grid grid-cols-3 gap-1 rounded-full bg-foreground/[0.06] p-1" role="tablist">
+        {TABS.map(([id, Icon, key, color]) => (
           <button
-            key={m.key}
-            onClick={() => setChartDialog(m)}
-            className="rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => selectTab(id)}
+            className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-xs font-semibold transition-colors ${tab === id ? 'bg-foreground text-background' : 'text-muted-foreground'}`}
           >
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{m.label}</p>
-            <p className="text-2xl font-bold tabular-nums" style={{ color: m.color }}>{m.value}</p>
-            <p className="text-[10px] text-muted-foreground">{m.unit}</p>
+            <Icon size={14} strokeWidth={2} style={{ color }} /> {t(key)}
           </button>
         ))}
       </div>
 
-      {/* Calorie rating */}
-      {calorieGoal > 0 && totals.kcal > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{t('bf_calorie_rating')}</p>
-          <p className="text-xs text-muted-foreground mb-3">{t('bf_calorie_rating_q')} ({calorieGoal} {t('bf_kcal')})</p>
-          <div className="flex items-center justify-center gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <div
-                key={n}
-                className={`h-2.5 flex-1 rounded-full transition-colors ${n <= calorieRating ? 'bg-emerald-500' : 'bg-muted'}`}
-              />
+      {tab === 'gym' && (
+        <div>
+          <GymSection />
+        </div>
+      )}
+
+      {tab === 'food' && (
+        <div>
+          {/* Calorie di oggi, grandi (il tour evidenzia calorie + macro) */}
+          <div data-tour="bf-food">
+          <button
+            onClick={() => setChartDialog(macroBoxes[0])}
+            className="relative mb-3 w-full overflow-hidden rounded-3xl border border-border bg-card p-5 text-left transition-transform active:scale-[0.99]"
+          >
+            <span className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl" style={{ background: '#f97316' }} />
+            <p className="relative flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"><Flame size={13} style={{ color: '#f97316' }} /> {t('bf_calories')}</p>
+            <div className="mt-1.5 flex items-baseline gap-2">
+              <span className="titanium-text text-6xl font-extrabold leading-none tabular-nums">{totals.kcal}</span>
+              <span className="text-sm text-muted-foreground">{calorieGoal > 0 ? `/ ${calorieGoal} ${t('bf_kcal')}` : t('bf_kcal')}</span>
+            </div>
+            {calorieGoal > 0 ? (
+              <>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${calPct}%`, background: 'linear-gradient(90deg, #fbbf24, #f97316, #ef4444)' }} />
+                </div>
+                {totals.kcal > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">{t('bf_calorie_rating')}: <span className="font-semibold text-foreground">{calorieRating}/5</span></p>
+                )}
+              </>
+            ) : (
+              totals.kcal > 0 && <p className="mt-2 text-xs text-muted-foreground">{t('bf_no_goal')}</p>
+            )}
+          </button>
+
+          {/* Macro, tre riquadri come i piani */}
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            {macroCards.map(({ key, label, value, goal, Icon, unit, color }) => (
+              <button
+                key={key}
+                onClick={() => setChartDialog(macroBoxes.find((m) => m.key === key))}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 text-center transition-colors active:bg-accent"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-black" style={{ boxShadow: `inset 0 0 0 1px ${color}55` }}>
+                  <Icon size={20} strokeWidth={1.75} style={{ color }} />
+                </span>
+                <span className="text-lg font-bold leading-none tabular-nums">{Math.round(value)}<span className="text-xs font-semibold text-muted-foreground">{unit}</span></span>
+                <span className="text-[10px] text-muted-foreground">{goal > 0 ? `/ ${goal}${unit} · ` : ''}{label}</span>
+                {goal > 0 && (
+                  <span className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <span className="block h-full rounded-full" style={{ width: `${Math.min(100, Math.round((value / goal) * 100))}%`, backgroundColor: color }} />
+                  </span>
+                )}
+              </button>
             ))}
           </div>
-          <p className="text-center text-2xl font-bold mt-2 tabular-nums" style={{ color: calorieRating >= 4 ? '#10b981' : calorieRating >= 3 ? '#f59e0b' : '#ef4444' }}>
-            {calorieRating}/5
-          </p>
-        </div>
-      )}
-      {calorieGoal === 0 && totals.kcal > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4 mb-4 text-center">
-          <p className="text-xs text-muted-foreground">{t('bf_no_goal')}</p>
+          </div>
+
+          <FoodTracker foodLog={foodLog} onAdd={handleAddFood} onRemove={handleRemoveFood} onEdit={handleEditFood} customFoods={customFoods || []} onAddCustomFood={handleAddCustomFood} saving={savingFood} />
+
+          {/* Focusy registra il cibo da solo */}
+          <button
+            onClick={() => setFocusyOpen(true)}
+            className="titanium-bg mb-8 flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left transition-transform active:scale-[0.98]"
+          >
+            <Sparkles size={20} className="shrink-0" />
+            <span className="text-sm font-bold leading-snug">{t('bfn_focusy_food')}</span>
+          </button>
+
+          {/* Piano alimentare */}
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="mb-8 w-full rounded-2xl border border-border bg-card p-4 text-left transition-colors active:bg-accent"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calculator size={16} style={{ color: '#f97316' }} />
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('nc_plan_title')}</p>
+              </div>
+              <ChevronRight size={16} className="text-muted-foreground" />
+            </div>
+            {settings?.daily_calories_goal > 0 ? (
+              <div>
+                <div className="mb-2 flex items-baseline gap-1.5">
+                  <p className="text-2xl font-bold tabular-nums">{settings.daily_calories_goal}</p>
+                  <p className="text-xs text-muted-foreground">{t('bf_kcal')}/{t('nc_day')}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground">{t('bf_proteins')}</p>
+                    <p className="text-sm font-bold tabular-nums">{settings.protein_goal || 0}{t('bf_g')}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground">{t('bf_carbs')}</p>
+                    <p className="text-sm font-bold tabular-nums">{settings.carbs_goal || 0}{t('bf_g')}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground">{t('bf_lipids')}</p>
+                    <p className="text-sm font-bold tabular-nums">{settings.lipids_goal || 0}{t('bf_g')}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('nc_no_plan')}</p>
+            )}
+          </button>
+
+          {/* Corpo */}
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_body')}</h2>
+          <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">{t('bf_height')}</p>
+                <div className="flex items-center gap-2">
+                  <Ruler size={16} className="shrink-0 text-muted-foreground" />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder={t('bf_height_ph')}
+                    className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">{t('bf_peso')}</p>
+                <div className="flex items-center gap-2">
+                  <Scale size={16} className="shrink-0 text-muted-foreground" />
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    placeholder={t('bf_peso_ph')}
+                    className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            </div>
+            {weightEntries.length >= 2 && (
+              <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <TrendingDown size={14} className={weightTrend > 0 ? 'rotate-180' : ''} />
+                <span>{weightTrend > 0 ? '+' : ''}{weightTrend.toFixed(1)} {t('bf_kg')} {t('bf_trend')}</span>
+              </div>
+            )}
+            <button
+              onClick={handleBodySave}
+              disabled={saving}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background disabled:opacity-40"
+            >
+              <Plus size={16} /> {saving ? t('salvataggio') : t('salva')}
+            </button>
+          </div>
         </div>
       )}
 
-      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_sleep')}</h2>
-      {/* Sleep debt tracker */}
-      <div data-tour="bf-sleep"><SleepDebtTracker /></div>
+      {tab === 'sleep' && (
+        <div>
+          {/* Quanto hai dormito, grande */}
+          <div data-tour="bf-sleep" className="relative mb-3 overflow-hidden rounded-3xl border border-border bg-card p-5">
+            <span className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-25 blur-3xl" style={{ background: '#a855f7' }} />
+            <p className="relative flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"><Moon size={13} style={{ color: '#a855f7' }} /> {t('bfn_slept')}</p>
+            <div className="mt-1.5 flex items-baseline gap-3">
+              <span className="titanium-text text-6xl font-extrabold leading-none tabular-nums">
+                {Math.floor(sleepTotalMin / 60)}h {String(sleepTotalMin % 60).padStart(2, '0')}
+              </span>
+              {sleepRating > 0 && <span className="rounded-full px-2 py-0.5 text-sm font-semibold" style={{ color: '#c084fc', backgroundColor: '#a855f722' }}>{sleepRating}/5</span>}
+            </div>
+            {napMin > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">{t('bfn_incl_naps').replace('{m}', String(napMin))}</p>
+            )}
+          </div>
 
-      {/* Sleep routine */}
-      <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Moon size={16} className="text-purple-400" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('bf_sleep_routine')}</p>
-        </div>
-        <div className="space-y-3">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1.5">{t('bf_sleep_bedtime')}</p>
-            <input
-              type="time"
-              value={sleepBedtime}
-              onChange={(e) => handleSleepChange(e.target.value, sleepWakeTime)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-            />
+          {/* Notte */}
+          <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Moon size={16} style={{ color: '#a855f7' }} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('bfn_night')}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">{t('bf_sleep_bedtime')}</p>
+                <input
+                  type="time"
+                  value={sleepBedtime}
+                  onChange={(e) => handleSleepChange(e.target.value, sleepWakeTime)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+                />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">{t('bf_sleep_wake')}</p>
+                <input
+                  type="time"
+                  value={sleepWakeTime}
+                  onChange={(e) => handleSleepChange(sleepBedtime, e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+                />
+              </div>
+            </div>
+            {sleepAuto && <p className="mt-2 text-[11px] text-muted-foreground">{t('bf_sleep_auto')}</p>}
+            {(sleepHours > 0 || sleepMinutes > 0) && (
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">{t('bf_sleep_duration')}</p>
+                <p className="text-sm font-semibold tabular-nums">{sleepHours}h {sleepMinutes}m</p>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1.5">{t('bf_sleep_wake')}</p>
-            <input
-              type="time"
-              value={sleepWakeTime}
-              onChange={(e) => handleSleepChange(sleepBedtime, e.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-            />
-          </div>
-          {sleepAuto && <p className="text-[11px] text-muted-foreground">{t('bf_sleep_auto')}</p>}
-          {(sleepHours > 0 || sleepMinutes > 0) && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{t('bf_sleep_duration')}</p>
-              <p className="text-sm font-semibold">{sleepHours}h {sleepMinutes}m</p>
+
+          <NapsCard naps={naps} onChange={handleNapsChange} />
+
+          <SleepDebtTracker />
+
+          {sleepChartData.length >= 1 && (
+            <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+              <p className="mb-3 text-xs font-semibold">{t('bf_andamento_sleep')}</p>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={sleepChartData}>
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" />
+                  <YAxis domain={[0, 12]} tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" width={30} tickFormatter={(v) => `${v}h`} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(0 0% 4%)', border: '1px solid hsl(0 0% 14%)', borderRadius: 12, fontSize: 12 }}
+                    labelStyle={{ color: 'hsl(0 0% 45%)' }}
+                    formatter={(value) => [`${value.toFixed(1)}h`, t('bf_sleep')]}
+                  />
+                  <Line type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} dot={{ r: 3, fill: '#a855f7' }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           )}
-          {sleepRating > 0 && (
-            <div className="flex items-center justify-center gap-1 rounded-xl bg-purple-500/20 px-3 py-1.5">
-              <span className="text-sm font-bold text-purple-400">{sleepRating}/5</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <NapsCard naps={naps} onChange={handleNapsChange} />
-
-      {/* Sleep trend chart */}
-      {sleepChartData.length >= 1 && (
-        <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-          <p className="text-xs font-semibold mb-3">{t('bf_andamento_sleep')}</p>
-          <ResponsiveContainer width="100%" height={160}>
-            <LineChart data={sleepChartData}>
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" />
-              <YAxis domain={[0, 12]} tick={{ fontSize: 10 }} stroke="hsl(0 0% 45%)" width={30} tickFormatter={(v) => `${v}h`} />
-              <Tooltip
-                contentStyle={{ background: 'hsl(0 0% 4%)', border: '1px solid hsl(0 0% 14%)', borderRadius: 12, fontSize: 12 }}
-                labelStyle={{ color: 'hsl(0 0% 45%)' }}
-                formatter={(value) => [`${value.toFixed(1)}h`, t('bf_sleep')]}
-              />
-              <Line type="monotone" dataKey="hours" stroke="#a855f7" strokeWidth={2} dot={{ r: 3, fill: '#a855f7' }} activeDot={{ r: 5 }} />
-            </LineChart>
-          </ResponsiveContainer>
         </div>
       )}
 
-      <h2 className="mb-3 mt-9 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t('ath_tab_body')}</h2>
-      {/* Height and weight */}
-      <div className="rounded-2xl border border-border bg-card p-4 mb-4">
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">{t('bf_height')}</p>
-            <div className="flex items-center gap-2">
-              <Ruler size={16} className="text-muted-foreground shrink-0" />
-              <input
-                type="number"
-                inputMode="numeric"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-                placeholder={t('bf_height_ph')}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-              />
-            </div>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5">{t('bf_peso')}</p>
-            <div className="flex items-center gap-2">
-              <Scale size={16} className="text-muted-foreground shrink-0" />
-              <input
-                type="number"
-                inputMode="decimal"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                placeholder={t('bf_peso_ph')}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
-              />
-            </div>
-          </div>
-        </div>
-        {weightEntries.length >= 2 && (
-          <div className="flex items-center gap-2 mb-3 text-xs">
-            <TrendingDown size={14} className={weightTrend <= 0 ? 'text-emerald-500' : 'text-red-500'} />
-            <span className={weightTrend <= 0 ? 'text-emerald-500' : 'text-red-500'}>
-              {weightTrend > 0 ? '+' : ''}{weightTrend.toFixed(1)} {t('bf_kg')} {t('bf_trend')}
-            </span>
-          </div>
-        )}
-        <button
-          onClick={handleBodySave}
-          disabled={saving}
-          className="w-full rounded-xl bg-foreground py-2.5 text-sm font-semibold text-background disabled:opacity-40 flex items-center justify-center gap-2"
-        >
-          <Plus size={16} /> {saving ? t('salvataggio') : t('salva')}
-        </button>
-      </div>
-
-      {/* History: chiuso finche' non lo apri */}
+      {/* Storico: chiuso finche' non lo apri */}
       <button
         onClick={() => setHistoryOpen((o) => !o)}
         className="mb-3 mt-9 flex w-full items-center justify-between text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"
@@ -672,6 +742,7 @@ function BodyFuelInner() {
         color={chartDialog?.color || '#ef4444'}
       />
       <HealthSources className="mb-4" />
+      <FocusyAssistant hideTrigger open={focusyOpen} onOpenChange={handleFocusyChange} />
       <CalorieCalculator open={showCalculator} onClose={() => setShowCalculator(false)} />
       <TutorialDialog pageId="bodyfuel" />
     </div>

@@ -1,10 +1,11 @@
 import { BookOpen } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import BottomSelect from '@/components/BottomSelect';
 
-// Scelta della materia tra quelle gia' aggiunte (pulsante "Materie" in alto):
-// niente testo libero, cosi' i nomi restano uguali ovunque e Focusy sa di cosa
-// si parla. Se non ce n'e' nessuna, rimanda ad aggiungerle.
-export default function SubjectPicker({ subjects, value, onChange, onManage }) {
+// Scelta della materia tra quelle gia' aggiunte (pulsante "Materie" in alto), a tendina (1.5:
+// niente piu' elenco di pulsanti). Niente testo libero, cosi' i nomi restano uguali ovunque e
+// Focusy sa di cosa si parla. Se non ce n'e' nessuna, rimanda ad aggiungerle.
+export default function SubjectPicker({ subjects, value, onChange, onManage, placeholder }) {
   const t = useT();
   if (!subjects || subjects.length === 0) {
     return (
@@ -18,19 +19,12 @@ export default function SubjectPicker({ subjects, value, onChange, onManage }) {
     );
   }
   return (
-    <div className="flex flex-wrap gap-2">
-      {subjects.map((s) => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => onChange(s)}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            value === s ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground'
-          }`}
-        >
-          {s}
-        </button>
-      ))}
-    </div>
+    <BottomSelect
+      value={value}
+      onValueChange={onChange}
+      label={t('ls_materie')}
+      placeholder={placeholder || t('sp_scegli')}
+      options={subjects.map((s) => ({ value: s, label: s }))}
+    />
   );
 }

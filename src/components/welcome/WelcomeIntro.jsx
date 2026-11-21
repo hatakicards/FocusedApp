@@ -12,7 +12,10 @@ const TUT_ICONS = [CheckCircle, Calendar, Play, Target];
 // Benvenuto a schermo intero, prima del login (e una volta sola anche per chi e' gia' dentro):
 // logo, nome, lingua, sogno, promemoria, altri permessi, due domande e un giro a passi dell'app.
 // In alto la barretta dei passi; in basso, sul giro, "Sai gia' come funziona?".
-const STAGES = ['splash', 'name', 'lang', 'dream', 'notif', 'perms', 'q1', 'q2', 'qa', 'qb', 'qc', 'tour'];
+// 1.5: benvenuto corto. Prima erano 15 schermate (lingua, 2 domande motivazionali, 3 domande, 4 schede di
+// tour): troppe. La lingua e' quella del telefono (si cambia nelle impostazioni), le pagine si spiegano da
+// sole con i loro mini-tutorial. Dopo l'ultima domanda si va al login.
+const STAGES = ['splash', 'name', 'dream', 'notif', 'perms', 'qa'];
 
 // Le domande di impostazione. Le risposte diventano impostazioni vere (vedi setupToSettings in pages/Welcome).
 const SETUP_QUESTIONS = {
@@ -102,7 +105,10 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
     while (i > 1 && i < STAGES.length - 1 && skipStage(STAGES[i])) i += dir;
     return STAGES[Math.max(1, i)];
   };
-  const goNext = (from = stage) => setStage(stepFrom(from, 1));
+  const goNext = (from = stage) => {
+    if (STAGES.indexOf(from) >= STAGES.length - 1) { finish(false); return; }
+    setStage(stepFrom(from, 1));
+  };
 
   const idx = STAGES.indexOf(stage);
 
@@ -181,7 +187,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
       onBlocked?.();
       return;
     }
-    setStage('lang');
+    goNext('name');
   };
 
   const goBack = () => setStage(stepFrom(stage, -1));
@@ -389,7 +395,7 @@ export default function WelcomeIntro({ initial = {}, onDone, onBlocked, existing
         {/* Apple 5.1.1(iv): "Continua" apre sempre le richieste di iOS (una dopo l'altra), poi si va avanti
             qualunque sia la risposta. Niente "Consenti" e niente "Non ora". */}
         <button
-          onClick={async () => { if (pending) await askAll(); setStage('q1'); }}
+          onClick={async () => { if (pending) await askAll(); goNext('perms'); }}
           disabled={busy}
           className={`${titaniumBtn} mt-8`}
         >

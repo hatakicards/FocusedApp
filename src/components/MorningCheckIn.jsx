@@ -37,7 +37,7 @@ function yesterdayISO() {
   return d.toISOString().split('T')[0];
 }
 
-export default function MorningCheckIn() {
+export default function MorningCheckIn({ enabled = true }) {
   const t = useT();
   const { locale } = useI18n();
   const navigate = useNavigate();
@@ -94,7 +94,7 @@ export default function MorningCheckIn() {
     setOpen(false);
   };
 
-  if (!open) return null;
+  if (!open || !enabled) return null;
 
   const activeActivities = (activities || []).filter((a) => !a.archived && !activityLimit.isLocked(a.id));
   const yesterdayRatings = (ratings || []).filter((r) => r.date === yesterday);
